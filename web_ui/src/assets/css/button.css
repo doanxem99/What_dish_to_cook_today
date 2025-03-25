@@ -1,0 +1,57 @@
+.ingredient_button{
+    border: 1px solid rgb(107, 107, 107);
+    border-radius: 20px;
+    background-color: transparent;
+    padding: 4px 8px;
+    margin: 2px;
+    color: black;
+    cursor: pointer;
+}
+.ingredient_button:hover{
+    border: 1px solid blue;
+    background-color: rgb(186, 148, 255);
+}
+.ingredient_button_disable{
+    border: 1px solid rgb(130, 130, 130) !important;
+    background-color: transparent !important;
+    color: rgb(130, 130, 130) !important;
+    cursor: default !important;
+}
+.search_button{
+    width: 100%;
+    border-radius: 20px;
+    padding: 10px;
+    cursor: pointer;
+}
+
+.action_button{
+    display: block;
+    width: 100%;
+    padding: 10px;
+    border-radius: 10px;
+    background-color: transparent;
+    cursor: pointer;
+}
+
+.floating_button{
+    position: fixed;
+    bottom: 5%;
+    right: 5%;
+    
+    display: inline;
+    width: 60px;
+    height: 60px;
+    background-color: black;
+    border-radius: 100px;
+    
+    cursor: pointer;
+}
+.floating_button img{
+    position: absolute;
+    top: 0;left: 0;right: 0;bottom: 0;
+    margin: auto;
+
+    display: inline;
+    width: 30px;
+    height: 30px;
+}

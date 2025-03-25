@@ -1,0 +1,15 @@
+.header_view{
+    position: absolute;
+    top: 0;left: 0;right: 0;
+    z-index: 1!important;
+    display: block;
+    text-align: center;
+    padding: 40px;
+}
+.header_menu{
+    color: black;
+    margin: 10px;
+}
+.header_space{
+    height: 150px;
+}

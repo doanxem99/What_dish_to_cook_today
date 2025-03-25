@@ -1,0 +1,10 @@
+/*đặt các biến đổi css chung cho tất cả các icon css*/
+/*những dòng này giúp ẩn phần thừa của icon*/
+.icon{
+    display: inline-block; /* add line */
+    line-height: 1; /* add line */
+}
+.icon:before {
+    display: inline-block; /* add line */
+    vertical-align: top; /* add line. maybe it's not necessary */
+}

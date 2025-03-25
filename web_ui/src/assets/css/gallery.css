@@ -1,0 +1,28 @@
+.gallery_open{
+    display: block;
+    text-align: center;
+    padding: 10px;
+}
+.gallery_open>img{
+    display: inline-block;
+    width: 70px;height: 70px;
+    cursor: pointer;
+}
+
+
+.upload_file{
+    padding: 10px 0;
+    display: block;
+}
+.upload_file img{
+    display: inline-block;
+    width: 70px;height: 70px;
+    cursor: pointer;
+}
+.upload_file>input{
+    display: none;
+    /*giả pháp cho safari*/
+    visibility:hidden;
+    width:0;
+    height:0
+}

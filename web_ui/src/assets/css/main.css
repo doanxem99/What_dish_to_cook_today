@@ -1,0 +1,93 @@
+@import "./base.css";
+@import "./scroll.css";
+@import "./font_size.css";
+@import "./font_style.css";
+@import "./icon.css";
+@import "./link.css";
+@import "./image.css";
+@import "./button.css";
+@import "./inputfield.css";
+@import "./textarea.css";
+@import "./header.css";
+@import "./menu_title.css";
+@import "./view.css";
+@import "./edit.css";
+@import "./splitter.css";
+@import "./gallery.css";
+@import "./dialog.css";
+
+/*#app {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+
+  font-weight: normal;
+}
+
+a,
+.green {
+  text-decoration: none;
+  color: hsla(160, 100%, 37%, 1);
+  transition: 0.4s;
+}
+
+@media (hover: hover) {
+  a:hover {
+    background-color: hsla(160, 100%, 37%, 0.2);
+  }
+}
+
+@media (min-width: 1024px) {
+  body {
+    display: flex;
+    place-items: center;
+  }
+
+  #app {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 0 2rem;
+  }
+}*/
+
+main {
+  position: absolute;
+  left: 0;right: 0;top: 0;
+  margin: auto;
+  max-width: 1280px;
+}
+*{
+  /*xác định các tính kích thước của phần tử đã bao gồm cả border và padding*/
+  /*mặc định là tính kích thước của phần tử không bao gồm border và padding*/
+  /*việc này để căn tỉ lệ tốt hơn*/
+  box-sizing: border-box;
+  
+  margin:0;
+  padding: 0;
+  -moz-user-select: none;
+  -ms-user-select: none; 
+  user-select: none;
+  
+  /*phông chữa Helvetica được hỗ trợ rộng rãi nhất nên để dự phòng sau cùng*/
+  font-family: Nunito,'Open Sans', 'Helvetica';
+}
+/*hủy đường viền bên ngoài khi được nhấn trúng*/
+textarea:focus{
+  outline: none;
+}
+input:focus{
+  outline: none;
+}
+select{
+  border: none;
+  outline: none;
+  scroll-behavior: smooth;
+}
+select:focus{
+  outline: none;
+}
+/*tắt dấu gạch chân phía dưới của tất cả các thẻ a*/
+a{
+  text-decoration: none!important;
+}
+

@@ -1,0 +1,27 @@
+.input_field{
+    width: 100%;
+    border-radius: 20px;
+    padding: 10px;
+    cursor: auto;
+}
+
+.action_inputfield{
+    width: 100%;
+    padding: 10px;
+    cursor: auto;
+    border: none;
+    border-bottom: solid rgba(117, 117, 117, 0.508)
+}
+.action_small_inputfield{
+  border-radius: 10px;
+  padding: 5px;
+  cursor: auto;
+}
+  
+.hidden_inputfield{
+  display: none;
+  /*giả pháp cho safari*/
+  visibility:hidden;
+  width:0;
+  height:0
+}

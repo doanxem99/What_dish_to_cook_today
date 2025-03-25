@@ -1,0 +1,13 @@
+/*Font sizes for web*/
+.small_font_size{
+    font-size: 14px;
+}
+.medium_font_size{
+    font-size: 18px;
+}
+.big_font_size{
+    font-size: 30px;
+}
+.large_font_size{
+    font-size: 50px;
+}

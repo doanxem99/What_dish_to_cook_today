@@ -1,0 +1,20 @@
+.editable_item{
+    position: relative;
+}
+.editable_group{
+    position: absolute;
+    display: block;
+    top: 0; bottom: 0;
+    margin: auto;
+    height: 20px;
+    width: 100%;
+    text-align: right;
+}
+.editable_item_button{
+    display: inline;
+    width: 20px;
+    height: 20px;
+    margin-left: 10px;
+
+    cursor: pointer;
+}

@@ -1,0 +1,28 @@
+.splitter{
+    display: block;
+    width: 100%;
+    height: 1px;
+    background-color: black;
+}
+
+.splitter_info {
+    overflow: hidden;
+    text-align: center;
+}
+.splitter_info:before, .splitter_info:after {
+    content: "";
+    background-color: #000;
+    display: inline-block;
+    height: 1px;
+    position: relative;
+    vertical-align: middle;
+    width: 50%;
+}
+.splitter_info:before {
+    right: 0.5em;
+    margin-left: -50%;
+} 
+.splitter_info:after {
+    left: 0.5em;
+    margin-right: -50%;
+}

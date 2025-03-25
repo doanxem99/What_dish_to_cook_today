@@ -1,0 +1,43 @@
+.screen_view{
+    display: block;
+    padding: 40px;
+}
+
+.screen_view_block{
+    height: 100vh;
+}
+
+.view_center_vertical>*{
+    display: inline-block;
+    width: 100%;
+    vertical-align: middle;
+}
+/*Create fake elemet to align middle of vertical*/
+.view_center_vertical:before{
+    content: "";
+    height: 100%;
+    width: 0;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.view_space{
+    padding: 10px 0;
+}
+
+/* Create two equal columns that floats next to each other */
+.half_split_column {
+    vertical-align: top;
+    display: inline-block;
+    width: 50%;
+    padding: 10px 20px;
+}
+/* Clear floats after the columns */
+/*.half_split:after {
+content: "";
+display: table;
+clear: both;
+}*/
+
+
+  

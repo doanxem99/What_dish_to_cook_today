@@ -1,0 +1,6 @@
+.menu_title{
+    text-align: right;
+}
+.menu_title>span{
+    padding: 10px;
+}

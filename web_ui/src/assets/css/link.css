@@ -1,0 +1,30 @@
+.link_hover {
+    position: relative;
+    text-decoration: none;
+    vertical-align: top;
+}
+.link_hover:before {
+    content: "";
+    position: absolute;
+    width: 0;
+    height: 1px;
+    bottom: 0;
+    left: 0;
+    background-color: black;
+    visibility: hidden;
+    -webkit-transition: all 0.2s ease-in-out 0s;
+    transition: all 0.2s ease-in-out;
+}
+.link_hover:hover:before {
+    visibility: visible;
+    width: 100%;
+}
+/*Link selected*/
+.link_hover_selected:before {
+    visibility: visible;
+    width: 100%!important;
+}
+.router-link-active:before {
+    visibility: visible;
+    width: 100%!important;
+}
