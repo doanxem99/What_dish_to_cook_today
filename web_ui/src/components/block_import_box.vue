@@ -1,10 +1,48 @@
-<script setup>
-    const props = defineProps({
+<script>
+    import serverData from '../assets/js/server_info.js'
+    import templateServerAction from '../assets/js/template_server_action.js'
+    
+    export default{
+      props: {
         onImportBlock : {
             type : Function,
             required: true,
         }
-    })
+      },
+      data() {
+        return {
+            serverData,
+            importSlideData : [
+                {"type" : "import_title", "info" : "Add title", "image" : "public/pictures/icons/import_text_block.png"},
+                {"type" : "import_info", "info" : "Add info", "image" : "public/pictures/icons/import_text_block.png"},
+                {"type" : "import_image", "info" : "Add image", "image" : "public/pictures/icons/import_image_block.png"},
+            ],
+            indexSelected : 0
+        }
+      },
+      methods : {
+        addBlock : function(){
+            let importData = this.importSlideData[this.indexSelected];
+            if(importData.type == "import_title"){
+                this.onImportBlock({"type":"text","text":"Title","font_size":22,"text_align":"left","color":"black"});
+            }
+            else if(importData.type == "import_info"){
+                this.onImportBlock({"type":"text","text":"Info","font_size":14,"text_align":"left","color":"black"});
+            }
+            else if(importData.type == "import_image"){
+              templateServerAction.getImageBlockTemplate((_data) => {
+                this.onImportBlock(_data);
+              });
+            }
+        },
+        setIndexSelected : function(_index){
+            this.indexSelected = _index;
+        }
+      },
+      mounted : function(){
+        
+      }
+    }
 </script>
   
 <template>
@@ -23,46 +61,6 @@
         </div>
     </div>
 </template>
-  
-<script>
-import serverData from '../assets/js/server_info.js'
-  import templateServerAction from '../assets/js/template_server_action.js'
-    
-    export default{
-      data() {
-        return {
-            importSlideData : [
-                {"type" : "import_title", "info" : "Add title", "image" : "public/pictures/icons/import_text_block.png"},
-                {"type" : "import_info", "info" : "Add info", "image" : "public/pictures/icons/import_text_block.png"},
-                {"type" : "import_image", "info" : "Add image", "image" : "public/pictures/icons/import_image_block.png"},
-            ],
-            indexSelected : 0
-        }
-      },
-      methods : {
-        addBlock : function(){
-            let importData = this.importSlideData[this.indexSelected];
-            if(importData.type == "import_title"){
-                this.props.onImportBlock({"type":"text","text":"Title","font_size":22,"text_align":"left","color":"black"});
-            }
-            else if(importData.type == "import_info"){
-                this.props.onImportBlock({"type":"text","text":"Info","font_size":14,"text_align":"left","color":"black"});
-            }
-            else if(importData.type == "import_image"){
-              templateServerAction.getImageBlockTemplate((_data) => {
-                this.props.onImportBlock(_data);
-              });
-            }
-        },
-        setIndexSelected : function(_index){
-            this.indexSelected = _index;
-        }
-      },
-      mounted : function(){
-        
-      }
-    }
-</script>
   
 <style>
   .box_import{

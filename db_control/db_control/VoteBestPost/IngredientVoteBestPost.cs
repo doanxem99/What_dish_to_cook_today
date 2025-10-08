@@ -8,7 +8,7 @@ namespace db_control.VoteBestPost
 {
     public class IngredientVoteBestPost
     {
-        static List<VoteBestPostRequest> requests = new List<VoteBestPostRequest>();
+        static List<VoteBestPostRequest> requests = [];
 
         public static void Update()
         {
@@ -18,7 +18,7 @@ namespace db_control.VoteBestPost
             string collectionName = "ingredient";
             IMongoCollection<BsonDocument> ingredientCollection = mongoDatabase.GetCollection<BsonDocument>(collectionName);
 
-            Dictionary<String, DateTime> ingredientTimeHandleDictionary = new Dictionary<string, DateTime>();
+            Dictionary<String, DateTime> ingredientTimeHandleDictionary = [];
             //*Check requests to handle
             while (requests.Count > 0)
             {
@@ -26,11 +26,12 @@ namespace db_control.VoteBestPost
                 //Only handle this request if ingredientTimeHandle not containt this ingredient
                 //or last timeHandle of this ingredient < requests time
                 VoteBestPostRequest voteBestPostRequest = requests[0];
-                if (!ingredientTimeHandleDictionary.ContainsKey(voteBestPostRequest.id) ||
-                    ingredientTimeHandleDictionary[voteBestPostRequest.id] < voteBestPostRequest.timeRequest)
+                if (!ingredientTimeHandleDictionary.TryGetValue(voteBestPostRequest.id, out DateTime value) 
+                    || value < voteBestPostRequest.timeRequest)
                 {
+                    value = DateTime.Now;
                     //Save time handle for this ingredient is now
-                    ingredientTimeHandleDictionary[voteBestPostRequest.id] = DateTime.Now;
+                    ingredientTimeHandleDictionary[voteBestPostRequest.id] = value;
 
                     //Handle request
                     var item = ingredientCollection.Find(Builders<BsonDocument>.Filter.Eq("_id", voteBestPostRequest.id)).FirstOrDefaultAsync();

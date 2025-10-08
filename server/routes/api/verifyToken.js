@@ -1,0 +1,46 @@
+const database = require('../../config/database/connection');
+const jwt = require('jsonwebtoken');
+const profile_enum = require('../../config/enum/profile_enum');
+
+const verifyToken = async function (req, res, next) {
+    // Use req.cookies (plural) instead of req.cookie
+    const token = req.cookies.token;
+
+    if (!token) {
+        return res.status(profile_enum.Status_Code_Website.Unauthorized).send({
+            message: "Authentication invalid!"
+        });
+    }
+    
+    try {
+        // Use await with a Promise wrapper for jwt.verify
+        const decoded = await new Promise((resolve, reject) => {
+            jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+                if (err) reject(err);
+                else resolve(decoded);
+            });
+        });
+        // Set userId from decoded token
+        req.body.userid = decoded.id;
+        
+        // Get user and roles
+        const user = await database.collections.User.findOne({ _id: req.body.userid }).populate('roles');
+        if (!user) {
+            return res.status(profile_enum.Status_Code_Website.NotFound).send({
+                message: "User not found!"
+            });
+        }
+        
+        const roles = await database.collections.Role.find({ _id: { $in: user.roles } });
+        req.roles = roles.map(role => role.name);
+        
+        // Continue to the next middleware or route handler
+        next();
+    } catch (err) {
+        return res.status(profile_enum.Status_Code_Website.Unauthorized).send({
+            message: "There was a problem to authorize this request!"
+        });
+    }
+}
+
+module.exports = { verifyToken };

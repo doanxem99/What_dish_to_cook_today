@@ -4,7 +4,6 @@
 @import "./font_style.css";
 @import "./icon.css";
 @import "./link.css";
-@import "./image.css";
 @import "./button.css";
 @import "./inputfield.css";
 @import "./textarea.css";
@@ -15,6 +14,7 @@
 @import "./splitter.css";
 @import "./gallery.css";
 @import "./dialog.css";
+@import "./navbar.css";
 
 /*#app {
   max-width: 1280px;
@@ -62,8 +62,8 @@ main {
   /*việc này để căn tỉ lệ tốt hơn*/
   box-sizing: border-box;
   
-  margin:0;
-  padding: 0;
+  /* margin:0;
+  padding: 0; */
   -moz-user-select: none;
   -ms-user-select: none; 
   user-select: none;

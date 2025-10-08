@@ -1,37 +1,28 @@
-<script setup>
+<script>
   import text_block from './text_block.vue'
   import image_block from './image_block.vue'
 
-  const props = defineProps({
-    datas: {
-      type: Array,
-      required: true
+  export default {
+    components: {
+      text_block,
+      image_block
     },
-    isEditable : {
-      type : Boolean,
-      default : false
-    },
-    onMoveUp : {
-      type : Function,
-      default : null
-    },
-    onMoveDown : {
-      type : Function,
-      default : null
-    },
-    onEdit : {
-      type : Function,
-      default : null
-    },
-    onAdd : {
-      type : Function,
-      default : null
-    },
-    onRemove : {
-      type : Function,
-      default : null
+    props: {
+      datas: {
+        type: Array,
+        required: true
+      },
+      isEditable: {
+        type: Boolean,
+        required: false
+      },
+      onMoveUp: Function,
+      onMoveDown: Function,
+      onEdit: Function,
+      onAdd: Function,
+      onRemove: Function
     }
-  })
+  }
 </script>
 
 <template>
@@ -47,7 +38,3 @@
       </div>
     </div>
 </template>
-
-<script>
-
-</script>

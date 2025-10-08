@@ -1,13 +1,42 @@
-<script setup>
+<script>
   import ingredient_available from '../components/ingredient_available.vue'
   import preview_group from '../components/preview/preview_group.vue'
+
+  import dishServerAction from '../assets/js/dish_server_action.js'
+
+  export default{
+    components : {
+      ingredient_available,
+      preview_group
+    },
+    data() {
+      return {
+        ingredients : null,
+        dishsPreview : []
+      }
+    },
+    methods : {
+      moveToDishDetail : function(_id){
+        this.$router.push({ path: '/dish_detail', query: { dish_id: _id }})
+      },
+    },
+    mounted : function(){
+      this.ingredients = this.$route.query.ingredients;
+      //Search dishs from server
+      dishServerAction.searchDishSelection(this.ingredients, (_response) => {
+        if(_response.isSuccess){
+          this.dishsPreview = _response.data;
+        }
+      });
+    }
+  }
 </script>
 
 <template>
   <main>
     <div class="screen_view">
       <div>
-        <div class="header_space"></div>
+        <!-- <div class="header_space"></div> -->
         <div class="menu_title view_space">
           <span>
             <span class="small_font_size">
@@ -36,30 +65,3 @@
     </div>
   </main>
 </template>
-
-<script>
-  import dishServerAction from '../assets/js/dish_server_action.js'
-
-  export default{
-    data() {
-      return {
-        ingredients : null,
-        dishsPreview : []
-      }
-    },
-    methods : {
-      moveToDishDetail : function(_id){
-        this.$router.push({ path: '/dish_detail', query: { dish_id: _id }})
-      },
-    },
-    mounted : function(){
-      this.ingredients = this.$route.query.ingredients;
-      //Search dishs from server
-      dishServerAction.searchDishSelection(this.ingredients, (_response) => {
-        if(_response.isSuccess){
-          this.dishsPreview = _response.data;
-        }
-      });
-    }
-  }
-</script>

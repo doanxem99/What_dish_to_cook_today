@@ -8,3 +8,13 @@
     display: inline-block; /* add line */
     vertical-align: top; /* add line. maybe it's not necessary */
 }
+.logo{
+    width: 40px;
+    height: 40px;
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    display: block;
+    position: relative;
+    overflow: hidden;
+}

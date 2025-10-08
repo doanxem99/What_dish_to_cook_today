@@ -17,12 +17,16 @@ export default {
         });
     },
     createDishProfile : function(_profile, _callBack){
-        axios.post(serverInfo.serverUrl + 'api/dish/profile/create_dish', _profile).then((res) => {
+        axios.post(serverInfo.serverUrl + 'api/dish/profile/create_dish', _profile, {
+            withCredentials: true,
+        }).then((res) => {
             _callBack(res.data);
         });
     },
     createDishPostProfile : function(_profile, _callBack){
-        axios.post(serverInfo.serverUrl + 'api/dish/profile/create_dish_post', _profile).then((res) => {
+        axios.post(serverInfo.serverUrl + 'api/dish/profile/create_dish_post', _profile, {
+            withCredentials: true,
+        }).then((res) => {
             _callBack(res.data);
         });
     },
@@ -42,6 +46,13 @@ export default {
     },
     getDishPostsProfile : function(_dishPostIds, _callBack){
         axios.get(serverInfo.serverUrl + 'api/dish/profile/get_dish_posts/' + _dishPostIds).then(response => {
+            if(response.status == 200){
+                _callBack(response.data);
+            }
+        });
+    },
+    getBestDishPost : function(_callBack){
+        axios.get(serverInfo.serverUrl + 'api/dish/profile/get_best_dish_post').then(response => {
             if(response.status == 200){
                 _callBack(response.data);
             }

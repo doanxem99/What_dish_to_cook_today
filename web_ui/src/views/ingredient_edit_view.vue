@@ -1,88 +1,27 @@
-<script setup>
+<script>
   import display_block from '../components/display_block/display_block.vue'
   import block_import_box from '../components/block_import_box.vue'
   import sample_preview_box from '../components/sample_preview_box.vue'
   import edit_box from '../components/edit_box/edit_box.vue'
-</script>
 
-<template>
-    <main>
-        <div class="screen_view" v-if="ingredientPostData != null">
-          <div class="header_space"></div>
-          <div class="menu_title view_space" v-if="ingredientPostData.data != null">
-              <span>
-                  <span style="vertical-align: top" class="small_font_size">
-                      Author : 
-                  </span>
-                  <span class="small_font_size link_hover">
-                    {{ingredientPostData.data.user_id}}
-                  </span>
-                  <span style="vertical-align: top" class="small_font_size">
-                      |
-                  </span>
-                  <span style="vertical-align: top" class="small_font_size">
-                      Date : {{ingredientPostData.data.date_time}}
-                  </span>
-              </span>
-          </div>
-            
-          <div class="view_space" style="text-align: center;">
-            <div>
-              <p class="large_font_size view_space">{{ingredientPostData.ingredient_name}}</p>
-            </div>
-            <div v-if="ingredientPostData.data">
-              <div class="editable_item">
-                <p style = "font-weight: bold;" class="medium_font_size view_space">{{ingredientPostData.data.type}}</p>
-                <div class="editable_group">
-                  <img class="editable_item_button" const src="../assets/icons/edit_square.png" v-on:click="editIngredientType()"/>
-                </div>
-              </div>
-              <div class="editable_item">
-                <p class="medium_font_size view_space">{{ingredientPostData.data.short_detail}}</p>
-                <div class="editable_group">
-                  <img class="editable_item_button" const src="../assets/icons/edit_square.png" v-on:click="editIngredientShortDetail()"/>
-                </div>
-              </div>
-              <display_block :datas = "ingredientPostData.data.display_blocks" :isEditable = "true" 
-                :onMoveUp = "moveUpBlock" :onMoveDown = "moveDownBlock" :onEdit = "editIngredientBlock" 
-                :onAdd = "addBlock" :onRemove = "removeBlock"/>
-            </div>
-          </div>
-          <div class="view_space">
-            <div class="splitter"></div>
-          </div>
-          <block_import_box :onImportBlock = "importBlock" />
-          <div class="view_space" style="text-align: center;">
-            <p class="small_font_size splitter_info">Preview item</p>
-          </div>
-          <sample_preview_box v-if="ingredientPreviewData" :onChangeBackgroundImage="onChangeBackgroundImage" :preview_data="ingredientPreviewData" />
-          <div class="view_space" style="text-align: center;">
-            <p class="small_font_size splitter_info">Finished</p>
-          </div>
-          <div class="view_space" style="text-align: center;">
-            <input class="action_button small_font_size" type="button" value="Save" v-on:click="onSave"/>
-          </div>
-          <div class="view_space" style="text-align: center;">
-            <input class="action_button small_font_size" type="button" value="Cancel" v-on:click="onCancel"/>
-          </div>
-        </div>
-    </main>
-    <edit_box v-if="editType != enums.EditType.None" :editType = "editType" :dataEditing = "dataEditing" 
-      :onEdited = "boxEdit_OnEdited" :onClose = "boxEdit_OnClose"/>
-</template>
-  
-<script>
   import enums from '../assets/js/enums.js'
   import profileEnum from '../assets/js/profile_enum.js'
   import ingredientServerAction from '../assets/js/ingredient_server_action.js'
 
   export default{
+    components : {
+      display_block,
+      block_import_box,
+      sample_preview_box,
+      edit_box
+    },
     data() {
       return {
         ingredientPostData : null,
         ingredientPreviewData : null,
         editType : enums.EditType.None,
         dataEditing : null,
+        enums,
       }
     },
     methods : {
@@ -124,11 +63,13 @@
           if(this.dataEditing.type == 'text'){
             this.dataEditing.text = _value.text;
             this.dataEditing.font_size = _value.font_size;
+            this.dataEditing.color = _value.color;
           }
           else if(this.dataEditing.type == 'image'){
             this.dataEditing.src = _value.src;
             this.dataEditing.text = _value.text;
             this.dataEditing.font_size = _value.font_size;
+            this.dataEditing.color = _value.color;
           }
         }
       },
@@ -217,6 +158,72 @@
     }
   }
 </script>
+
+<template>
+    <main>
+        <div class="screen_view" v-if="ingredientPostData != null">
+          <!-- <div class="header_space"></div> -->
+          <div class="menu_title view_space" v-if="ingredientPostData.data != null">
+              <span>
+                  <span style="vertical-align: top" class="small_font_size">
+                      Author : 
+                  </span>
+                  <span class="small_font_size link_hover">
+                    {{ingredientPostData.data.user_id}}
+                  </span>
+                  <span style="vertical-align: top" class="small_font_size">
+                      |
+                  </span>
+                  <span style="vertical-align: top" class="small_font_size">
+                      Date : {{ingredientPostData.data.date_time}}
+                  </span>
+              </span>
+          </div>
+            
+          <div class="view_space" style="text-align: center;">
+            <div>
+              <p class="large_font_size view_space">{{ingredientPostData.ingredient_name}}</p>
+            </div>
+            <div v-if="ingredientPostData.data">
+              <div class="editable_item">
+                <p style = "font-weight: bold;" class="medium_font_size view_space">{{ingredientPostData.data.type}}</p>
+                <div class="editable_group">
+                  <img class="editable_item_button" const src="../assets/icons/edit_square.png" v-on:click="editIngredientType()"/>
+                </div>
+              </div>
+              <div class="editable_item">
+                <p class="medium_font_size view_space">{{ingredientPostData.data.short_detail}}</p>
+                <div class="editable_group">
+                  <img class="editable_item_button" const src="../assets/icons/edit_square.png" v-on:click="editIngredientShortDetail()"/>
+                </div>
+              </div>
+              <display_block :datas = "ingredientPostData.data.display_blocks" :isEditable = "true" 
+                :onMoveUp = "moveUpBlock" :onMoveDown = "moveDownBlock" :onEdit = "editIngredientBlock" 
+                :onAdd = "addBlock" :onRemove = "removeBlock"/>
+            </div>
+          </div>
+          <div class="view_space">
+            <div class="splitter"></div>
+          </div>
+          <block_import_box :onImportBlock = "importBlock" />
+          <div class="view_space" style="text-align: center;">
+            <p class="small_font_size splitter_info">Preview item</p>
+          </div>
+          <sample_preview_box v-if="ingredientPreviewData" :onChangeBackgroundImage="onChangeBackgroundImage" :preview_data="ingredientPreviewData" />
+          <div class="view_space" style="text-align: center;">
+            <p class="small_font_size splitter_info">Finished</p>
+          </div>
+          <div class="view_space" style="text-align: center;">
+            <input class="action_button small_font_size" type="button" value="Save" v-on:click="onSave"/>
+          </div>
+          <div class="view_space" style="text-align: center;">
+            <input class="action_button small_font_size" type="button" value="Cancel" v-on:click="onCancel"/>
+          </div>
+        </div>
+    </main>
+    <edit_box v-if="editType != enums.EditType.None" :editType = "editType" :dataEditing = "dataEditing" 
+      :onEdited = "boxEdit_OnEdited" :onClose = "boxEdit_OnClose"/>
+</template>
 
 <style>
   .main_info{

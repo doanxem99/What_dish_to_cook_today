@@ -1,56 +1,73 @@
 const express = require('express');
 const router = express.Router();
 const database = require('../../config/database/connection');
+const { cat } = require('shelljs');
 
-const getIngredientData = function(_ingredientId, _callBack){
-    database.collections.Ingredient.findById(_ingredientId, "name", function(_err, _response){
-        if(!_err){
-            _callBack(_response);
-        }
-        else{
-            _callBack(null);
-        }
-    });
+const getIngredientData = async function(_ingredientId) {
+    try {
+        _response = await database.collections.Ingredient.findById(_ingredientId, "name");
+        return _response;
+    } catch (_err) {
+        return null;
+    }
 }
 
-const findIngredientSelection = function(_callBack){
+const findIngredientSelection = async function(){
     //- Read all ingredient post is best post
     //Limit 10 item
-    database.collections.IngredientPost.find({is_best_post : true}, "ingredient_id short_detail profile_image", function(_err, _response){
-        if(!_err){
-            let numberTaskWaiting = _response.length;
-            let dataReturn = [];
-            for(let subData of _response){
-                //loop to get data each ingredient
-                getIngredientData(subData.ingredient_id, function(_data){
-                    //Add data
-                    if(_data != null){
-                        dataReturn.push({
-                            "id" : _data._id,
-                            "name" : _data.name,
-                            "short_detail" : subData.short_detail,
-                            "profile_image" : subData.profile_image,
-                        });
-                    }
-                    //Minus a numberTaskWaiting
-                    numberTaskWaiting--;
-                    //If numberTaskWaiting = 0, we call back
-                    if(numberTaskWaiting == 0){
-                        _callBack({'isSuccess' : true, 'data' : dataReturn});
-                    }
-                });
+    try {
+        const _result = await database.collections.IngredientPost.find(
+                            {is_best_post : true}, 
+                            "ingredient_id short_detail profile_image type"
+                        ).limit(10);
+        if (_result == null) {
+            return {
+                statusCode: 500,
+                isSuccess: false,
+                message: "Error when get ingredient selection"
             }
         }
-        else{
-            _callBack(null);
+        let numberTaskWaiting = _result.length;
+        let dataReturn = [];
+        for(let subData of _result){
+            //loop to get data each ingredient
+            _data = await getIngredientData(subData.ingredient_id);
+            //Add data
+            if(_data != null){
+                dataReturn.push({
+                    "id" : _data._id,
+                    "name" : _data.name,
+                    "type" : subData.type,
+                    "short_detail" : subData.short_detail,
+                    "profile_image" : subData.profile_image,
+                });
+            }
+            //Minus a numberTaskWaiting
+            numberTaskWaiting--;
+            //If numberTaskWaiting = 0, we return data
+            if(numberTaskWaiting == 0){
+                return {
+                    statusCode: 200,
+                    isSuccess: true,
+                    data: dataReturn
+                }
+            }
         }
-    }).limit(10);
+    } catch (_err) {
+        return {
+            statusCode: 500, 
+            isSuccess: false,
+            message: "Error when get ingredient selection",
+        }
+    }
 }
 
-router.get('/', function(req, res){
-    findIngredientSelection((_data) => {
-        res.statusCode = 200;
-        res.send(_data);
+router.get('/', async function(req, res){
+    _data = await findIngredientSelection();
+    res.status(_data.statusCode).send({
+        isSuccess: _data.isSuccess,
+        data: _data.data,
+        message: _data.message
     });
 });
 

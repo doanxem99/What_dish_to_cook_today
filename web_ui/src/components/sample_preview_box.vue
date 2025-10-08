@@ -1,14 +1,49 @@
-<script setup>
+<script>
     import preview_item from '../components/preview/preview_item.vue'
-    const props = defineProps({
-        onChangeBackgroundImage : {
-            type : Function,
-            required : true,
+
+    import galleryServerAction from '../assets/js/gallery_server_action.js'
+
+    export default{
+        components : {
+            preview_item
         },
-        preview_data : {
-            required : true,
+        props : {
+            onChangeBackgroundImage : {
+                type : Function,
+                required : true,
+            },
+            preview_data : {
+                required : true,
+            },
         },
-    })
+        data() {
+            return {
+                
+            }
+        },
+        methods : {
+            
+            openImageBackgroundUpload : function(){
+                this.$refs.image_upload.click();
+            },
+            changeImageBackground : function(){
+                let image = this.$refs.image_upload.files[0];
+                
+                galleryServerAction.uploadTempraryFile(image, (_status) => {
+                    //Unset file in file_upload
+                    this.$refs.image_upload.value = null;
+                    this.$refs.image_upload.files = null;
+                    //If success, we change image
+                    if(_status.isSuccess){
+                        this.onChangeBackgroundImage(_status.path);
+                    }
+                });
+            },
+        },
+        mounted : function(){
+            
+        }
+    }
 </script>
 
 <template>
@@ -43,40 +78,6 @@
     </div>
     </div>
 </template>
-
-<script>
-    import galleryServerAction from '../assets/js/gallery_server_action.js'
-
-    export default{
-        data() {
-            return {
-                
-            }
-        },
-        methods : {
-            
-            openImageBackgroundUpload : function(){
-                this.$refs.image_upload.click();
-            },
-            changeImageBackground : function(){
-                let image = this.$refs.image_upload.files[0];
-                
-                galleryServerAction.uploadTempraryFile(image, (_status) => {
-                    //Unset file in file_upload
-                    this.$refs.image_upload.value = null;
-                    this.$refs.image_upload.files = null;
-                    //If success, we change image
-                    if(_status.isSuccess){
-                        this.props.onChangeBackgroundImage(_status.path);
-                    }
-                });
-            },
-        },
-        mounted : function(){
-            
-        }
-    }
-</script>
 
 <style>
     .sample_preview_box{

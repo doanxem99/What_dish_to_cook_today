@@ -18,8 +18,8 @@ namespace database_control_center
         public static Action<string>? eventLog;
 
         private static bool isInit = false;
-        private static string directoryPath = Directory.GetCurrentDirectory() + "/Temporary";
-        private static string logPath = directoryPath + "/AppLog.txt";
+        private static readonly string directoryPath = Directory.GetCurrentDirectory() + "/Temporary";
+        private static readonly string logPath = directoryPath + "/AppLog.txt";
 
         public static void Log(AppLogType _applockType, string _data)
         {

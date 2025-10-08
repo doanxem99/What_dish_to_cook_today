@@ -1,50 +1,13 @@
-<script setup>
-  import display_block from '../components/display_block/display_block.vue'
-</script>
-
-<template>
-  <main>
-    <div class="screen_view">
-      <div>
-        <div class="header_space"></div>
-        <div class="menu_title view_space" v-if="ingredientDetail != null && ingredientDetail.best_post != null">
-            <span>
-                <span style="vertical-align: top" class="small_font_size">
-                    Author : 
-                </span>
-                <span class="small_font_size link_hover">
-                  {{ingredientDetail.best_post.user_id}}
-                </span>
-                <span style="vertical-align: top" class="small_font_size">
-                    |
-                </span>
-                <span style="vertical-align: top" class="small_font_size">
-                    Date : {{ingredientDetail.best_post.date_time}}
-                </span>
-                <span style="vertical-align: top">
-                  <img class="editable_item_button" const src="../assets/icons/edit_square.png" v-on:click="moveToEditPage" />
-                </span>
-            </span>
-        </div>
-
-        <div class="view_space" style="text-align: center;" v-if="ingredientDetail">
-          <p class="large_font_size view_space">{{ingredientDetail.name}}</p>
-          <div v-if="ingredientDetail.best_post">
-            <p style = "font-weight: bold;" class="medium_font_size view_space">{{ingredientDetail.best_post.type}}</p>
-            <p class="medium_font_size view_space">{{ingredientDetail.best_post.short_detail}}</p>
-            <display_block :datas = "ingredientDetail.best_post.display_blocks" />
-          </div>
-        </div>
-      </div>
-    </div>
-  </main>
-</template>
-
 <script>
+  import display_block from '../components/display_block/display_block.vue'
+
   import ingredientServerAction from '../assets/js/ingredient_server_action.js'
   import profileEnum from '../assets/js/profile_enum.js'
 
   export default{
+    components : {
+      display_block
+    },
     data() {
       return {
         ingredientDetail : null,
@@ -99,3 +62,41 @@
     }
   }
 </script>
+
+<template>
+  <main>
+    <div class="screen_view">
+      <div>
+        <!-- <div class="header_space"></div> -->
+        <div class="menu_title view_space" v-if="ingredientDetail != null && ingredientDetail.best_post != null">
+            <span>
+                <span style="vertical-align: top" class="small_font_size">
+                    Author : 
+                </span>
+                <span class="small_font_size link_hover">
+                  {{ingredientDetail.best_post.user_id}}
+                </span>
+                <span style="vertical-align: top" class="small_font_size">
+                    |
+                </span>
+                <span style="vertical-align: top" class="small_font_size">
+                    Date : {{ingredientDetail.best_post.date_time}}
+                </span>
+                <span style="vertical-align: top">
+                  <img class="editable_item_button" const src="../assets/icons/edit_square.png" v-on:click="moveToEditPage" />
+                </span>
+            </span>
+        </div>
+
+        <div class="view_space" style="text-align: center;" v-if="ingredientDetail">
+          <p class="large_font_size view_space">{{ingredientDetail.name}}</p>
+          <div v-if="ingredientDetail.best_post">
+            <p style = "font-weight: bold;" class="medium_font_size view_space">{{ingredientDetail.best_post.type}}</p>
+            <p class="medium_font_size view_space">{{ingredientDetail.best_post.short_detail}}</p>
+            <display_block :datas = "ingredientDetail.best_post.display_blocks" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</template>

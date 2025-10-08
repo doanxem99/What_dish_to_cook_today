@@ -61,7 +61,7 @@ class DisplayTextGenerator{
       {
         DisplayText? displayText = fromJsonDecode(element);
         if(displayText != null){
-          displayTexts.add(displayText!);
+          displayTexts.add(displayText);
         }
       }
     }

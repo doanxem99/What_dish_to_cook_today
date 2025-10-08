@@ -1,36 +1,32 @@
 {
   "format": 1,
   "restore": {
-    "F:\\ApplicationSave\\DavidAbraham\\what_dish_to_cook_today\\database_control_center\\database_control_center\\database_control_center.csproj": {}
+    "D:\\Programming\\Application\\WhatDishToCookToday\\database_control_center\\database_control_center\\database_control_center.csproj": {}
   },
   "projects": {
-    "F:\\ApplicationSave\\DavidAbraham\\what_dish_to_cook_today\\database_control_center\\database_control_center\\database_control_center.csproj": {
+    "D:\\Programming\\Application\\WhatDishToCookToday\\database_control_center\\database_control_center\\database_control_center.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "F:\\ApplicationSave\\DavidAbraham\\what_dish_to_cook_today\\database_control_center\\database_control_center\\database_control_center.csproj",
+        "projectUniqueName": "D:\\Programming\\Application\\WhatDishToCookToday\\database_control_center\\database_control_center\\database_control_center.csproj",
         "projectName": "database_control_center",
-        "projectPath": "F:\\ApplicationSave\\DavidAbraham\\what_dish_to_cook_today\\database_control_center\\database_control_center\\database_control_center.csproj",
-        "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "F:\\ApplicationSave\\DavidAbraham\\what_dish_to_cook_today\\database_control_center\\database_control_center\\obj\\",
+        "projectPath": "D:\\Programming\\Application\\WhatDishToCookToday\\database_control_center\\database_control_center\\database_control_center.csproj",
+        "packagesPath": "C:\\Users\\ASUS\\.nuget\\packages\\",
+        "outputPath": "D:\\Programming\\Application\\WhatDishToCookToday\\database_control_center\\database_control_center\\obj\\",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-        ],
         "configFilePaths": [
-          "C:\\Users\\Admin\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Users\\ASUS\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
-          "net6.0-windows"
+          "net9.0-windows"
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
-          "net6.0-windows7.0": {
-            "targetAlias": "net6.0-windows",
+          "net9.0-windows7.0": {
+            "targetAlias": "net9.0-windows",
             "projectReferences": {}
           }
         },
@@ -38,23 +34,29 @@
           "warnAsError": [
             "NU1605"
           ]
-        }
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.200"
       },
       "frameworks": {
-        "net6.0-windows7.0": {
-          "targetAlias": "net6.0-windows",
+        "net9.0-windows7.0": {
+          "targetAlias": "net9.0-windows",
           "dependencies": {
             "MongoDB.Driver": {
               "target": "Package",
-              "version": "[2.18.0, )"
+              "version": "[3.2.1, )"
             },
             "Newtonsoft.Json": {
               "target": "Package",
-              "version": "[13.0.1, )"
+              "version": "[13.0.3, )"
             },
             "Newtonsoft.Json.Bson": {
               "target": "Package",
-              "version": "[1.0.2, )"
+              "version": "[1.0.3, )"
             },
             "System.Runtime": {
               "target": "Package",
@@ -80,14 +82,11 @@
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             },
-            "Microsoft.WindowsDesktop.App": {
-              "privateAssets": "none"
-            },
             "Microsoft.WindowsDesktop.App.WindowsForms": {
               "privateAssets": "none"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.402\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.202/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

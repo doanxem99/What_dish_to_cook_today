@@ -8,14 +8,14 @@ const getIngredientPostSearchDetail = function(_ingredientId, _ingredientName, _
             _callBack({
                 "id" : _ingredientId,
                 "name" : _ingredientName,
-                "short_detail" : _response.short_detail
+                // "short_detail" : _response.short_detail
             });
         }
         else{
             _callBack({
                 "id" : _ingredientId,
                 "name" : _ingredientName,
-                "short_detail" : null
+                // "short_detail" : null
             });
         }
     });
@@ -115,6 +115,11 @@ router.get('/keyword/:keyword', function(req, res){
     });
 });
 router.get('/ids/:ids', function(req, res){
+    if (req.params.ids == "undefined" || req.params.ids == ""){
+        res.statusCode = 400;
+        res.send("ids is empty");
+        return;
+    }
     findIngredientsByIds(req.params.ids, (_data) => {
         if(_data.isSuccess){
             res.statusCode = 200;

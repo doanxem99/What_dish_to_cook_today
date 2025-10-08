@@ -71,7 +71,7 @@ namespace database_control_center
             //VoteBestPostIngredient:(id ingredient)
 
             int numberItem = _args.Count;
-            List<string> requests = new List<string>();
+            List<string> requests = [];
             string request;
             for (int i = 1; i < numberItem; i++)
             {
@@ -169,7 +169,7 @@ namespace database_control_center
             //Creat loop, sending status to server every minutes
             timeLoopSendStatus = new System.Timers.Timer(60 * 1000);
             // Hook up the Elapsed event for the timer. 
-            timeLoopSendStatus.Elapsed += delegate (Object source, ElapsedEventArgs e)
+            timeLoopSendStatus.Elapsed += delegate (object? source, ElapsedEventArgs e)
             {
                 UpdateWorkerStatus();
             };

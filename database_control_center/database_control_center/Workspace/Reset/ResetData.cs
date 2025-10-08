@@ -286,7 +286,7 @@ namespace database_control_center
             dishDocument = dishCollection.Find(Builders<BsonDocument>.Filter.Eq("name", "Spagetti")).FirstOrDefault();
             dishId = dishDocument.GetValue("_id").ToString();
             unique_id = dishId + "_unknow";
-            dishPostCollection.InsertOne(CreateDefaultDishPost(true, dishId, "unknow", unique_id, new BsonArray { idBeef, idSalt }));
+            dishPostCollection.InsertOne(CreateDefaultDishPost(true, dishId, "unknow", unique_id, [idBeef, idSalt]));
             dishPostDocument = dishPostCollection.Find(Builders<BsonDocument>.Filter.Eq("unique_id", unique_id)).FirstOrDefault();
             dishPostId = dishPostDocument.GetValue("_id").ToString();
             dishCollection.UpdateOne(dishDocument, Builders<BsonDocument>.Update.Set("best_post_id", dishPostId));

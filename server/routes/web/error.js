@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-router.all(function(err, req, res){
+router.all('.', function(err, req, res){
     res.send('Not found');
 });
 

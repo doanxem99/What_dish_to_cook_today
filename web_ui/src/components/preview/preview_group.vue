@@ -1,20 +1,28 @@
-<script setup>
+<script>
   import preview_item from './preview_item.vue'
 
-  const props = defineProps({
-    title : {
-      type : String,
-      required: true
+  export default{
+    components: {
+      preview_item
     },
-    datas: {
-      type: Array,
-      required: true
+    props: {
+      title: {
+        type: String,
+        required: true
+      },
+      datas: {
+        type: Array,
+        required: true
+      },
+      onClick: {
+        type: Function,
+        required: true
+      }
     },
-    onClick : {
-      type : Function,
-      required: true
-    }
-  })
+    methods : {
+      
+    },
+  }
 </script>
 
 <template>
@@ -29,14 +37,6 @@
     </div>
   </div>
 </template>
-
-<script>
-  export default{
-    methods : {
-      
-    },
-  }
-</script>
 
 <style>
 .item_preview_contain{

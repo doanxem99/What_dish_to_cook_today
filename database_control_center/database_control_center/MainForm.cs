@@ -9,8 +9,8 @@ namespace database_control_center
 {
     public partial class MainForm : Form
     {
-        private List<string> requestMessageWaitings = new List<string>();
-        private List<string> logMessageWaitings = new List<string>();
+        private readonly List<string> requestMessageWaitings = [];
+        private readonly List<string> logMessageWaitings = [];
 
         public MainForm()
         {

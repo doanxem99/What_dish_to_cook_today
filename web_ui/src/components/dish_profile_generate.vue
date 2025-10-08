@@ -1,81 +1,34 @@
-<script setup>
+<script>
+    import { faImage } from '@fortawesome/free-solid-svg-icons'
     import preview_item from './preview/preview_item.vue'
     import ingredient_available_editable from '../components/ingredient_available_editable.vue'
 
-    const props = defineProps({
-        onRefesh : {
-            type : Function,
-            required : true,
-        },
-        onCancel : {
-            type : Function,
-            required : true,
-        },
-    })
-</script>
-    
-<template>
-    <div class="box_edit dialog">
-        <div>
-            <div class="view_space">
-                <p class="big_font_size">Add dish</p>
-            </div>
-            <div v-if="dishData != null">
-                <div class="half_split_column">
-                    <div class="view_space">
-                        <input ref="name" class="action_inputfield big_font_size" style="text-align: center;" type="text"
-                            v-bind:value="dishData.name" v-on:change="changeInfo" />
-                    </div>
-                    <div class="view_space">
-                        <ingredient_available_editable :ingredientsId = "dishData.ingredients" :onChanged="changeIngredientsUsing"/>
-                    </div>
-                    <div class="view_space">
-                        <input ref="shortDetail" class="action_inputfield medium_font_size" style="text-align: center;" type="text"
-                            v-bind:value="dishData.short_detail" v-on:change="changeInfo" />
-                    </div>
-                    <div class="view_space">
-                        <input class="small_font_size action_button" type="button" value="Change image" v-on:click="openImageUpload" />
-                        <input ref="image_upload" class="hidden_inputfield" type="file" accept="image/png, image/gif, image/jpeg"
-                         v-on:change="changeImage">
-                    </div>
-                </div>
-                <div class="half_split_column">
-                    <div class="sample_preview_item view_space">
-                        <div>
-                            <preview_item :previewData = "dishData" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <p v-if="status != null" class="small_font_size" style="color: red;">{{ status }}</p>
-            <div class="view_space" style="text-align: center;">
-              <p class="small_font_size splitter_info">Create / Cancel</p>
-            </div>
-            <div class="view_space" style="text-align: center;">
-              <input class="action_button small_font_size" type="button" value="Create & edit detail" v-on:click="createAndEditData"/>
-            </div>
-            <div class="view_space" style="text-align: center;">
-              <input class="action_button small_font_size" type="button" value="Create" v-on:click="createData"/>
-            </div>
-            <div class="view_space" style="text-align: center;">
-              <input class="action_button small_font_size" type="button" value="Cancel" v-on:click="onCancel"/>
-            </div>
-        </div>
-    </div>
-</template>
-
-<script>
     import galleryServerAction from '../assets/js/gallery_server_action.js'
     import dishServerAction from '../assets/js/dish_server_action.js'
     import templateServerAction from '../assets/js/template_server_action.js'
     import profileEnum from '../assets/js/profile_enum.js'
 
     export default{
+        components : {
+            preview_item,
+            ingredient_available_editable
+        },
+        props : {
+            onRefesh : {
+                type : Function,
+                required : true,
+            },
+            onCancel : {
+                type : Function,
+                required : true,
+            },
+        },
         data() {
             return {
                 dishData : null,
-                status : null
-            }
+                status : null,
+                faImage,
+            };
         },
         methods : {
             createAndEditData : function(){
@@ -95,7 +48,7 @@
                 //Save dish to server
                 dishServerAction.createDishProfile(this.dishData, (_response)=>{
                     if(_response.status == profileEnum.ProfileStatus_Create.Success){
-                        this.props.onRefesh();
+                        this.onRefesh();
                     }
                     else{
                         console.log("Error : " + _response.detail);
@@ -137,6 +90,60 @@
         }
     }
 </script>
+    
+<template>
+    <div class="dialog">
+        <div>
+            <div class="view_space">
+                <p class="big_font_size">Adding Dish</p>
+            </div>
+            <div v-if="dishData != null">
+                <div class="half_split_column">
+                    <div class="view_space">
+                        <input ref="name" class="action_inputfield big_font_size" style="text-align: center;" type="text" 
+                            placeholder="Dish name..." v-model="dishData.name" />
+                    </div>
+                    <div class="view_space">
+                        <ingredient_available_editable :ingredientsId = "dishData.ingredients" :onChanged="changeIngredientsUsing"/>
+                    </div>
+                    <div class="view_space">
+                        <input ref="shortDetail" class="action_inputfield medium_font_size" style="text-align: center;" type="text"
+                            placeholder="Short detail..." v-model="dishData.short_detail" />
+                    </div>
+                    <div class="view_space">
+                        <div class="small_font_size action_button" v-on:click="openImageUpload">
+                            <font-awesome-icon size="xl" :icon="faImage" />
+                            <input class="m-2 cursor-pointer" type="button" value="Change image" />
+                        </div>
+                        <input ref="image_upload" class="hidden_inputfield" type="file" accept="image/png, image/gif, image/jpeg"
+                        v-on:change="changeImage">
+                    </div>
+                </div>
+                <div class="half_split_column">
+                    <div class="sample_preview_item view_space">
+                        <div>
+                            <preview_item :previewData = "dishData" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p v-if="status != null" class="small_font_size" style="color: red;">{{ status }}</p>
+            <div class="view_space" style="text-align: center;">
+              <p class="small_font_size splitter_info">Create / Cancel</p>
+            </div>
+            <div class="view_space" style="text-align: center;">
+              <input class="action_button small_font_size" type="button" value="Create & edit detail" v-on:click="createAndEditData"/>
+            </div>
+            <div class="view_space" style="text-align: center;">
+              <input class="action_button small_font_size" type="button" value="Create" v-on:click="createData"/>
+            </div>
+            <div class="view_space" style="text-align: center;">
+              <input class="action_button small_font_size" type="button" value="Cancel" v-on:click="onCancel"/>
+            </div>
+        </div>
+    </div>
+</template>
+
 <style>
     .box_edit{
         z-index: 2!important;

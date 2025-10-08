@@ -1,17 +1,118 @@
-<script setup>
+<script>
     import preview_item from './preview/preview_item.vue'
     import edit_box from '../components/edit_box/edit_box.vue'
 
-    const props = defineProps({
-        onRefesh : {
-            type : Function,
-            required : true,
+    import galleryServerAction from '../assets/js/gallery_server_action.js'
+    import ingredientServerAction from '../assets/js/ingredient_server_action.js'
+    import templateServerAction from '../assets/js/template_server_action.js'
+    import enums from '../assets/js/enums.js'
+    import profileEnum from '../assets/js/profile_enum.js'
+
+    export default{
+        components : {
+            preview_item,
+            edit_box
         },
-        onCancel : {
-            type : Function,
-            required : true,
+        props : {
+            onRefesh : {
+                type : Function,
+                required : true,
+            },
+            onCancel : {
+                type : Function,
+                required : true,
+            },
         },
-    })
+        data() {
+            return {
+                ingredientData : null,
+                enums,
+                editType : enums.EditType.None,
+                dataEditing : null,
+                status : null
+            }
+        },
+        methods : {
+            editIngredientName : function(){
+                this.editType = enums.EditType.Name;
+                this.dataEditing = this.ingredientData.name;
+            },
+            editIngredientType : function(){
+                this.editType = enums.EditType.Type;
+                this.dataEditing = this.ingredientData.type;
+            },
+            editIngredientShortDetail : function(){
+                this.editType = enums.EditType.ShortDetail;
+                this.dataEditing = this.ingredientData.short_detail;
+            },
+            boxEdit_OnEdited : function(_value){
+                if(this.editType == enums.EditType.Name){
+                    this.ingredientData.name = _value;
+                }
+                else if(this.editType == enums.EditType.Type){
+                    this.ingredientData.type = _value;
+                }
+                else if(this.editType == enums.EditType.ShortDetail){
+                    this.ingredientData.short_detail = _value;
+                }
+            },
+            boxEdit_OnClose : function(){
+                this.editType = enums.EditType.None;
+                this.dataEditing = null;
+            },
+            createAndEditData : function(){
+                //Save ingredient to server
+                ingredientServerAction.createIngredientProfile(this.ingredientData, (_response)=>{
+                    if(_response.status == profileEnum.ProfileStatus_Create.Success){
+                        //We move to ingredient_edit
+                        this.$router.push({ path: '/ingredient_edit', query: { ingredient_id: _response.ingredient_id }});
+                    }
+                    else{
+                        console.log("Error : " + _response.detail);
+                        this.status = _response.detail;
+                    }
+                });
+            },
+            createData : function(){
+                //Save ingredient to server
+                ingredientServerAction.createIngredientProfile(this.ingredientData, (_response)=>{
+                    if(_response.status == profileEnum.ProfileStatus_Create.Success){
+                        this.onRefesh();
+                    }
+                    else{
+                        console.log("Error : " + _response.detail);
+                        this.status = _response.detail;
+                    }
+                });
+            },
+            changeInfo : function(){
+                this.ingredientData.name = this.$refs.name.value;
+                this.ingredientData.type = this.$refs.type.value;
+                this.ingredientData.short_detail = this.$refs.shortDetail.value;
+            },
+            openImageUpload : function(){
+                this.$refs.image_upload.click();
+            },
+            changeImage : function(){
+                let image = this.$refs.image_upload.files[0];
+                
+                galleryServerAction.uploadTempraryFile(image, (_status) => {
+                    //Unset file in file_upload
+                    this.$refs.image_upload.value = null;
+                    this.$refs.image_upload.files = null;
+                    //If success, we change image
+                    if(_status.isSuccess){
+                        this.ingredientData.profile_image = _status.path;
+                    }
+                });
+            },
+        },
+        mounted : function(){
+            templateServerAction.getIngredientTemplate((_data) => {
+                this.ingredientData = _data;
+            });
+        }
+    }
 </script>
     
 <template>
@@ -76,104 +177,6 @@
       :onEdited = "boxEdit_OnEdited" :onClose = "boxEdit_OnClose"/>
 </template>
 
-<script>
-    import galleryServerAction from '../assets/js/gallery_server_action.js'
-    import ingredientServerAction from '../assets/js/ingredient_server_action.js'
-    import templateServerAction from '../assets/js/template_server_action.js'
-    import enums from '../assets/js/enums.js'
-    import profileEnum from '../assets/js/profile_enum.js'
-
-    export default{
-        data() {
-            return {
-                ingredientData : null,
-                editType : enums.EditType.None,
-                dataEditing : null,
-                status : null
-            }
-        },
-        methods : {
-            editIngredientName : function(){
-                this.editType = enums.EditType.Name;
-                this.dataEditing = this.ingredientData.name;
-            },
-            editIngredientType : function(){
-                this.editType = enums.EditType.Type;
-                this.dataEditing = this.ingredientData.type;
-            },
-            editIngredientShortDetail : function(){
-                this.editType = enums.EditType.ShortDetail;
-                this.dataEditing = this.ingredientData.short_detail;
-            },
-            boxEdit_OnEdited : function(_value){
-                if(this.editType == enums.EditType.Name){
-                    this.ingredientData.name = _value;
-                }
-                else if(this.editType == enums.EditType.Type){
-                    this.ingredientData.type = _value;
-                }
-                else if(this.editType == enums.EditType.ShortDetail){
-                    this.ingredientData.short_detail = _value;
-                }
-            },
-            boxEdit_OnClose : function(){
-                this.editType = enums.EditType.None;
-                this.dataEditing = null;
-            },
-            createAndEditData : function(){
-                //Save ingredient to server
-                ingredientServerAction.createIngredientProfile(this.ingredientData, (_response)=>{
-                    if(_response.status == profileEnum.ProfileStatus_Create.Success){
-                        //We move to ingredient_edit
-                        this.$router.push({ path: '/ingredient_edit', query: { ingredient_id: _response.ingredient_id }});
-                    }
-                    else{
-                        console.log("Error : " + _response.detail);
-                        this.status = _response.detail;
-                    }
-                });
-            },
-            createData : function(){
-                //Save ingredient to server
-                ingredientServerAction.createIngredientProfile(this.ingredientData, (_response)=>{
-                    if(_response.status == profileEnum.ProfileStatus_Create.Success){
-                        this.props.onRefesh();
-                    }
-                    else{
-                        console.log("Error : " + _response.detail);
-                        this.status = _response.detail;
-                    }
-                });
-            },
-            changeInfo : function(){
-                this.ingredientData.name = this.$refs.name.value;
-                this.ingredientData.type = this.$refs.type.value;
-                this.ingredientData.short_detail = this.$refs.shortDetail.value;
-            },
-            openImageUpload : function(){
-                this.$refs.image_upload.click();
-            },
-            changeImage : function(){
-                let image = this.$refs.image_upload.files[0];
-                
-                galleryServerAction.uploadTempraryFile(image, (_status) => {
-                    //Unset file in file_upload
-                    this.$refs.image_upload.value = null;
-                    this.$refs.image_upload.files = null;
-                    //If success, we change image
-                    if(_status.isSuccess){
-                        this.ingredientData.profile_image = _status.path;
-                    }
-                });
-            },
-        },
-        mounted : function(){
-            templateServerAction.getIngredientTemplate((_data) => {
-                this.ingredientData = _data;
-            });
-        }
-    }
-</script>
 <style>
     .box_edit{
         z-index: 2!important;

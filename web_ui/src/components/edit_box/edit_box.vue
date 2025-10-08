@@ -1,26 +1,44 @@
-<script setup>
+<script>
   import name_edit from './name_edit.vue'
   import short_detail_edit from './short_detail_edit.vue'
   import text_block_edit from './text_block_edit.vue'
   import image_block_edit from './image_block_edit.vue'
   import ingredients_edit from './ingredients_edit.vue'
 
-  const props = defineProps({
-    editType : {
-      required: true,
+  import enums from '../../assets/js/enums.js'
+
+  export default {
+    components: {
+      name_edit,
+      short_detail_edit,
+      text_block_edit,
+      image_block_edit,
+      ingredients_edit
     },
-    dataEditing : {
-      required: true,
+    data() {
+      return {
+        enums,
+      }
     },
-    onEdited : {
-      type : Function,
-      required: true,
-    },
-    onClose : {
-      type : Function,
-      required: true,
+    props: {
+      editType: {
+        type: Number,
+        required: true
+      },
+      dataEditing: {
+        type: Object,
+        required: true
+      },
+      onEdited: {
+        type: Function,
+        required: true
+      },
+      onClose: {
+        type: Function,
+        required: true
+      }
     }
-  })
+  }
 </script>
   
 <template>
@@ -39,8 +57,3 @@
         :dataEditing = "dataEditing" :onEdited = "onEdited" :onClose = "onClose" />
   </div>
 </template>
-
-<script>
-  import enums from '../../assets/js/enums.js'
-
-</script>

@@ -15,47 +15,56 @@ namespace db_control
             IMongoDatabase mongoDatabase = dbClient.GetDatabase("what_dish_to_cook_today");
 
             //*Create new data
+            // CreateDefaultRoles(mongoDatabase);
+            CreateDefaultIngredientsPosts(mongoDatabase);
             CreateDefaultIngredients(mongoDatabase);
+            UpdateIdIngredientPost(mongoDatabase);
             CreateDefaultDishs(mongoDatabase);
         }
+        // private static void CreateDefaultRoles(IMongoDatabase _mongoDatabase) {
+        //     // Create role collection
+        //     var collectionName = "role";
+        //     _mongoDatabase.DropCollection(collectionName);
+        //     _mongoDatabase.CreateCollection(collectionName);
+        //     IMongoCollection<BsonDocument> roleCollection = _mongoDatabase.GetCollection<BsonDocument>(collectionName);
+        //     // Create default role data
+        //     var roles = new List<BsonDocument> {
+        //         new() {
+        //             {"name", "user"},
+        //             {"description", "User role"},
+        //         },
+        //         new() {
+        //             {"name", "admin"},
+        //             {"description", "Admin role"},
+        //         },
+        //     };
+        //     // Insert default role data into role collection
+        //     roleCollection.InsertMany(roles);
+        // }
 
-        private static BsonDocument CreateDefaultIngredientItem(string _name)
-        {
-            BsonDocument defautPost = new BsonDocument{
-                { "date_time", DateTime.Now.ToLocalTime() },
-                { "points", 0 },
-                { "type" , "Food" } ,
-                { "short_detail", "Nutritional food" },
-                { "profile_image" , "public/pictures/ingredients/salt.jpg" },
-                { "display_blocks" ,
-                    new BsonArray
-                    {
-                        new BsonDocument
-                        {
-                            { "type" , "text" },
-                            { "text", "Beef is the culinary name for meat from cattle (Bos taurus)." },
-                            { "font_size" , 14 },
-                            { "text_align" , "left" },
-                            { "color" , "black" }
-                        },
-                    }
-                }
-            };
+        private static void CreateDefaultIngredientsPosts(IMongoDatabase _mongoDatabase) {
+            string collectionName = "ingredient_post";
+            //First, we get ingredient_post collection
+            _mongoDatabase.DropCollection(collectionName);
+            _mongoDatabase.CreateCollection(collectionName);
+            IMongoCollection<BsonDocument> ingredientPostCollection = _mongoDatabase.GetCollection<BsonDocument>(collectionName);
 
-            return new BsonDocument
-            {
-                { "name" , _name },
-                //Every day, the system will check to find the best post base on points and author popular
-                { "best_post_id" , "user_id_create_this_post" },
-                { "posts" ,
-                    new BsonDocument
-                    {
-                        {
-                            "user_id_create_this_post" , defautPost
-                        }
-                    }
-                }
-            };
+            // Find adminId
+            var filter = Builders<BsonDocument>.Filter.Eq("username", "moonshine@gmail.com");
+            var adminId = _mongoDatabase.GetCollection<BsonDocument>("user").Find(filter).FirstOrDefault().GetValue("_id").ToString();
+
+            //Then, we create default data
+            ingredientPostCollection.InsertMany([
+                CreateDefaultIngredientPostItem("Beef", adminId, "Food"),
+                CreateDefaultIngredientPostItem("Salmon", adminId, "Food"),
+                CreateDefaultIngredientPostItem("Egg", adminId, "Food"),
+                CreateDefaultIngredientPostItem("Salt", adminId, "Spice"),
+                CreateDefaultIngredientPostItem("Honey", adminId, "Spice"),
+                CreateDefaultIngredientPostItem("Orangle", adminId, "Fruit"),
+                CreateDefaultIngredientPostItem("Pork", adminId, "Food"),
+                CreateDefaultIngredientPostItem("Chicken", adminId, "Food"),
+                CreateDefaultIngredientPostItem("Potato", adminId, "Food"),
+            ]);
         }
 
         private static void CreateDefaultIngredients(IMongoDatabase _mongoDatabase)
@@ -67,33 +76,67 @@ namespace db_control
             IMongoCollection<BsonDocument> ingredientCollection = _mongoDatabase.GetCollection<BsonDocument>(collectionName);
 
             //Then, we create default data
-            ingredientCollection.InsertMany(new List<BsonDocument>() {
-                CreateDefaultIngredientItem("Beef"),
-                CreateDefaultIngredientItem("Salmon"),
-                CreateDefaultIngredientItem("Egg"),
-                CreateDefaultIngredientItem("Salt"),
-                CreateDefaultIngredientItem("Honey"),
-                CreateDefaultIngredientItem("Orangle"),
-            });
+            var filter = Builders<BsonDocument>.Filter.Eq("username", "moonshine@gmail.com");
+            var adminId = _mongoDatabase.GetCollection<BsonDocument>("user").Find(filter).FirstOrDefault().GetValue("_id").ToString();
+            
+            ingredientCollection.InsertMany([
+                CreateDefaultIngredientItem("Beef", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Salmon", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Egg", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Salt", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Honey", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Orangle", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Pork", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Chicken", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Potato", adminId, _mongoDatabase),
+            ]);
         }
+        private static void UpdateIdIngredientPost(IMongoDatabase _mongoDatabase)
+        {
+            UpdateIdIngredientPostItem("Beef", _mongoDatabase);
+            UpdateIdIngredientPostItem("Salmon", _mongoDatabase);
+            UpdateIdIngredientPostItem("Egg", _mongoDatabase);
+            UpdateIdIngredientPostItem("Salt", _mongoDatabase);
+            UpdateIdIngredientPostItem("Honey", _mongoDatabase);
+            UpdateIdIngredientPostItem("Orangle", _mongoDatabase);
+            UpdateIdIngredientPostItem("Pork", _mongoDatabase);
+            UpdateIdIngredientPostItem("Chicken", _mongoDatabase);
+            UpdateIdIngredientPostItem("Potato", _mongoDatabase);
+        }
+
         private static void CreateDefaultDishs(IMongoDatabase _mongoDatabase)
         {
             string collectionName = "dish";
-            //First, we get collection collection
+            //First, we get dish collection
             _mongoDatabase.DropCollection(collectionName);
             _mongoDatabase.CreateCollection(collectionName);
             IMongoCollection<BsonDocument> dishCollection = _mongoDatabase.GetCollection<BsonDocument>(collectionName);
 
-            //The, we get some id
+            // Get adminId
+            collectionName = "user";
+            IMongoCollection<BsonDocument> userCollection = _mongoDatabase.GetCollection<BsonDocument>(collectionName);
+            var filter = Builders<BsonDocument>.Filter.Eq("username", "moonshine@gmail.com");
+            var adminId = userCollection.Find(filter).FirstOrDefault().GetValue("_id").ToString();
+
+            //Then we get some id
             collectionName = "ingredient";
             IMongoCollection<BsonDocument> ingredientCollection = _mongoDatabase.GetCollection<BsonDocument>(collectionName);
+
             string idBeef = ingredientCollection.Find(Builders<BsonDocument>.Filter.Eq("name", "Beef")).FirstOrDefault().GetValue("_id").ToString();
             string idSalt = ingredientCollection.Find(Builders<BsonDocument>.Filter.Eq("name", "Salt")).FirstOrDefault().GetValue("_id").ToString();
 
-            BsonDocument post = new BsonDocument{
+            BsonDocument post = new()
+            {
+                { "name", "Spagetti" },
+                { "user_id", adminId },
+                { "dish_id", "" },
+                { "is_best_post", true },
                 { "date_time", DateTime.Now.ToLocalTime() },
+                { "unique_id", adminId + "_" },
                 { "points", 0 },
-                { "ingredients" ,
+                { "views", 0},
+                { "comments", 0},
+                { "ingredients",
                     new BsonArray
                     {
                         idBeef , idSalt
@@ -193,22 +236,92 @@ namespace db_control
             };
 
             //Then, we create default data
-            dishCollection.InsertMany(new List<BsonDocument>() {
+            dishCollection.InsertMany([
                 new BsonDocument
                 {
                     { "name" , "Spagetti" },
                     //Every day, the system will check to find the best post base on points and author popular
-                    { "best_post_id" , "user_id_create_this_post" },
-                    { "posts" ,
+                    { "best_post_id" , "" },
+                }
+            ]);
+
+
+            // Create dish_post collection
+            collectionName = "dish_post";
+            _mongoDatabase.DropCollection(collectionName); 
+            _mongoDatabase.CreateCollection(collectionName);
+
+            // Find dish_id in dish collection
+            filter = Builders<BsonDocument>.Filter.Eq("name", "Spagetti");
+            var dishId = _mongoDatabase.GetCollection<BsonDocument>("dish").Find(filter).FirstOrDefault().GetValue("_id").ToString();
+            post["dish_id"] = dishId;
+            post["unique_id"] += dishId;
+            _mongoDatabase.GetCollection<BsonDocument>(collectionName).InsertOne(post);
+
+            // Update best_post_id in dish collection
+            var distPostId = _mongoDatabase.GetCollection<BsonDocument>("dish_post").Find(filter).FirstOrDefault().GetValue("_id").ToString();
+            var update = Builders<BsonDocument>.Update.Set("best_post_id", distPostId);
+            _mongoDatabase.GetCollection<BsonDocument>("dish").UpdateOne(filter, update);
+        }
+
+        private static BsonDocument CreateDefaultIngredientPostItem(string _name, string adminId, string type)
+        {
+            return new() {
+                { "name", _name },
+                { "user_id", adminId },
+                { "ingredient_id", "" },
+                { "is_best_post", true },
+                { "date_time", DateTime.Now.ToLocalTime() },
+                { "unique_id", adminId + "_" },
+                { "points", 0 },
+                { "views", 0},
+                { "comments", 0},
+                { "type" , type } ,
+                { "short_detail", "Nutritional food" },
+                { "profile_image" , "public/pictures/ingredients/" + _name + ".jpg" },
+                { "display_blocks" ,
+                    new BsonArray
+                    {
                         new BsonDocument
                         {
-                            {
-                                "user_id_create_this_post" , post
-                            }
-                        }
+                            { "type" , "text" },
+                            { "text", "Beef is the culinary name for meat from cattle (Bos taurus)." },
+                            { "font_size" , 14 },
+                            { "text_align" , "left" },
+                            { "color" , "black" }
+                        },
                     }
                 }
-            });
+            };
+        }
+
+        private static BsonDocument CreateDefaultIngredientItem(string _name, string adminId, IMongoDatabase _mongoDatabase)
+        {
+            var ingredientPost = _mongoDatabase.GetCollection<BsonDocument>("ingredient_post").Find(Builders<BsonDocument>.Filter.Eq("name", _name)).FirstOrDefault();
+
+            return new() {
+                { "name", _name },
+                { "best_post_id", ingredientPost.GetValue("_id").ToString() },
+                // { "date_time", DateTime.Now.ToLocalTime() },
+                // { "points", 0 },
+                // { "type" , "Food" } ,
+                // { "short_detail", "Nutritional food" },
+                // { "profile_image" , "public/pictures/ingredients/" + _name + ".jpg" },
+            };
+        }
+
+        private static void UpdateIdIngredientPostItem(string _name, IMongoDatabase _mongoDatabase)
+        {
+            var filter = Builders<BsonDocument>.Filter.Eq("name", _name);
+            var ingredientId = _mongoDatabase.GetCollection<BsonDocument>("ingredient").Find(filter).FirstOrDefault().GetValue("_id").ToString();
+            // Get ingredientId and userId from ingredient collection
+            var ingredientPost = _mongoDatabase.GetCollection<BsonDocument>("ingredient_post").Find(filter).FirstOrDefault();
+            var userId = ingredientPost.GetValue("user_id").ToString();
+            // Update the ingredient_id and unique_id field in the ingredient_post collection
+            var update = Builders<BsonDocument>.Update
+                .Set("ingredient_id", ingredientId)
+                .Set("unique_id", ingredientId + "_" + userId);
+            _mongoDatabase.GetCollection<BsonDocument>("ingredient_post").UpdateOne(filter, update);
         }
     }
 }

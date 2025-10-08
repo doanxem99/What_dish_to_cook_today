@@ -26,9 +26,11 @@ namespace database_control_center
                 AppLog.Log(AppLogType.Comment, "Init workspace");
 
                 //Create background worker
-                backgroundWorker = new BackgroundWorker();
-                backgroundWorker.WorkerSupportsCancellation = true;
-                backgroundWorker.DoWork += new DoWorkEventHandler(BackgroundWorker_Handle);
+                backgroundWorker = new BackgroundWorker
+                {
+                    WorkerSupportsCancellation = true
+                };
+                backgroundWorker.DoWork += new DoWorkEventHandler(BackgroundWorker_Handle!);
                 backgroundWorker.WorkerReportsProgress = true;
                 backgroundWorker.RunWorkerAsync();
             }
@@ -39,7 +41,7 @@ namespace database_control_center
             try
             {
                 //Create connect to DB
-                MongoClient dbClient = new MongoClient("mongodb://localhost:27017");
+                MongoClient dbClient = new("mongodb://localhost:27017");
                 //Get DB(Create new if not aready exist)
                 IMongoDatabase mongoDatabase = dbClient.GetDatabase("what_dish_to_cook_today");
                 //Get database_worker_job collection

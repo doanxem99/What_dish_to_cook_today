@@ -1,57 +1,25 @@
-<script setup>
-    const props = defineProps({
-        isOpen : {
-            type : Boolean,
-            required : true,
-            default : false
-        },
-        onSelected : {
-            type : Function,
-            required: true
-        },
-        onCancel : {
-            type : Function,
-            required: true
-        }
-    })
-</script>
-  
-<template>
-    <div v-if="isOpen == true" class="box_gallery_picker dialog">
-        <div>
-            <div class="upload_button view_space">
-              <div class="upload_file">
-                <label for="file_select">
-                  <img const src="../assets/icons/upload.png" />
-                  <p class="small_font_size">Upload picture</p>
-                </label>
-                <input ref="file_upload" id="file_select" type="file" accept="image/png, image/gif, image/jpeg" v-on:change="uploadFile">
-              </div>
-            </div>
-            <div class="view_space" style="text-align: center;">
-                <p class="small_font_size splitter_info">Gallery</p>
-            </div>
-            <div class="gallery_contain view_space">
-              <div class="gallery_item" v-for="(item, index) in galleryItems">
-                <div>
-                  <div class="gallery_item_image" 
-                    :style="{'background-image': 'url(' + serverData.serverUrl + item.path + ')'}"
-                    v-on:click="selectData(item)"></div>
-                </div>
-              </div>
-            </div>
-            <div class="view_space" style="text-align: center;">
-              <input class="action_button small_font_size" type="button" value="Cancel" v-on:click="cancelSelection"/>
-            </div>
-        </div>
-    </div>
-</template>
-  
 <script>
-  import serverData from '../assets/js/server_info.js'
-  import axios from 'axios';
+    import serverData from '../assets/js/server_info.js'
+    import axios from 'axios';
 
     export default{
+      components : {
+      },
+      props : {
+        isOpen : {
+          type : Boolean,
+          required : true,
+          default : false
+        },
+        onSelected : {
+          type : Function,
+          required: true
+        },
+        onCancel : {
+          type : Function,
+          required: true
+        }
+      },
       data() {
         return {
             galleryItems : []
@@ -59,10 +27,10 @@
       },
       methods : {
         selectData : function(_item){
-          this.props.onSelected(_item.path);
+          this.onSelected(_item.path);
         },
         cancelSelection : function(){
-            this.props.onCancel();
+            this.onCancel();
         },
         uploadFile : function(){
           let images = this.$refs.file_upload.files[0];
@@ -105,13 +73,47 @@
   }
 </script>
   
+<template>
+    <div v-if="isOpen == true" class="box_gallery_picker dialog">
+        <div>
+            <div class="upload_button view_space">
+              <div class="upload_file">
+                <label for="file_select">
+                  <img const src="../assets/icons/upload.png" />
+                  <p class="small_font_size">Upload picture</p>
+                </label>
+                <input ref="file_upload" id="file_select" type="file" accept="image/png, image/gif, image/jpeg" v-on:change="uploadFile">
+              </div>
+            </div>
+            <div class="view_space" style="text-align: center;">
+                <p class="small_font_size splitter_info">Gallery</p>
+            </div>
+            <div class="gallery_contain view_space">
+              <div class="gallery_item" v-for="(item, index) in galleryItems">
+                <div>
+                  <div class="gallery_item_image" 
+                    :style="{'background-image': 'url(' + serverData.serverUrl + item.path + ')'}"
+                    v-on:click="selectData(item)"></div>
+                </div>
+              </div>
+            </div>
+            <div class="view_space" style="text-align: center;">
+              <input class="action_button small_font_size" type="button" value="Cancel" v-on:click="cancelSelection"/>
+            </div>
+        </div>
+    </div>
+</template>
+  
 <style>
   .box_gallery_picker{
     z-index: 3!important;
   }
-
   .upload_button{
-    
+    text-align: center;
+    padding: 10px;
+    border: solid black;
+    border-radius: 10px;
+    background-color: white;
   }
   .upload_button img{
     display: inline-block;

@@ -24,12 +24,16 @@ export default {
         });
     },
     createIngredientProfile : function(_profile, _callBack){
-        axios.post(serverInfo.serverUrl + 'api/ingredient/profile/create_ingredient', _profile).then((res) => {
+        axios.post(serverInfo.serverUrl + 'api/ingredient/profile/create_ingredient', _profile, {
+            withCredentials: true,
+        }).then((res) => {
             _callBack(res.data);
         });
     },
     createIngredientPostProfile : function(_profile, _callBack){
-        axios.post(serverInfo.serverUrl + 'api/ingredient/profile/create_ingredient_post', _profile).then((res) => {
+        axios.post(serverInfo.serverUrl + 'api/ingredient/profile/create_ingredient_post', _profile, {
+            withCredentials: true,
+        }).then((res) => {
             _callBack(res.data);
         });
     },
@@ -53,5 +57,5 @@ export default {
                 _callBack(response.data);
             }
         });
-    },
+    }
 }

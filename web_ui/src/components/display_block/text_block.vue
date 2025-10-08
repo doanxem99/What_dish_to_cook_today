@@ -1,9 +1,12 @@
-<script setup>
-  const props = defineProps({
-    textData: {
-      required: true
+<script>
+  export default {
+    props: {
+      textData: {
+        type: Object,
+        required: true
+      }
     }
-  })
+  }
 </script>
 
 <template>
@@ -13,7 +16,3 @@
       </p>
     </div>
 </template>
-
-<script>
-
-</script>

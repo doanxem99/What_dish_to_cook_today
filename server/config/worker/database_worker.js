@@ -23,7 +23,7 @@ const ServerMessageCode =
 const resetTimeRequestWorkerStatus = function()
 {
     clearInterval(timeTickerRequestStatus);
-    //After 5 minutes, if worker not send status, we watch this worker is close
+    //After 5 minutes, if worker not send status, we close this worker
     timeTickerRequestStatus = setInterval(function () {
         isCheckingStatusRequest = false;
         workerRegistered = null;
@@ -44,7 +44,8 @@ const requestWorkerStatus = function(){
         }
         else{
             //Open db_control
-            exec('"' + path.join(__dirname, '../../../database_control_center/database_control_center/bin/Debug/net6.0-windows/database_control_center.exe') + '"');
+            // exec('"' + path.join(__dirname, '../../../database_control_center/database_control_center/bin/Debug/net6.0-windows/database_control_center.exe') + '"');
+            exec('"' + path.join(__dirname, '../../../database_control_center/database_control_center/bin/Debug/net9.0-windows/database_control_center.exe') + '"');
         }
         
         //Reset time to recheck worker status

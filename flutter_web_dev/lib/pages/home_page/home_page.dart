@@ -71,7 +71,7 @@ class _HomePageState extends State<HomePage> {
       //Remove item out of itemList
       itemList!.remove(ingredientSearch);
       //If itemList is empty -> We remove this group
-      if(itemList!.length == 0){
+      if(itemList.length == 0){
         _ingredientsAvalable.removeWhere((key, value) => key == ingredientSearch.type);
       }
     });

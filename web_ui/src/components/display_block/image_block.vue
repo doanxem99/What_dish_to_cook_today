@@ -1,10 +1,19 @@
-<script setup>
-  const props = defineProps({
+<script>
+import serverData from '../../assets/js/server_info.js'
+
+export default {
+  props: {
     imageData: {
-        type : String,
-        required: true
+      type: Object,
+      required: true
     }
-  })
+  },
+  data() {
+    return {
+      serverData: serverData
+    }
+  },
+}
 </script>
 
 <template>
@@ -13,8 +22,3 @@
       <p v-if="imageData.text != ''" :style="{ fontSize: imageData.font_size + 'px', fontWeight : imageData.font_weight, textAlign : imageData.text_align }">{{imageData.text}}</p>
     </div>
 </template>
-
-<script>
-import serverData from '../../assets/js/server_info.js'
-
-</script>

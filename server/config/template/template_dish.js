@@ -69,9 +69,9 @@ const templateBlockGroup =
 }
 
 const templateDish = {
-    "name" : "Dish name",
+    "name" : "",
     "ingredients":[],
-    "short_detail":"Short detail",
+    "short_detail":"",
     "profile_image": templateImage.templateImage,
     "display_blocks": templateBlockGroup.default.getData(),
 };

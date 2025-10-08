@@ -7,267 +7,311 @@ const path = require('path');
 const workerCenter = require('../../config/worker/worker_center');
 const appDebug = require('../../config/debug/app_debug');
 const profileEnum = require('../../config/enum/profile_enum');
+const { verifyToken } = require('./verifyToken');
 
-const setIngredientBestPost = function(_ingredientId, _ingredientPosId, _callBack){
+const findFilePathsAndMoveAsync = (dishPostData, rootPath, tempFolder, dishFolder) => {
+    return new Promise((resolve, reject) => {
+        fileAction.findFilePathsAndMove(dishPostData, rootPath, tempFolder, dishFolder, (newData) => {
+            resolve(newData);
+        });
+    });
+};
+
+const setIngredientBestPost = async function(_ingredientId, _ingredientPostId) {
     appDebug.writeLine(appDebug.DebugType.Comment, "Set ingredient best post");
 
-    let isSuccess = true;
-    let actionHandling = 2;
-    //Set data for ingredient
-    database.collections.Ingredient.findByIdAndUpdate(_ingredientId, { best_post_id: _ingredientPosId }, function (_err, _res) {
-        if(isSuccess){
-            if (!_err){
-                actionHandling--;
-                if(actionHandling == 0){
-                    appDebug.writeLine(appDebug.DebugType.Comment, "Success set ingredient best post");
-                    _callBack({
-                        "status" : profileEnum.ProfileStatus_SetBestPost.Success
-                    });
-                }
-            }
-            else{
-                appDebug.writeLine(appDebug.DebugType.Exception, "Error : " + _err);
-                isSuccess = false;
-                _callBack({
-                    "status" : profileEnum.ProfileStatus_SetBestPost.Exception,
-                    "detail" : _err
-                });
-            }
-        }
-    });
-    //Set data for ingredient post
-    database.collections.IngredientPost.findByIdAndUpdate(_ingredientPosId, { is_best_post: true }, function (_err, _res) {
-        if(isSuccess){
-            if (!_err){
-                actionHandling--;
-                if(actionHandling == 0){
-                    appDebug.writeLine(appDebug.DebugType.Comment, "Success set ingredient best post");
-                    _callBack({
-                        "status" : profileEnum.ProfileStatus_SetBestPost.Success
-                    });
-                }
-            }
-            else{
-                appDebug.writeLine(appDebug.DebugType.Exception, "Error : " + _err);
-                isSuccess = false;
-                _callBack({
-                    "status" : profileEnum.ProfileStatus_SetBestPost.Exception,
-                    "detail" : _err
-                });
-            }
-        }
-    });
+    try {
+        await Promise.all([
+            await database.collections.Ingredient.findByIdAndUpdate(_ingredientId, { best_post_id: _ingredientPostId }),
+            await database.collections.IngredientPost.findByIdAndUpdate(_ingredientPostId, { is_best_post: true })
+        ]);
+
+        appDebug.writeLine(appDebug.DebugType.Comment, "Success set ingredient best post");
+        return {
+            "status": profileEnum.ProfileStatus_SetBestPost.Success
+        };
+    } catch (_err) {
+        appDebug.writeLine(appDebug.DebugType.Exception, "Error : " + _err);
+        return {
+            "status" : profileEnum.ProfileStatus_SetBestPost.Exception,
+            "detail" : _err
+        };
+    }
 }
 
-const createIngredientPost = function(_postData, _callBack)
+const createIngredientPost = async function(_postData)
 {
     //*First, we try to create a ingredient post
     //If this user aready create post for this ingredient
     //We edit the current post
     let ingredient_id = _postData.ingredient_id;
-    let user_id = "unknow";
-    let unique_id = ingredient_id + "_" + user_id;
+    let ingredient_name = _postData.ingredient_name;
+    let user_id = _postData.data.user_id
     let type = _postData.data.type;
     let short_detail = _postData.data.short_detail;
     let profile_image = _postData.data.profile_image;
     let display_blocks = _postData.data.display_blocks;
+    let unique_id = ingredient_id + "_" + user_id;
 
     let ingredientPostData = {
-        'ingredient_id' : ingredient_id, 
+        'name' : ingredient_name,
         'user_id' : user_id,
+        'ingredient_id' : ingredient_id, 
         'unique_id' : unique_id,
         'date_time' : new Date().toJSON(),
+        'points' : 0,
         'type' : type,
         'short_detail' : short_detail,
         'profile_image' : profile_image,
         'display_blocks' : display_blocks
     };
 
-    appDebug.writeLine(appDebug.DebugType.Comment, "Create ingredient post : " + unique_id);
-    //Find all temporary files and move it to ingredient folder
-    let ingredientFolderPath = 'public/gallery/ingredients/' + ingredient_id + "/" + user_id + "/";
-    let temporaryFolderPath = 'public/gallery/temporary/';
-    fileAction.findFilePathsAndMove(ingredientPostData, path.join(__dirname, '../../'), temporaryFolderPath, ingredientFolderPath, (_newIngredientPostData) => {
-        //Try to create a ingredient post
-        database.collections.IngredientPost.create(_newIngredientPostData, function (_err, _res) {
-            if (!_err){
-                appDebug.writeLine(appDebug.DebugType.Comment, "Success create ingredient post");
-                _callBack({
-                    'status' : profileEnum.ProfileStatus_PostCreate.CreatingSuccess,
-                    'detail' : "Success create ingredient post",
-                    'ingredient_post_id' : _res._id
-                });
-            }
-            else{
-                //If this user aready create ingredient post for this ingredient
-                //We edit the current ingredient post
-                database.collections.IngredientPost.updateOne({ unique_id: unique_id }, _newIngredientPostData, function(_err, _res) {
-                    if(!_err){
-                        appDebug.writeLine(appDebug.DebugType.Comment, "Success edit ingredient post");
-                        _callBack({
-                            'status' : profileEnum.ProfileStatus_PostCreate.EditingSuccess,
-                            'detail' : "Success edit ingredient post",
-                            'ingredient_post_id' : _res._id
-                        });
-                    }
-                    else{
-                        appDebug.writeLine(appDebug.DebugType.Exception, _err);
-                        _callBack({
-                            'status' : profileEnum.ProfileStatus_PostCreate.Exception,
-                            'detail' : _err
-                        });
-                    }
-                });
-            }
-        });
+    
+    try {
+        //Find all temporary files and move it to ingredient folder
+        let ingredientFolderPath = 'public/gallery/ingredients/' + ingredient_id + "/" + user_id + "/";
+        let temporaryFolderPath = 'public/gallery/temporary/';
         
-    });
+        let newIngredientPostData = await findFilePathsAndMoveAsync(
+            ingredientPostData,
+            path.join(__dirname, '../../'),
+            temporaryFolderPath,
+            ingredientFolderPath
+        );
+
+        try {
+            appDebug.writeLine(appDebug.DebugType.Comment, "Creating ingredient post : " + unique_id);
+            const _res = await database.collections.IngredientPost.create(newIngredientPostData);
+            appDebug.writeLine(appDebug.DebugType.Comment, "Success create ingredient post");
+            return {
+                'status' : profileEnum.ProfileStatus_PostCreate.CreatingSuccess,
+                'status_code': profileEnum.Status_Code_Website.Success,
+                'detail' : "Success create ingredient post",
+                'ingredient_post_id' : _res._id
+            };
+        } catch (_err) {
+            //If this user aready create ingredient post for this ingredient
+            //We edit the current ingredient post
+            try {
+                appDebug.writeLine(appDebug.DebugType.Exception, "Fail to create ingredient post");
+                appDebug.writeLine(appDebug.DebugType.Comment, "Editing ingredient post : " + unique_id);
+                const _res = await database.collections.IngredientPost.updateOne({ unique_id: unique_id }, newIngredientPostData);
+    
+                appDebug.writeLine(appDebug.DebugType.Comment, "Success edit ingredient post");
+                return {
+                    'status' : profileEnum.ProfileStatus_PostCreate.EditingSuccess,
+                    'status_code': profileEnum.Status_Code_Website.Success,
+                    'detail' : "Success edit ingredient post",
+                    'ingredient_post_id' : _res._id
+                };
+            } catch (_err) {
+                appDebug.writeLine(appDebug.DebugType.Exception, "Error : " + _err);
+                return {
+                    'status' : profileEnum.ProfileStatus_PostCreate.Exception,
+                    'status_code': profileEnum.Status_Code_Website.InternalServerError,
+                    'detail' : _err
+                };
+            }
+        }
+    } catch (_err) {
+        appDebug.writeLine(appDebug.DebugType.Exception, "Error: " + _err);
+        return {
+            'status' : profileEnum.ProfileStatus_PostCreate.Exception,
+            'status_code': profileEnum.Status_Code_Website.InternalServerError,
+            'detail' : _err
+        }
+    }
 }
-const createIngredient = function(_postData, _callBack){
+const createIngredient = async function(_postData){
     //*First, we convert name to right format : 
     //Only allow name contain letter
     //Begin letter is upcase and other is lower case
     //*Then, try to create Ingredient with this name
     //If aready exist, we return status existed
-    let ingredientName = _postData.name;
+    let ingredient_name = _postData.name;
+    let user_id = _postData.userid;
     let type = _postData.type;
     let short_detail = _postData.short_detail;
     let profile_image = _postData.profile_image;
-    appDebug.writeLine(appDebug.DebugType.Comment, "Create ingredient : " + ingredientName);
-    if (/^[A-Za-z _]+$/.test(ingredientName)){
+    appDebug.writeLine(appDebug.DebugType.Comment, "Create ingredient : " + ingredient_name);
+    if (/^[A-Za-z _]+$/.test(ingredient_name)){
         let ingredientData = {
-            'name' : ingredientName, 
+            'name' : ingredient_name, 
             'best_post_id' : "",
             'is_need_update' : false
         };
 
-        database.collections.Ingredient.create(ingredientData, function (_err, _res) {
-            if (!_err){
-                appDebug.writeLine(appDebug.DebugType.Comment, "Success create ingredient");
-                let ingredientId = _res._id;
-                //Add ingredient post data
-                let ingrdientPostData = {
-                    'ingredient_id' : ingredientId,
-                    'data' : {
-                        'type' : type,
-                        'short_detail' : short_detail,
-                        'profile_image' : profile_image,
-                        'display_blocks' : []
-                    }
+        try {
+            const _res = await database.collections.Ingredient.create(ingredientData);
+
+            appDebug.writeLine(appDebug.DebugType.Comment, "Success create ingredient");
+            let ingredient_id = _res._id;
+            
+            let ingrdientPostData = {
+                'ingredient_id' : ingredient_id,
+                'ingredient_name': ingredient_name,
+                'data': {
+                    'user_id' : user_id,
+                    'type' : type,
+                    'short_detail' : short_detail,
+                    'profile_image' : profile_image,
+                    'display_blocks' : []
                 }
-                createIngredientPost(ingrdientPostData, function(_data) {
-                    if(_data.status == profileEnum.ProfileStatus_PostCreate.CreatingSuccess)
-                    {
-                        //Set this ingredientPost is best post
-                        let ingredientPostId = _data.ingredient_post_id;
-                        setIngredientBestPost(ingredientId, ingredientPostId, function(_data){
-                            if(_data.status == profileEnum.ProfileStatus_SetBestPost.Success){
-                                _callBack({
-                                    "status" : profileEnum.ProfileStatus_Create.Success,
-                                    "ingredient_id" : ingredientId,
-                                    "detail" : "Success create ingredient"
-                                });
-                            }
-                            else{
-                                _callBack({
-                                    "status" : profileEnum.ProfileStatus_Create.Exception,
-                                    "detail" : _data.detail
-                                });
-                            }
-                        });
-                    }
-                    else
-                    {
-                        appDebug.writeLine(appDebug.DebugType.Comment, "Failed to create ingredient post");
-                        _callBack({
-                            "status" : profileEnum.ProfileStatus_Create.Exception,
-                            "detail" : _data.detail
-                        });
-                    }
-                });
             }
-            else{
-                appDebug.writeLine(appDebug.DebugType.Exception, "Ingredient name aready used");
-                _callBack({
-                    "status" : profileEnum.ProfileStatus_Create.NameUsed,
-                    "detail" : "Ingredient name aready used"
-                });
+
+            const _dataCreate = await createIngredientPost(ingrdientPostData);
+            if (_dataCreate.status == profileEnum.ProfileStatus_PostCreate.CreatingSuccess) {
+                // Set this ingredientPost is best post
+                let ingredient_post_id = _dataCreate.ingredient_post_id;
+                const _dataSet = await setIngredientBestPost(ingredient_id, ingredient_post_id);
+                if (_dataSet.status == profileEnum.ProfileStatus_SetBestPost.Success) {
+                    return {
+                        "status" : profileEnum.ProfileStatus_Create.Success,
+                        "status_code": profileEnum.Status_Code_Website.Success,
+                        "ingredient_id" : ingredient_id,
+                        "detail" : "Success create ingredient"
+                    };
+                } else {
+                    return {
+                        "status" : profileEnum.ProfileStatus_Create.Exception,
+                        "status_code": profileEnum.Status_Code_Website.InternalServerError,
+                        "detail" : _dataSet.detail
+                    };
+                }
+            } else {
+                appDebug.writeLine(appDebug.DebugType.Comment, _dataCreate.detail);
+                return {
+                    "status" : profileEnum.ProfileStatus_Create.Exception,
+                    "status_code": profileEnum.Status_Code_Website.InternalServerError,
+                    "detail" : _dataCreate.detail
+                };
             }
-        });
-    }
-    else{
-        _callBack({
-            "status" : profileEnum.ProfileStatus_Create.NameFormatException,
-            "detail" : "Ingredient name only allow letter and space"
-        });
+        } catch (_err) {
+            appDebug.writeLine(appDebug.DebugType.Exception, "Error : " + _err);
+            return {
+                "status" : profileEnum.ProfileStatus_Create.NameUsed,
+                "status_code": profileEnum.Status_Code_Website.InternalServerError,
+                "detail" : _err
+            };
+        }
+    } else {
         appDebug.writeLine(appDebug.DebugType.Exception, "Ingredient name only allow letter and space");
+        return {
+            "status" : profileEnum.ProfileStatus_Create.NameFormatException,
+            "status_code": profileEnum.Status_Code_Website.InternalServerError,
+            "detail" : "Ingredient name only allow letter and space"
+        };
     }
-}
-const getIngredientDetail = function(_ingredientId, _callBack)
-{
-    database.collections.Ingredient.findById(_ingredientId, 'name best_post_id',function(_err, _response){
-        if(!_err){
-            _callBack({
-                'status' : profileEnum.ProfileStatus_Detail.Success, 
-                'data' : _response
-            });
-        }
-        else{
-            _callBack({
-                'status' : profileEnum.ProfileStatus_Detail.Exception, 'status' : _err
-            });
-        }
-    });
-}
-const getIngredientPostDetail = function(_ingredientPostId, _callBack)
-{
-    database.collections.IngredientPost.findById(_ingredientPostId, 
-        "ingredient_id user_id is_best_post date_time points type short_detail profile_image display_blocks",
-        function(_err, _response){
-            if(!_err){
-                _callBack({
-                    'status' : profileEnum.ProfileStatus_PostDetail.Success,
-                    'data' : _response
-                });
-            }
-            else{
-                _callBack({
-                    'status' : profileEnum.ProfileStatus_PostDetail.Exception,
-                    'detail' : _err
-                });
-            }
-        });
 }
 
-router.post('/create_ingredient', function(req, res){
-    createIngredient(req.body, (_dataReturn) => {
-        res.statusCode = 200;
-        res.send(_dataReturn);
-    });
+const updateIngredientPost = async function(_postData) {
+    let ingredient_id = _postData.ingredient_id;
+    let ingredient_name = _postData.ingredient_name;
+    let user_id = _postData.data.user_id
+    let type = _postData.data.type;
+    let short_detail = _postData.data.short_detail;
+    let profile_image = _postData.data.profile_image;
+    let display_blocks = _postData.data.display_blocks;
+    let unique_id = ingredient_id + "_" + user_id;
+
+    appDebug.writeLine(appDebug.DebugType.Comment, "Update ingredient post : " + unique_id);
+    let ingredientPostData = {
+        'name' : ingredient_name,
+        'user_id' : user_id,
+        'ingredient_id' : ingredient_id, 
+        'unique_id' : unique_id,
+        'date_time' : new Date().toJSON(),
+        'points' : 0,
+        'type' : type,
+        'short_detail' : short_detail,
+        'profile_image' : profile_image,
+        'display_blocks' : display_blocks
+    };
+    try {
+        const _res = await database.collections.IngredientPost.updateOne({ unique_id: unique_id }, ingredientPostData);
+        appDebug.writeLine(appDebug.DebugType.Comment, "Success update ingredient post");
+        return {
+            'status' : profileEnum.ProfileStatus_PostCreate.EditingSuccess,
+            'status_code': profileEnum.Status_Code_Website.Success,
+            'detail' : "Success update ingredient post",
+            'ingredient_post_id' : _res._id
+        };
+    } catch (_err) {
+        appDebug.writeLine(appDebug.DebugType.Exception, "Error : " + _err);
+        return {
+            'status' : profileEnum.ProfileStatus_PostCreate.Exception,
+            'status_code': profileEnum.Status_Code_Website.InternalServerError,
+            'detail' : _err
+        };
+    }
+}
+
+
+const getIngredientDetail = async function(_ingredientId, _callBack)
+{
+    try {
+        const _response = await database.collections.Ingredient.findById(_ingredientId, 'name best_post_id');
+        
+        await database.collections.IngredientPost.updateOne(
+            { _id: _response._id},
+            { $inc: { view: 1 }}
+        );
+
+        return {
+            'status' : profileEnum.ProfileStatus_Detail.Success, 
+            'status_code': profileEnum.Status_Code_Website.Success,
+            'data' : _response
+        };
+    } catch (_err) {
+        return {
+            'status' : profileEnum.ProfileStatus_Detail.Exception, 'status' : _err,
+            'status_code': profileEnum.Status_Code_Website.InternalServerError,
+        };
+    }
+}
+const getIngredientPostDetail = async function(_ingredientPostId, _callBack)
+{
+    try {
+        const _response = await database.collections.IngredientPost.findById(_ingredientPostId, 
+        "name ingredient_id user_id is_best_post date_time points type short_detail profile_image display_blocks");
+
+        return {
+            'status' : profileEnum.ProfileStatus_PostDetail.Success,
+            'status_code': profileEnum.Status_Code_Website.Success,
+            'data' : _response
+        };
+    } catch (_err) {
+        return {
+            'status': profileEnum.ProfileStatus_PostDetail.Exception,
+            'status_code': profileEnum.Status_Code_Website.InternalServerError,
+            'detail': _err
+        };
+    }
+}
+
+router.post('/create_ingredient', verifyToken, async function(req, res){
+    const result = await createIngredient(req.body);
+    res.status(result.status_code).send(result);
 });
-router.post('/create_ingredient_post', function(req, res){
-    createIngredientPost(req.body, (_dataReturn) => {
-        res.statusCode = 200;
-        res.send(_dataReturn);
-    });
+router.post('/create_ingredient_post', verifyToken, async function(req, res){
+    const result = await createIngredientPost(req.body);
+    res.status(result.status_code).send(result);
 });
-router.get('/get_ingredient/:ingredient_id', function(req, res){
-    getIngredientDetail(req.params.ingredient_id, (_data) => {
-        res.statusCode = 200;
-        res.send(_data);
-    });
+router.get('/get_ingredient/:ingredient_id', async function(req, res){
+    const result = await getIngredientDetail(req.params.ingredient_id);
+    res.status(result.status_code).send(result);
 });
-router.get('/get_ingredient_post/:ingredient_post_id', function(req, res){
-    getIngredientPostDetail(req.params.ingredient_post_id, (_data) => {
-        res.statusCode = 200;
-        res.send(_data);
-    });
+router.get('/get_ingredient_post/:ingredient_post_id', async function(req, res){
+    const result = await getIngredientPostDetail(req.params.ingredient_post_id);
+    res.status(result.status_code).send(result);
 });
-router.get('/get_ingredient_posts/:ingredient_ids', function(req, res){
-    getIngredientPostIds(req.params.ingredient_ids, (_data) => {
-        res.statusCode = 200;
-        res.send(_data);
-    });
+router.get('/get_ingredient_posts/:ingredient_ids', async function(req, res){
+    const result = await getIngredientPostIds(req.params.ingredient_ids);
+    res.status(result.status_code).send(result);
+});
+router.patch('/update_ingredient_post', verifyToken, async function(req, res){
+    const result = await updateIngredientPost(req.body);
+    res.status(result.status_code).send(result);
 });
 
 //export this router to use in our index.js

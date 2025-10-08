@@ -1,5 +1,6 @@
-<script setup>
-    const props = defineProps({
+<script>
+    export default{
+      props : {
         dataEditing : {
           required: true,
         },
@@ -11,7 +12,30 @@
           type : Function,
           required: true,
         }
-    })
+      },
+      data() {
+        return {
+            
+        }
+      },
+      methods : {
+        applyData : function(){
+          //Trigger event edited
+          this.onEdited(this.$refs.inputfield_name.value);
+          //Close box edit
+          this.onClose();
+        },
+        cancelData : function(){
+          //Unset dataEdited
+          this.dataEdited = null;
+          //Close box edit
+          this.onClose();
+        },
+      },
+      mounted : function(){
+        
+      }
+    }
   </script>
     
   <template>
@@ -36,33 +60,6 @@
         </div>
       </div>
   </template>
-    
-  <script>
-    export default{
-      data() {
-        return {
-            
-        }
-      },
-      methods : {
-        applyData : function(){
-          //Trigger event edited
-          this.props.onEdited(this.$refs.inputfield_name.value);
-          //Close box edit
-          this.props.onClose();
-        },
-        cancelData : function(){
-          //Unset dataEdited
-          this.dataEdited = null;
-          //Close box edit
-          this.props.onClose();
-        },
-      },
-      mounted : function(){
-        
-      }
-    }
-  </script>
     
   <style>
     .box_edit{

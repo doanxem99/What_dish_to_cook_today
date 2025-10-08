@@ -1,5 +1,8 @@
-<script setup>
-  const props = defineProps({
+<script>
+  export default{
+    components : {
+    },
+    props : {
       dataEditing : {
         required: true,
       },
@@ -11,7 +14,49 @@
         type : Function,
         required: true,
       }
-  })
+    },
+    data() {
+      return {
+          dataEdited : null,
+      }
+    },
+    methods : {
+      getDataEdited : function(){
+        if(this.dataEdited == null){
+          this.dataEdited = JSON.parse(JSON.stringify(this.dataEditing));
+        }
+        return this.dataEdited;
+      },
+      storeData : function(){
+          //Get this.dataEdited(If not exist)
+          this.getDataEdited();
+
+          //Store data
+          this.dataEdited.text = this.$refs.inputfield_text_block.value;
+          this.dataEdited.font_size = this.$refs.inputfield_text_block_font_size.value;
+          this.dataEdited.color = this.$refs.inputfield_text_block_font_color.value;
+      },
+      applyData : function(){
+        //Store data
+        this.storeData();
+        //Trigger event edited
+        this.onEdited(this.dataEdited);
+        //Unset dataEdited
+        this.dataEdited = null;
+        //Close box edit
+        this.onClose();
+      },
+      cancelData : function(){
+        //Unset dataEdited
+        this.dataEdited = null;
+        //Close box edit
+        this.onClose();
+      },
+    },
+    mounted : function(){
+      
+    }
+  }
 </script>
   
 <template>
@@ -46,52 +91,6 @@
       </div>
     </div>
 </template>
-  
-<script>
-  export default{
-    data() {
-      return {
-          dataEdited : null,
-      }
-    },
-    methods : {
-      getDataEdited : function(){
-        if(this.dataEdited == null){
-          this.dataEdited = JSON.parse(JSON.stringify(this.props.dataEditing));
-        }
-        return this.dataEdited;
-      },
-      storeData : function(){
-          //Get this.dataEdited(If not exist)
-          this.getDataEdited();
-
-          //Store data
-          this.dataEdited.text = this.$refs.inputfield_text_block.value;
-          this.dataEdited.font_size = this.$refs.inputfield_text_block_font_size.value;
-          this.dataEdited.color = this.$refs.inputfield_text_block_font_color.value;
-      },
-      applyData : function(){
-        //Store data
-        this.storeData();
-        //Trigger event edited
-        this.props.onEdited(this.dataEdited);
-        //Unset dataEdited
-        this.dataEdited = null;
-        //Close box edit
-        this.props.onClose();
-      },
-      cancelData : function(){
-        //Unset dataEdited
-        this.dataEdited = null;
-        //Close box edit
-        this.props.onClose();
-      },
-    },
-    mounted : function(){
-      
-    }
-  }
-</script>
   
 <style>
   .box_edit{

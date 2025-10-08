@@ -31,11 +31,11 @@ namespace database_control_center
 
     public static class ServerSingleInstanceApp
     {
-        private static string appId;
-        private static Action<List<string>> eventInstanceAppSendArgs;
+        private static string appId = "";
+        private static Action<List<string>> eventInstanceAppSendArgs = null!;
 
-        private static NamedPipeServerStream namedPipeServerStream = null;
-        private static BackgroundWorker backgroundWorker = null;
+        private static NamedPipeServerStream namedPipeServerStream = null!;
+        private static BackgroundWorker backgroundWorker = null!;
 
         public static void Init(string _appId, Action<List<string>> _eventInstanceAppSendArgs)
         {
@@ -49,13 +49,13 @@ namespace database_control_center
         {
             backgroundWorker = new BackgroundWorker();
             backgroundWorker.WorkerSupportsCancellation = true;
-            backgroundWorker.DoWork += new DoWorkEventHandler(backgroundWorker_Reader);
+            backgroundWorker.DoWork += new DoWorkEventHandler(BackgroundWorker_Reader);
             backgroundWorker.WorkerReportsProgress = true;
             backgroundWorker.RunWorkerAsync();
 
         }
 
-        private static void backgroundWorker_Reader(object sender, DoWorkEventArgs e)
+        private static void BackgroundWorker_Reader(object sender, DoWorkEventArgs e)
         {
             //Init
             if (namedPipeServerStream != null)
@@ -86,8 +86,8 @@ namespace database_control_center
                         else
                         {
                             string temp;
-                            List<string> args = new List<string>();
-                            while ((temp = sr.ReadLine()) != null)
+                            List<string> args = [];
+                            while ((temp = sr.ReadLine()!) != null)
                             {
                                 args.Add(temp);
                                 Console.WriteLine("Received from client: {0}", temp);

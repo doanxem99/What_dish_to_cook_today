@@ -5,6 +5,7 @@ const busboy = require('connect-busboy');
 const expressWs = require('express-ws');
 const workerCenter = require('./config/worker/worker_center');
 const appDebug = require('./config/debug/app_debug');
+const cookieParser = require('cookie-parser');
 
  //*Create app
 const app = express();
@@ -14,6 +15,8 @@ expressWs(app);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use(cookieParser());
 
 //Flutter need cors to work with api
 app.use(cors());
@@ -27,11 +30,19 @@ app.use(nocache());*/
 //*Set session
 app.set('trust proxy', 1); // trust first proxy
 app.use(session({
-  secret: 'what_dish_to_cook_today',//If we change secret key, browser will watch this it new session
+  secret: 'what_dish_to_cook_today',//If we change secret key, browser will watch this as new session
   resave: false,
-  saveUninitialized: true,
-  //cookie: { secure: true }//secure: true only work for https
+  saveUninitialized: false,
+  cookie: { 
+    maxAge: 3600 * 1000, // 1 day
+    // secure: true //secure: true only work for https
+  },
+  unset: 'destroy'
 }));
+if (app.get('env') === 'production') {
+  app.set('trust proxy', 1) // trust first proxy
+  sess.cookie.secure = true // serve secure cookies
+}
 
 //*Init
 appDebug.init();
@@ -43,6 +54,7 @@ app.use("/public",express.static('public'));
 
 //* Add router listener
 //+ API
+app.use('/api/auth', require('./routes/api/auth'));
 app.use('/api/ingredient', require('./routes/api/ingredient'));
 app.use('/api/dish', require('./routes/api/dish'));
 app.use('/api/template', require('./routes/api/template'));
@@ -74,7 +86,7 @@ app.use('/testing2', function(req, res){
 
 //*Listening
 app.listen("3000", () => {
-  console.log('Begin listening');
+  console.log('Begin listening on port 3000');
 
   workerCenter.startWorkers();
 });

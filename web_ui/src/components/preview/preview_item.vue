@@ -1,15 +1,25 @@
-<script setup>
-    const props = defineProps({
-      previewData : {
-        required: true
-      }
-    })
+<script>
+    import serverInfo from '../../assets/js/server_info.js'
+    
+    export default{
+    props: {
+        previewData: {
+          type: Object,
+          required: true
+        }
+      },
+      methods : {
+        getFullPath : function (path){
+          return serverInfo.getFullPath(path);
+        },
+      },
+    }
   </script>
   
   <template>
     <div class="preview_item">
-      <div class="preview_item_image" :style="{'background-image': 'url(' + serverInfo.getFullPath(previewData.profile_image) + ')'}"></div>
-      <div class="preview_item_info">
+      <div class="preview_item_image rounded-3xl" :style="{'background-image': 'url(' + getFullPath(previewData.profile_image) + ')'}"></div>
+      <div class="preview_item_info rounded-3xl">
         <p class="preview_item_more small_font_size">More</p>
         <div class="preview_item_detail">
           <p class="medium_font_size">{{previewData.name}}</p>
@@ -18,16 +28,6 @@
       </div>
     </div>
   </template>
-  
-  <script>
-    import serverInfo from '../../assets/js/server_info.js'
-    
-    export default{
-      methods : {
-        
-      },
-    }
-  </script>
   
   <style>
     .preview_item{
