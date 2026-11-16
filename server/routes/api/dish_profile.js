@@ -2,9 +2,7 @@ const express = require('express');
 const router = express.Router();
 const database = require('../../config/database/connection');
 const fileAction = require('../../config/file/file_action');
-const templateImage = require('../../config/template/template_image');
 const path = require('path');
-const workerCenter = require('../../config/worker/worker_center');
 const appDebug = require('../../config/debug/app_debug');
 const profileEnum = require('../../config/enum/profile_enum');
 const { verifyToken } = require('./verifyToken');
@@ -23,6 +21,11 @@ const setDishBestPost = async function(_dishId, _dishPostId) {
     appDebug.writeLine(appDebug.DebugType.Comment, "Set dish best post");
     
     try {
+        //Only one post per dish can be the best post
+        await database.collections.DishPost.updateMany(
+            { dish_id: _dishId, is_best_post: true },
+            { is_best_post: false }
+        );
         // Run both updates in parallel with Promise.all
         await Promise.all([
             database.collections.Dish.findByIdAndUpdate(_dishId, { best_post_id: _dishPostId }),
@@ -55,6 +58,14 @@ const createDishPost = async function(_postData) {
     let profile_image = _postData.data.profile_image;
     let display_blocks = _postData.data.display_blocks;
     let unique_id = dish_id + "_" + user_id;
+
+    //The folder name is built from this id, so it must be a plain database id
+    if (!/^[a-f0-9]{24}$/i.test(String(dish_id))) {
+        return {
+            'status': profileEnum.ProfileStatus_PostCreate.Exception,
+            'detail': "Invalid dish id"
+        };
+    }
 
     let dishPostData = {
         'name': dish_name,
@@ -96,9 +107,12 @@ const createDishPost = async function(_postData) {
         } catch (err) {
             // Try to update instead
             try {
-                const res = await database.collections.DishPost.updateOne(
+                //Points are votes from users; editing a post must not reset them
+                delete newDishPostData.points;
+                const res = await database.collections.DishPost.findOneAndUpdate(
                     { unique_id: unique_id }, 
-                    newDishPostData
+                    newDishPostData,
+                    { new: true }
                 );
                 appDebug.writeLine(appDebug.DebugType.Comment, "Success edit dish post");
                 return {
@@ -259,26 +273,29 @@ const getBestDishPost = async function() {
             "name dish_id user_id is_best_post date_time points views comments ingredients short_detail profile_image display_blocks"
         ).sort({ points: -1 });
 
-        const user = await database.collections.User.findById(
-            dishPost.user_id,
-            "username"
-        );
+        if (!dishPost) {
+            return {
+                'status': profileEnum.ProfileStatus_PostDetail.Success,
+                'data': null
+            };
+        }
 
-        const ingredients = await database.collections.Ingredient.find(
-            { _id: dishPost.ingredients },
-            "name"
-        );
+        const [user, ingredients] = await Promise.all([
+            database.collections.User.findById(dishPost.user_id, "username"),
+            database.collections.Ingredient.find({ _id: { $in: dishPost.ingredients || [] } }, "name")
+        ]);
+        //find() does not keep the order of the input ids, so look the names up by id
+        const ingredientNames = new Map(ingredients.map(ingredient => [ingredient._id.toString(), ingredient.name]));
 
-        const responseData = dishPost ? dishPost.toObject() : null;
+        const responseData = dishPost.toObject();
 
         // Add username to the response
         responseData.username = user ? user.username : "Unknown User";
         // Add ingredient name to each ingredient in the dish post
-        let index = 0;
-        responseData.ingredients = responseData.ingredients.map(ingredient => {
+        responseData.ingredients = (responseData.ingredients || []).map(ingredient => {
             return {
                 'ingredient_id': ingredient,
-                'name': ingredients[index++].name,
+                'name': ingredientNames.get(ingredient.toString()) || "Unknown Ingredient",
             };
         });
 
@@ -302,7 +319,12 @@ router.post('/create_dish', verifyToken, async function(req, res) {
     res.status(200).send(result);
 });
 
-router.post('/create_dish_post', async function(req, res) {
+router.post('/create_dish_post', verifyToken, async function(req, res) {
+    if (!req.body.data) {
+        return res.status(400).send({ 'status': profileEnum.ProfileStatus_PostCreate.Exception, 'detail': "Missing post data" });
+    }
+    //Never trust the user id from the client
+    req.body.data.user_id = req.body.userid;
     const result = await createDishPost(req.body);
     res.status(200).send(result);
 });
@@ -314,11 +336,6 @@ router.get('/get_dish/:dish_id', async function(req, res) {
 
 router.get('/get_dish_post/:dish_post_id', async function(req, res) {
     const result = await getDishPostDetail(req.params.dish_post_id);
-    res.status(200).send(result);
-});
-
-router.get('/get_dish_posts/:dish_ids', async function(req, res) {
-    const result = await getDishPostIds(req.params.dish_ids);
     res.status(200).send(result);
 });
 

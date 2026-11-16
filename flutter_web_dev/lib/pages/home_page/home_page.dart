@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:what_dish_to_cook_today/classes/data/ingredient_preview.dart';
@@ -80,7 +78,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> searchIngredients() async
   {
     try{
-      var url = Uri.parse(AppStorage.serverUrl + 'api/ingredients_search/' + _keywordSearch);
+      var url = Uri.parse(AppStorage.serverUrl + 'api/ingredient/search/keyword/' + Uri.encodeComponent(_keywordSearch));
       var response = await http.get(url);
       if(response.statusCode == 200){
         setState((){

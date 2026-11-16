@@ -65,6 +65,7 @@ namespace database_control_center
                             AppLog.Log(AppLogType.Comment, "Start handling " + jobs.Count + " jobs");
 
                             bool isSuccess;
+                            bool hasFailedJob = false;
                             foreach(BsonDocument job in jobs)
                             {
                                 string? id = job.GetValue("_id").ToString();
@@ -79,7 +80,15 @@ namespace database_control_center
                                 }
                                 else if (datas[0] == "VoteBestPostIngredient")
                                 {
-                                    isSuccess = IngredientVoteBestPost.VoteBestPost(datas[1], DateTime.Parse(timeRequest!));
+                                    if (datas.Length < 2)
+                                    {
+                                        AppLog.Log(AppLogType.Waring, "Job has no ingredient id : " + id);
+                                        isSuccess = false;
+                                    }
+                                    else
+                                    {
+                                        isSuccess = IngredientVoteBestPost.VoteBestPost(datas[1], DateTime.Parse(timeRequest!));
+                                    }
                                 }
                                 else
                                 {
@@ -87,19 +96,33 @@ namespace database_control_center
                                     isSuccess = true;
                                 }
 
+                                if (!isSuccess)
+                                {
+                                    //Keep the job so a temporary failure can be retried
+                                    AppLog.Log(AppLogType.Waring, "Job failed, kept for retry : " + id);
+                                    hasFailedJob = true;
+                                    break;
+                                }
+
                                 //Remove out of DB
                                 jobCollection.DeleteOne(job);
                             }
 
                             AppLog.Log(AppLogType.Comment, "Finished handling jobs");
+
+                            if (hasFailedJob)
+                            {
+                                //Do not retry a failing job in a tight loop
+                                Thread.Sleep(TimeSpan.FromSeconds(10));
+                            }
                         }
                         else
                         {
                             SetWorkerStatus(WorkerStatus.Idle);
                         }
 
-                        //Sleep thread 100 milisecond before continue check
-                        Thread.Sleep(TimeSpan.FromMilliseconds(100));
+                        //Sleep thread 1 second before continue check
+                        Thread.Sleep(TimeSpan.FromSeconds(1));
                     }
                 }
             }

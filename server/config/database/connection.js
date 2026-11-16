@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 mongoose
-    .connect('mongodb://localhost:27017/what_dish_to_cook_today?directConnection=true')
+    .connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/what_dish_to_cook_today?directConnection=true', {
+        //Fail fast instead of buffering requests forever when the database is down
+        serverSelectionTimeoutMS: 5000
+    })
     .then(() => {
         console.log('MongoDB connected!');
     })
@@ -31,11 +34,11 @@ const User = mongoose.model('user', {
         unique: true, // `name` must be unique
         required: true
     },
-    roles: {
+    roles: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'role',
         required: true
-    },
+    }],
     profile_image: {
         type: Buffer
     }
@@ -63,7 +66,7 @@ const IngredientPost = mongoose.model('ingredient_post', {
         type: String,
         unique: true
     },
-    point: Number,
+    points: Number,
     type: String,
     short_detail: String,
     profile_image : String,

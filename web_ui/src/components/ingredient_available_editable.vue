@@ -35,6 +35,7 @@
         let index = this.ingredientsAvailable.indexOf(_item);
         if (index !== -1) {
           this.ingredientsAvailable.splice(index, 1);
+          this.onChanged(this.ingredientsAvailable);
         }
       },
     },
@@ -44,7 +45,12 @@
         for (let i = 0; i < this.ingredientsId.length; i++) {
           const itemId = this.ingredientsId[i];
           ingredientServerAction.searchIngredientById(itemId, (_ingredients) => {
-              this.ingredientsAvailable = _ingredients;
+              //Each call answers with one ingredient, so add it to the list
+              _ingredients.forEach(ingredient => {
+                if(!this.ingredientsAvailable.find(element => element.id == ingredient.id)){
+                  this.ingredientsAvailable.push(ingredient);
+                }
+              });
           });
         }
       }

@@ -115,6 +115,9 @@ namespace database_control_center
                 }
                 //Handle usual Communication Exceptions here - just logging here for demonstration and debugging Purposes
                 //Invoke(updateLog, new object[] { ex.Message });
+
+                //A dead reader must not stop later launches from talking to this instance
+                CreateListeningArgsFromInstanceApps();
             }
         }
     }
@@ -133,7 +136,16 @@ namespace database_control_center
 
                 // Connect to the pipe or wait until the pipe is available.
                 Console.Write("Attempting to connect to pipe...");
-                pipeClient.Connect();
+                try
+                {
+                    //Do not hang forever when the running instance has no listener
+                    pipeClient.Connect(3000);
+                }
+                catch (TimeoutException)
+                {
+                    AppLog.Log(AppLogType.Exception, "Cannot connect to the running instance, args are dropped");
+                    return;
+                }
 
                 Console.WriteLine("Connected to pipe.");
                 Console.WriteLine("There are currently {0} pipe server instances open.",

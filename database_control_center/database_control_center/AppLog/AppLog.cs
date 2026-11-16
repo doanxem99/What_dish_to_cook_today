@@ -18,28 +18,33 @@ namespace database_control_center
         public static Action<string>? eventLog;
 
         private static bool isInit = false;
+        private static readonly object logLock = new object();
         private static readonly string directoryPath = Directory.GetCurrentDirectory() + "/Temporary";
         private static readonly string logPath = directoryPath + "/AppLog.txt";
 
         public static void Log(AppLogType _applockType, string _data)
         {
             string displayData = _applockType + " : " + _data;
-            //First, we check if not aready init, we init
-            if (!isInit)
+            //The websocket timer and the workspace thread both log, so the file needs one lock
+            lock (logLock)
             {
-                isInit = true;
-
-                Directory.CreateDirectory(directoryPath);
-                if (File.Exists(logPath))
+                //First, we check if not aready init, we init
+                if (!isInit)
                 {
-                    File.Delete(logPath);
-                }
-            }
+                    isInit = true;
 
-            //First, we show output log
-            System.Diagnostics.Debug.WriteLine(displayData);
-            //Then, we write data to file
-            File.AppendAllText(logPath, displayData);
+                    Directory.CreateDirectory(directoryPath);
+                    if (File.Exists(logPath))
+                    {
+                        File.Delete(logPath);
+                    }
+                }
+
+                //First, we show output log
+                System.Diagnostics.Debug.WriteLine(displayData);
+                //Then, we write data to file
+                File.AppendAllText(logPath, displayData + Environment.NewLine);
+            }
             //Then, we trigger event
             eventLog?.Invoke(displayData);
         }

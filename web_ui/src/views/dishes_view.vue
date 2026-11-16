@@ -31,6 +31,7 @@
           useAuthStore().errorMessage = "You must login to create new dish profile.";
           useAuthStore().jumpPage = '/dishes';
           this.$router.push({ path: '/signin' });
+          return;
         }
         this.isGenerateDish = true;
       },

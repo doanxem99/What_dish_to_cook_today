@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '../assets/store/auth_store'
 import homeView from '../views/home_view.vue'
 
 const router = createRouter({
@@ -79,13 +80,9 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-  if (to.meta.requiresAuth) {
-    const token = Cookies.get('token')
-    if (token) {
-      next();
-    } else {
-      next('/signin');
-    }
+  if (to.meta.requiresAuth && !useAuthStore().isLogin) {
+    useAuthStore().jumpPage = to.fullPath;
+    next('/signin');
   }
   else {
     next();

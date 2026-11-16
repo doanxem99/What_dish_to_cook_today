@@ -74,19 +74,7 @@ class _TemplatePageState extends State<TemplatePage> {
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             setupMenuButton("Home", (){
-
-                            }),
-                            setupMenuButton("Dishes", (){
-
-                            }),
-                            setupMenuButton("Dishes", (){
-
-                            }),
-                            setupMenuButton("Dishes", (){
-
-                            }),
-                            setupMenuButton("About!", (){
-
+                              Navigator.pushNamed(context, '/home');
                             }),
                           ],
                         )

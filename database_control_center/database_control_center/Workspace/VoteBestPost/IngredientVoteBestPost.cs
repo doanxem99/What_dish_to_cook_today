@@ -30,20 +30,38 @@ namespace database_control_center
                         mongoDatabase = dbClient.GetDatabase("what_dish_to_cook_today");
                     }
                     IMongoCollection<BsonDocument> ingredientCollection = mongoDatabase.GetCollection<BsonDocument>(collectionName);
+                    IMongoCollection<BsonDocument> ingredientPostCollection = mongoDatabase.GetCollection<BsonDocument>("ingredient_post");
 
                     //Save time handle for this ingredient is now
                     ingredientTimeHandleDictionary[_ingredientId] = DateTime.Now;
 
-                    //Handle request
-                    var item = ingredientCollection.Find(Builders<BsonDocument>.Filter.Eq("_id", _ingredientId)).FirstOrDefaultAsync();
-
-                    //For now, we just set the first post is best post
-                    BsonDocument posts = item.Result.GetValue("posts").ToBsonDocument();
-                    IEnumerable<string> keyPosts = posts.Names;
-                    foreach (string key in keyPosts)
+                    if (!ObjectId.TryParse(_ingredientId, out ObjectId ingredientObjectId))
                     {
-                        item.Result.Set("best_post_id", "user_id_create_this_post");
+                        AppLog.Log(AppLogType.Waring, "Ingredient id is not valid : " + _ingredientId);
+                        return true;
                     }
+
+                    //Pick the post with the most points as the best post
+                    BsonDocument? bestPost = ingredientPostCollection
+                        .Find(Builders<BsonDocument>.Filter.Eq("ingredient_id", _ingredientId))
+                        .Sort(Builders<BsonDocument>.Sort.Descending("points"))
+                        .FirstOrDefault();
+                    if (bestPost == null)
+                    {
+                        AppLog.Log(AppLogType.Comment, "Ingredient has no post to vote : " + _ingredientId);
+                        return true;
+                    }
+
+                    //Only one post can be the best post
+                    ingredientPostCollection.UpdateMany(
+                        Builders<BsonDocument>.Filter.Eq("ingredient_id", _ingredientId),
+                        Builders<BsonDocument>.Update.Set("is_best_post", false));
+                    ingredientPostCollection.UpdateOne(
+                        Builders<BsonDocument>.Filter.Eq("_id", bestPost.GetValue("_id")),
+                        Builders<BsonDocument>.Update.Set("is_best_post", true));
+                    ingredientCollection.UpdateOne(
+                        Builders<BsonDocument>.Filter.Eq("_id", ingredientObjectId),
+                        Builders<BsonDocument>.Update.Set("best_post_id", bestPost.GetValue("_id").ToString()));
 
                     AppLog.Log(AppLogType.Comment, "Success vote best post ingredient : " + _ingredientId);
                 }

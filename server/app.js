@@ -1,6 +1,7 @@
+const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
-const session = require('express-session');
-const cors = require('cors')
+const cors = require('cors');
 const busboy = require('connect-busboy');
 const expressWs = require('express-ws');
 const workerCenter = require('./config/worker/worker_center');
@@ -10,6 +11,9 @@ const cookieParser = require('cookie-parser');
  //*Create app
 const app = express();
 
+//Only trust X-Forwarded-* when the app really runs behind a proxy (reverse proxy, PaaS)
+app.set('trust proxy', process.env.TRUST_PROXY === '1' ? 1 : false);
+
 //*Use websocket on app
 expressWs(app);
 
@@ -18,39 +22,43 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(cookieParser());
 
-//Flutter need cors to work with api
-app.use(cors());
-
-app.use(busboy());
-
-/*//Require no cache
-const nocache = require('nocache');
-app.use(nocache());*/
-
-//*Set session
-app.set('trust proxy', 1); // trust first proxy
-app.use(session({
-  secret: 'what_dish_to_cook_today',//If we change secret key, browser will watch this as new session
-  resave: false,
-  saveUninitialized: false,
-  cookie: { 
-    maxAge: 3600 * 1000, // 1 day
-    // secure: true //secure: true only work for https
+//Flutter need cors to work with api.
+//Only localhost origins are allowed; set CORS_ORIGINS (comma separated) to add real domains.
+const defaultOrigins = ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173', 'http://127.0.0.1:3000'];
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
+  : defaultOrigins;
+app.use(cors({
+  origin: (origin, callback) => {
+    //Same-origin and non-browser requests send no Origin header
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    const error = new Error('Not allowed by CORS');
+    error.status = 403;
+    return callback(error);
   },
-  unset: 'destroy'
+  credentials: true,
 }));
-if (app.get('env') === 'production') {
-  app.set('trust proxy', 1) // trust first proxy
-  sess.cookie.secure = true // serve secure cookies
+
+//Max upload size is 5 MB
+app.use(busboy({ limits: { fileSize: 5 * 1024 * 1024 } }));
+
+//A random JWT secret is used when none is configured, so missing config is not a crash.
+//Tokens from before a restart are rejected in that case.
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = crypto.randomBytes(32).toString('hex');
+  console.warn('JWT_SECRET is not set. Using a random secret; logins will not survive a restart.');
 }
 
 //*Init
 appDebug.init();
 
 //*Set public folder
-app.use("/", express.static('web'));
-app.use("/web", express.static('web'));
-app.use("/public",express.static('public'));
+const rootPath = __dirname;
+app.use("/", express.static(path.join(rootPath, 'web')));
+app.use("/web", express.static(path.join(rootPath, 'web')));
+app.use("/public", express.static(path.join(rootPath, 'public')));
 
 //* Add router listener
 //+ API
@@ -61,22 +69,14 @@ app.use('/api/template', require('./routes/api/template'));
 app.use('/api/gallery_upload', require('./routes/api/gallery_upload'));
 //+ Web
 app.use('/web', require('./routes/web/index.js'));
-//(*)Add error router handle at last
-app.use(require('./routes/web/error.js'));
 
 //Add websocket
 app.ws('/worker', function(ws, req) {
   workerCenter.eventWorkerConnected(ws, req);
 });
 
-app.use('/testing', function(req, res){
-  workerCenter.addRequestJob(workerCenter.WorkerType.DatabaseControl, "NoShit");
-  res.send("abcd");
-});
-app.use('/testing2', function(req, res){
-  workerCenter.addRequestJob(workerCenter.WorkerType.DatabaseControl, "ResetData");
-  res.send("abcd");
-});
+//(*)Add error router handle at last
+app.use(require('./routes/web/error.js'));
 
 //*************Need create edit page for dish
 //*************For ingredient type, allow multiple types and have UI/UX like ingredients using of dish */

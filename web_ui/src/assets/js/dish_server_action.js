@@ -3,7 +3,7 @@ import serverInfo from './server_info.js'
 
 export default {
     searchDish : function(_keySearch, _callBack){
-        axios.get(serverInfo.serverUrl + 'api/dish/search/keyword/' + _keySearch).then(response => {
+        axios.get(serverInfo.serverUrl + 'api/dish/search/keyword/' + encodeURIComponent(_keySearch)).then(response => {
             if(response.status == 200){
                 _callBack(response.data);
             }
@@ -39,13 +39,6 @@ export default {
     },
     getDishPostProfile : function(_dishPostId, _callBack){
         axios.get(serverInfo.serverUrl + 'api/dish/profile/get_dish_post/' + _dishPostId).then(response => {
-            if(response.status == 200){
-                _callBack(response.data);
-            }
-        });
-    },
-    getDishPostsProfile : function(_dishPostIds, _callBack){
-        axios.get(serverInfo.serverUrl + 'api/dish/profile/get_dish_posts/' + _dishPostIds).then(response => {
             if(response.status == 200){
                 _callBack(response.data);
             }

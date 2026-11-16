@@ -2,8 +2,6 @@
 import preview_item from './preview/preview_item.vue';
 import ingredient_object_available from './ingredient_object_available.vue';
 
-import dish_server_action from '../assets/js/dish_server_action';
-
 export default {
     components: {
         preview_item,
@@ -15,22 +13,11 @@ export default {
         required: true,
       }  
     },
-    data() {
-        return {
-
-        };
-    },
     methods: {
         moveToDishDetail: function() {
-            console.log(this.dataDish._id);
             this.$router.push({ path: '/dish_detail/', query: {dish_post_id: this.dataDish._id}})
-        },
-        moveToUserDetail: function() {
-            this.$router.push({ path: '/user_detail/', query: {user_id: this.dataDish.user_id}})
         }
     },
-    mounted : function() {
-    }
 }
 </script>
 
@@ -48,7 +35,7 @@ export default {
                 </div>
             </div>
             <div class=" text-base flex gap-60 sm:flex-row max-sm:flex-col">
-                <div class=" link_hover" v-on:click="moveToUserDetail">
+                <div>
                     <p> {{ dataDish.username }}</p>
                 </div>
                 <!-- Display time only date, not time -->

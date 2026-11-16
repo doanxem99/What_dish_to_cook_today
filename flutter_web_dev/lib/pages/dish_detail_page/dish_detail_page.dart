@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:what_dish_to_cook_today/classes/data/dish_preview.dart';
@@ -19,31 +21,60 @@ class _DishDetailPageState extends State<DishDetailPage> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
 
+    //Route arguments are only ready after the first frame
     Future.delayed(Duration.zero, () {
-      setState((){
-        DishPreview dishPreview = ModalRoute.of(context)!.settings.arguments as DishPreview;
-
-      });
+      final dishPreview = ModalRoute.of(context)!.settings.arguments as DishPreview;
+      loadDishDetail(dishPreview);
     });
   }
 
   Future<void> loadDishDetail(DishPreview dishPreview) async
   {
     try{
-      var url = Uri.parse(AppStorage.serverUrl + 'api/dishs_selection_search/');
-      var response = await http.get(url);
+      var dishResponse = await http.get(Uri.parse(AppStorage.serverUrl + 'api/dish/profile/get_dish/' + dishPreview.id));
+      if(dishResponse.statusCode != 200){
+        return;
+      }
+      dynamic dishData = json.decode(dishResponse.body)['data'];
+      if(dishData == null){
+        return;
+      }
 
-      if(response.statusCode == 200){
+      String bestPostId = dishData['best_post_id']?.toString() ?? '';
+      if(bestPostId.isEmpty){
         setState((){
-          dishDetail = DishDetail.fromJson(response.body);
+          dishDetail = DishDetail(dishPreview.id, dishData['name']?.toString() ?? dishPreview.name,
+              '', dishPreview.imageSrc, [], []);
         });
+        return;
       }
-      else{
 
+      var postResponse = await http.get(Uri.parse(AppStorage.serverUrl + 'api/dish/profile/get_dish_post/' + bestPostId));
+      if(postResponse.statusCode != 200){
+        return;
       }
+      DishDetail? detail = DishDetail.fromPostJsonDecode(postResponse.body,
+          dishData['name']?.toString() ?? dishPreview.name);
+      if(detail == null){
+        return;
+      }
+
+      //The post only stores ingredient ids, so ask for their names
+      dynamic postData = json.decode(postResponse.body)['data'];
+      List<dynamic> ingredientIds = postData['ingredients'] ?? [];
+      if(ingredientIds.isNotEmpty){
+        var ingredientsResponse = await http.get(Uri.parse(
+            AppStorage.serverUrl + 'api/ingredient/search/ids/' + ingredientIds.map((id) => id.toString()).join('-')));
+        if(ingredientsResponse.statusCode == 200){
+          detail.ingredientsUsing = IngredientPreview.listFromJson(ingredientsResponse.body);
+        }
+      }
+
+      setState((){
+        dishDetail = detail;
+      });
     }
     catch(e){
 

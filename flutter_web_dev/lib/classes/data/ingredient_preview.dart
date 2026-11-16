@@ -8,14 +8,29 @@ class IngredientPreview
 
   IngredientPreview(this.id, this.name, this.type);
 
-  static List<IngredientPreview> listFromJson(String jsonData)
+  static List<IngredientPreview> listFromJsonDecode(dynamic jsonData)
   {
+    //The server answers either with a plain list or with {isSuccess, data}
+    dynamic payload = jsonData is String ? json.decode(jsonData) : jsonData;
+    dynamic elements = payload is Map ? payload['data'] : payload;
+
     List<IngredientPreview> ingredientPreviews = [];
-    for (var element in (json.decode(jsonData) as List<dynamic>))
+    if (elements is! List) {
+      return ingredientPreviews;
+    }
+    for (var element in elements)
     {
-      ingredientPreviews.add(IngredientPreview(element['_id'], element['name'], element['type']));
+      ingredientPreviews.add(IngredientPreview(
+          element['id']?.toString() ?? '',
+          element['name']?.toString() ?? '',
+          element['type']?.toString() ?? 'Other'));
     }
 
     return ingredientPreviews;
+  }
+
+  static List<IngredientPreview> listFromJson(String jsonData)
+  {
+    return listFromJsonDecode(jsonData);
   }
 }

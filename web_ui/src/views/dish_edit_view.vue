@@ -24,7 +24,6 @@
         editType : enums.EditType.None,
         dataEditing : null,
         enums,
-        ingredientsRequired: []
       }
     },
     methods : {
@@ -94,10 +93,6 @@
         this.dishPostData.data.profile_image = _data;
         this.dishPreviewData.profile_image = _data;
       },
-      onUpdateIngredients: function(_ingredients) {
-        this.ingredientsRequired = _ingredients;
-        this.dishPostData.data.ingredients_required = _ingredients.map(ing => ing.id);
-      },
       onSave : function(){
         //First, we save data
         //Then, we move back to dish_detail
@@ -156,13 +151,6 @@
                 "name" : this.dishPostData.dish_name,
                 "short_detail" : _response.data.short_detail,
                 "profile_image" : _response.data.profile_image
-              }
-              
-              // Load ingredients required
-              if (_response.data.ingredients_required && _response.data.ingredients_required.length > 0) {
-                dishServerAction.getIngredientsById(_response.data.ingredients_required, (_ingredients) => {
-                  this.ingredientsRequired = _ingredients;
-                });
               }
             }
             else{

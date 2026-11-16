@@ -59,8 +59,7 @@
           </span>
         </div>
         <ingredient_available v-if="ingredients" :ingredientsId = ingredients />
-        <preview_group title="Internal dishes" :datas = dishsPreview :onClick = "moveToDishDetail" />
-        <preview_group title="Foreign dishes" :datas = dishsPreview :onClick = "moveToDishDetail" />
+        <preview_group title="Dishes for your ingredients" :datas = dishsPreview :onClick = "moveToDishDetail" />
       </div>
     </div>
   </main>

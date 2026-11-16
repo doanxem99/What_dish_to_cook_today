@@ -19,6 +19,7 @@ namespace db_control
                 {
                     string ingredientId = args[1];
                     IngredientVoteBestPost.AddRequest(ingredientId);
+                    IngredientVoteBestPost.Update();
                 }
             }
             catch (Exception e)
@@ -26,7 +27,11 @@ namespace db_control
                 Console.WriteLine(e.Message);
             }
 
-            Console.ReadKey();
+            //ReadKey throws when the tool runs without a console (scheduled task, CI)
+            if (!Console.IsInputRedirected)
+            {
+                Console.ReadKey();
+            }
 
 
             /*Console.WriteLine("Begin----------->");

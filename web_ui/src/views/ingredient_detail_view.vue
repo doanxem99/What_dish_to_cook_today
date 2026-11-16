@@ -93,7 +93,7 @@
           <div v-if="ingredientDetail.best_post">
             <p style = "font-weight: bold;" class="medium_font_size view_space">{{ingredientDetail.best_post.type}}</p>
             <p class="medium_font_size view_space">{{ingredientDetail.best_post.short_detail}}</p>
-            <display_block :datas = "ingredientDetail.best_post.display_blocks" />
+            <display_block :datas = "ingredientDetail.best_post.display_blocks || []" />
           </div>
         </div>
       </div>

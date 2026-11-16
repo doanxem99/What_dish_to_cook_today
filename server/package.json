@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node --env-file-if-exists=.env app.js",
+    "test": "node --test",
     "lint": "eslint .",
-    "format": "prettier --write src/",
-    "dev": "nodemon --experimental-modules --env-file=.env app.js"
+    "format": "prettier --write .",
+    "dev": "nodemon --env-file-if-exists=.env app.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -16,14 +16,10 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^4.18.1",
-    "express-session": "^1.17.3",
     "express-ws": "^5.0.2",
     "fs-extra": "^10.1.0",
     "jsonwebtoken": "^9.0.2",
-    "memorystore": "^1.6.7",
-    "mongoose": "^6.5.1",
-    "nocache": "^3.0.4",
-    "shelljs": "^0.8.5"
+    "mongoose": "^6.5.1"
   },
   "devDependencies": {
     "eslint": "^9.23.0",

@@ -50,12 +50,5 @@ export default {
                 _callBack(response.data);
             }
         });
-    },
-    getIngredientPostsProfile : function(_ingredientPostIds, _callBack){
-        axios.get(serverInfo.serverUrl + 'api/ingredient/profile/get_ingredient_posts/' + _ingredientPostIds).then(response => {
-            if(response.status == 200){
-                _callBack(response.data);
-            }
-        });
     }
 }

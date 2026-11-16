@@ -17,6 +17,7 @@ namespace db_control.VoteBestPost
             IMongoDatabase mongoDatabase = dbClient.GetDatabase("what_dish_to_cook_today");
             string collectionName = "ingredient";
             IMongoCollection<BsonDocument> ingredientCollection = mongoDatabase.GetCollection<BsonDocument>(collectionName);
+            IMongoCollection<BsonDocument> ingredientPostCollection = mongoDatabase.GetCollection<BsonDocument>("ingredient_post");
 
             Dictionary<String, DateTime> ingredientTimeHandleDictionary = [];
             //*Check requests to handle
@@ -26,6 +27,9 @@ namespace db_control.VoteBestPost
                 //Only handle this request if ingredientTimeHandle not containt this ingredient
                 //or last timeHandle of this ingredient < requests time
                 VoteBestPostRequest voteBestPostRequest = requests[0];
+                //A handled request must leave the list, or this loop never ends
+                requests.RemoveAt(0);
+
                 if (!ingredientTimeHandleDictionary.TryGetValue(voteBestPostRequest.id, out DateTime value) 
                     || value < voteBestPostRequest.timeRequest)
                 {
@@ -33,16 +37,33 @@ namespace db_control.VoteBestPost
                     //Save time handle for this ingredient is now
                     ingredientTimeHandleDictionary[voteBestPostRequest.id] = value;
 
-                    //Handle request
-                    var item = ingredientCollection.Find(Builders<BsonDocument>.Filter.Eq("_id", voteBestPostRequest.id)).FirstOrDefaultAsync();
-
-                    //For now, we just set the first post is best post
-                    BsonDocument posts = item.Result.GetValue("posts").ToBsonDocument();
-                    IEnumerable<string> keyPosts = posts.Names;
-                    foreach(string key in keyPosts)
+                    if (!ObjectId.TryParse(voteBestPostRequest.id, out ObjectId ingredientObjectId))
                     {
-                        item.Result.Set("best_post_id", "user_id_create_this_post");
+                        Console.WriteLine("Ingredient id is not valid : " + voteBestPostRequest.id);
+                        continue;
                     }
+
+                    //Pick the post with the most points as the best post
+                    BsonDocument? bestPost = ingredientPostCollection
+                        .Find(Builders<BsonDocument>.Filter.Eq("ingredient_id", voteBestPostRequest.id))
+                        .Sort(Builders<BsonDocument>.Sort.Descending("points"))
+                        .FirstOrDefault();
+                    if (bestPost == null)
+                    {
+                        Console.WriteLine("Ingredient has no post to vote : " + voteBestPostRequest.id);
+                        continue;
+                    }
+
+                    //Only one post can be the best post
+                    ingredientPostCollection.UpdateMany(
+                        Builders<BsonDocument>.Filter.Eq("ingredient_id", voteBestPostRequest.id),
+                        Builders<BsonDocument>.Update.Set("is_best_post", false));
+                    ingredientPostCollection.UpdateOne(
+                        Builders<BsonDocument>.Filter.Eq("_id", bestPost.GetValue("_id")),
+                        Builders<BsonDocument>.Update.Set("is_best_post", true));
+                    ingredientCollection.UpdateOne(
+                        Builders<BsonDocument>.Filter.Eq("_id", ingredientObjectId),
+                        Builders<BsonDocument>.Update.Set("best_post_id", bestPost.GetValue("_id").ToString()));
                 }
             }
         }

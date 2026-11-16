@@ -16,7 +16,6 @@ class DishSelectionPage extends StatefulWidget {
 class _DishSelectionPageState extends State<DishSelectionPage> {
   List<IngredientPreview> _ingredientsAvailable = [];
   List<DishPreview> _dishsPreview = [];
-  int offset = 0;
 
   @override
   void initState() {
@@ -26,15 +25,17 @@ class _DishSelectionPageState extends State<DishSelectionPage> {
     Future.delayed(Duration.zero, () {
       setState((){
         _ingredientsAvailable = ModalRoute.of(context)!.settings.arguments as List<IngredientPreview>;
-        searchDishs();
       });
+      searchDishs();
     });
   }
 
   Future<void> searchDishs() async
   {
     try{
-      var url = Uri.parse(AppStorage.serverUrl + 'api/dishs_selection_search/');
+      //Only ask for dishes that use the ingredients the user picked
+      String ingredientIds = _ingredientsAvailable.map((ingredient) => ingredient.id).join('-');
+      var url = Uri.parse(AppStorage.serverUrl + 'api/dish/selection/ingredients/' + ingredientIds);
       var response = await http.get(url);
 
       if(response.statusCode == 200){
@@ -60,7 +61,7 @@ class _DishSelectionPageState extends State<DishSelectionPage> {
         children: [
           Positioned.fill(
               child: Image.network(
-                "http://localhost:3000/" + _dishPreview.imageSrc,
+                AppStorage.serverUrl + _dishPreview.imageSrc.replaceAll('\\', '/'),
                 fit: BoxFit.cover,
                 alignment: Alignment.center,
               ),
