@@ -66,8 +66,13 @@ The seed requires a user `moonshine@gmail.com` to already exist, because posts r
 ## Documentation
 
 - [AGENTS.md](AGENTS.md) — repository map for new contributors and AI agents
+- [CONTRIBUTING.md](CONTRIBUTING.md) — how to build, test and commit
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — components, request flow, worker protocol
 - [docs/API.md](docs/API.md) — every endpoint with request and response shapes
 - [docs/DATA_MODEL.md](docs/DATA_MODEL.md) — collections, invariants, seeding
 - [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) — what is still broken or unfinished
 - [PRODUCT.md](PRODUCT.md) — product brief and user roles
+
+## License
+
+MIT. See [LICENSE](LICENSE).
