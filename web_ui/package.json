@@ -1,6 +1,11 @@
 {
-  "name": "web_ui",
+  "name": "what-dish-to-cook-today-web",
   "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

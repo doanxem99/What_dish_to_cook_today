@@ -1,12 +1,16 @@
 {
-  "name": "server",
+  "name": "what-dish-to-cook-today-server",
   "version": "1.0.0",
+  "description": "API, static host and background job queue for What dish to cook today?",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
   "main": "app.js",
   "scripts": {
     "start": "node --env-file-if-exists=.env app.js",
     "test": "node --test",
-    "lint": "eslint .",
-    "format": "prettier --write .",
     "dev": "nodemon --env-file-if-exists=.env app.js"
   },
   "dependencies": {
@@ -22,8 +26,6 @@
     "mongoose": "^6.5.1"
   },
   "devDependencies": {
-    "eslint": "^9.23.0",
-    "nodemon": "^3.1.9",
-    "prettier": "^3.5.2"
+    "nodemon": "^3.1.9"
   }
 }
