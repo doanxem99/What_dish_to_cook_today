@@ -15,10 +15,9 @@ Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Repository map: [AGENTS.m
 Run the same commands CI runs. All of them must pass.
 
 ```bash
-cd server && npm ci && npm test
-cd web_ui && npm ci && npm run build
-cd flutter_web_dev && flutter pub get && flutter test
-flutter analyze --no-fatal-infos
+(cd server && npm ci && npm test)
+(cd web_ui && npm ci && npm run build)
+(cd flutter_web_dev && flutter pub get && flutter test && flutter analyze --no-fatal-infos)
 dotnet build db_control/db_control/db_control.csproj
 dotnet build database_control_center/database_control_center/database_control_center.csproj
 ```
@@ -34,7 +33,10 @@ Add a test with any change to a branch, a loop, input validation, or a filesyste
 
 ## Never commit generated output
 
-`server/web` (Flutter build), `web_ui/dist`, `bin/`, `obj/`, `.vs/`, `.dart_tool/`,
-`android/app/.cxx/` and any `.env` are ignored. Do not force-add them.
+`web_ui/dist`, `bin/`, `obj/`, `.vs/`, `.dart_tool/`, `android/app/.cxx/` and any `.env` are
+ignored. Do not force-add them.
+
+`server/web` is the exception: it is the Flutter build the API serves. It is generated but
+tracked on purpose, so a Flutter change is expected to rebuild it and commit the result.
 
 Known problems worth fixing are listed in [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).

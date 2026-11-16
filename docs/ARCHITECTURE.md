@@ -41,8 +41,8 @@ README mentioned MySQL.
 
 - Signup hashes with bcrypt (cost 10), assigns the `user` role (created on first signup).
 - Signin signs a JWT `{id}` valid 24 h with `process.env.JWT_SECRET` and sets it as the
-  `token` cookie (`httpOnly`, `sameSite=lax`, `secure` only on HTTPS). The token is also
-  returned in the body for non-browser clients.
+  `token` cookie (`httpOnly`, `sameSite=lax`, `secure` only on HTTPS). That cookie is the only
+  carrier of the credential; the token is not returned in the response body.
 - `routes/api/verifyToken.js` reads the cookie, verifies it, loads the user and roles,
   then sets `req.body.userid` and `req.roles`. Routes that need a user put `verifyToken`
   in the middleware chain; they must not trust a user id from the body.

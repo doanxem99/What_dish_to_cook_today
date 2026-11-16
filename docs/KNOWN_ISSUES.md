@@ -33,9 +33,10 @@ the failing case so it can be picked up without re-reading the codebase.
    combinations. Add per-IP throttling (for example `express-rate-limit`) before any public deploy.
 9. **Regex search on user text.** Keywords are escaped now, but `$regex` without an index is a
    full collection scan. Fine for the seeded size; add a text index if the catalog grows.
-10. **No test covers auth or the API routes.** Only `server/test/file_action.test.js` (path
-    guard) and the Flutter parser tests exist. The token middleware, signup and post-creation
-    rules have no test that fails when they break.
+10. **Auth and the create routes still have no test.** `server/test/file_action.test.js` guards
+    the path helper and `ingredient_profile.routes.test.js` guards the removed PATCH endpoint;
+    nothing fails when `verifyToken` stops overwriting `req.body.userid`, or when a create route
+    loses its middleware. Add a token test with a stubbed user collection.
 11. **Both seed tools are hand-written and diverge.** `db_control/InitData.cs` seeds 9
     ingredients; `database_control_center/Workspace/Reset/ResetData.cs` seeds 6. A change in one
     never reaches the other. Consider one seed implementation called by both.
@@ -61,3 +62,7 @@ the failing case so it can be picked up without re-reading the codebase.
 17. **The server spawns the worker from a Debug build path.** Set `DATABASE_WORKER_EXE` to the
     Release executable, or the API logs "Cannot start database worker" and jobs stay queued.
 18. **Port 3000 is hardcoded** in `server/app.js`; there is no `PORT` variable yet.
+19. **The old JWT secret is in git history.** Commit `f3738d6` contains
+    `JWT_SECRET = 'what-dish-to-cook-today'`. Anyone with a clone can forge tokens if a
+    deployment reuses that value. Generate a fresh random secret; never restore the old one.
+    History is not rewritten here.

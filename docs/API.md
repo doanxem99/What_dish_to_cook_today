@@ -11,7 +11,7 @@ and the server overwrites the user id from the token.
 
 | Method | Path | Body | Answer |
 |---|---|---|---|
-| POST | `/signin` | `{username, password}` (username may be the email) | `{message, user:{username}, token}` + `token` cookie |
+| POST | `/signin` | `{username, password}` (username may be the email) | `{message, user:{username}}` and the `token` cookie |
 | POST | `/signup` | `{username, email, password}` | `{message}`; 400 when a name/email is taken, 500 on other errors |
 | POST | `/verifytoken` | – (cookie) | `{message, userid, roles}`; 401 when the cookie is missing or bad |
 | POST | `/signout` | – | `{message}` and clears the cookie |
@@ -70,12 +70,11 @@ and the server overwrites the user id from the token.
 |---|---|---|---|
 | POST | `/create_ingredient` (auth) | `{name, type, short_detail, profile_image}` | `{status, status_code, ingredient_id, detail}` |
 | POST | `/create_ingredient_post` (auth) | `{ingredient_id, ingredient_name, data:{type, short_detail, profile_image, display_blocks:[]}}` | `{status, status_code, detail, ingredient_post_id}` |
-| PATCH | `/update_ingredient_post` (auth) | same as create post | same |
 | GET | `/get_ingredient/:ingredient_id` | – | `{status, status_code, data:{_id, name, best_post_id}}` |
 | GET | `/get_ingredient_post/:ingredient_post_id` | – | `{status, status_code, data:{...post}}` |
 
 Creating a post for a pair that already exists edits the existing post instead
-(`unique_id = "<parent id>_<user id>"`).
+(`unique_id = "<parent id>_<user id>"`). There is no separate update route.
 
 ## Templates — `/api/template`
 

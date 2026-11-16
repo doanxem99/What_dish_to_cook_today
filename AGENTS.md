@@ -40,7 +40,7 @@ npm run build               # dist/
 # Flutter client
 cd flutter_web_dev && flutter pub get
 flutter test
-flutter analyze
+flutter analyze --no-fatal-infos
 flutter build web           # then copy build/web/* into server/web/ to serve it
 
 # C#
