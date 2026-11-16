@@ -19,13 +19,26 @@ const uploadTemporaryFile = function(fieldname, file, filename, _callBack)
                 console.log("Save to path : " + _pathToUpload.absolutePath);
                 //Then, we upload file
                 const fstream = fs.createWriteStream(_pathToUpload.absolutePath);
+                let tooLarge = false;
+
+                //busboy truncates the stream at the size limit; that is an error, not a success
+                file.on('limit', function () {
+                    tooLarge = true;
+                    fstream.destroy();
+                    fs.remove(_pathToUpload.absolutePath).catch(() => {});
+                    console.log("Upload rejected, file is larger than 5 MB : " + filename.filename);
+                    _callBack({'isSuccess' : false, 'status' : "File is larger than 5 MB"});
+                });
+
                 file.pipe(fstream);
                 fstream.on('close', function () {
+                    if (tooLarge) return;
                     console.log("Upload Finished of " + filename.filename);
                     _callBack({'isSuccess' : true, 'path' : _pathToUpload.relativePath});
                 });
                 fstream.on('error', function (err) {
                     console.log("Error--->" + err);
+                    fs.remove(_pathToUpload.absolutePath).catch(() => {});
                     _callBack({'isSuccess' : false, 'status' : err.toString()});
                 });
             });

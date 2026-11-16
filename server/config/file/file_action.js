@@ -89,29 +89,6 @@ const moveFileToFolder = function(_rootPath, _relativeFolderPath, _filePath, _ca
     });
 }
 
-const moveFilesToFolder_Loop = function(_index, _rootPath, _relativeFolderPath, _filesPath, _pathsReturn, _callBack){
-    if(_index >= _filesPath.length){
-        _callBack(_pathsReturn);
-        return;
-    }
-
-    let filePath = _filesPath[_index];
-    let extension = getFileExtentionSync(filePath);
-    findFilePathToUpload(_rootPath, _relativeFolderPath, extension, async (_pathToUpload)=>{
-        await fs.rename(filePath, _pathToUpload.absolutePath);
-        _pathsReturn.push(_pathToUpload.relativePath);
-        moveFilesToFolder_Loop(_index + 1, _rootPath, _relativeFolderPath, _filesPath, _pathsReturn, _callBack);
-    });
-}
-
-const moveFilesToFolder = function(_rootPath, _relativeFolderPath, _filesPath, _callBack)
-{
-    //Loop throught all file to move
-    moveFilesToFolder_Loop(0, _rootPath, _relativeFolderPath, _filesPath, [], (_pathsReturn)=>{
-        _callBack(_pathsReturn);
-    });
-}
-
 const findFilePathsAndMove = function(_data, _rootPath, _relativeFolderSource, _relativeFolderDestination, _callBack)
 {
     //Loop throught all value in json to find files start with _relativeFolderSource and move to _relativeFolderDestination
@@ -197,7 +174,6 @@ module.exports = {
     resolveInside,
 
     moveFileToFolder,
-    moveFilesToFolder,
 
     findFilePathsAndMove,
 
