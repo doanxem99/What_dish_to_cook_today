@@ -76,3 +76,39 @@ dotnet build database_control_center/database_control_center/database_control_ce
 - Task 4: complete. Eight link targets exist. Commit `29265be`.
 - Task 5: complete. All four CI command sets pass locally; `flutter analyze --no-fatal-infos` exits 0; both YAML files parse with `js-yaml`; both `dotnet build` succeed. Commit follows.
 
+## Final review
+
+Reviewer: fresh subagent over `f3738d6..02a01ec`, plan + this record as input. Verdict: merge with fixes. 1 Critical, 5 Important, 8 Minor. Re-graded by effect, then one fix pass.
+
+Fixed, with verification:
+
+- **Critical: PATCH `/update_ingredient_post` crashed the process on an empty body and trusted a client-supplied user id.** Route deleted (unused; `create_ingredient_post` already edits). Test `server/test/ingredient_profile.routes.test.js` watched RED (401, route present) then GREEN (404). Suite 3/3.
+- **Important: CONTRIBUTING command block changed directory and broke the dotnet paths.** Replaced with subshells; every line is now runnable from the repository root.
+- **Important: API and architecture docs still claimed the JWT is returned in the body.** Corrected; the httpOnly cookie is stated as the only carrier.
+- **Important: worker job loop had no per-job guard and retried a failing job forever without cap.** Each job runs in its own try/catch; failures counted; dropped after 5 attempts with a warning; the batch continues instead of stopping. `dotnet build` succeeds.
+- **Important: old JWT secret is in commit `f3738d6`.** `KNOWN_ISSUES` note 19 added with the instruction never to reuse it. History is not rewritten.
+- **Re-graded from Minor to Important: CONTRIBUTING said `server/web` must never be committed.** It is tracked and is the served build; corrected.
+- **Re-graded from Minor to Important: AGENTS.md told agents to run bare `flutter analyze`, which exits 1 here.** Now `--no-fatal-infos`, matching CI.
+- **Re-graded from Minor to Important: uploads over 5 MB were truncated and reported as success.** `gallery_upload.js` now handles the limit event, deletes the partial file, answers 400.
+- **Re-graded from Minor to Important: `moveFilesToFolder` bypassed the path guard and was unused.** Deleted with its loop helper.
+- **Re-graded from Minor to Important: `engines: ">=22"` allowed Node 22.0-22.8, where `--env-file-if-exists` does not exist.** Raised to `>=22.9`. Lockfile refreshed.
+
+Deferred minors (not fixed, recorded here):
+
+- Auth middleware and create routes still have no test (reviewer issue 12). Needs a stubbed user collection and a signed token; belongs to the planned refactor that introduces a proper seam. Tracked in `KNOWN_ISSUES` item 10.
+- Vue auth state still trusts a client-writable `user` cookie; `signOut` does not await the server (issue 13).
+- Flutter image-block captions are dropped and detail-load errors are swallowed (issue 14). Display blocks are not rendered yet, so the visible effect is nil today.
+
+### Rulings made during the fix pass
+
+- Ruling: no automated test for the upload-limit and worker-retry fixes — neither module has a seam reachable without MongoDB and an auth stub; verified by `dotnet build`, `node --check`, and the existing suites. Cost if wrong: the stream `limit` wiring or the retry counter could regress silently. Recorded in `KNOWN_ISSUES` item 10 as part of the test gap.
+- Ruling: re-graded four review minors to Important (doc contradictions, upload corruption, path-guard bypass, Node floor). Each has a concrete failing case, so they belong in the fix pass rather than the deferred list. Cost if wrong: a slightly larger fix pass than the plan scoped.
+- Ruling: plan's Global Constraint "no behaviour change" conflicts with Task 1 landing the audit batch. Task 1 is the carve-out; the constraint applies to Tasks 2-6 only. Cost if wrong: none, this is wording.
+- Ruling: commit order was redone with `git reset --soft` after two parallel git calls collided on `index.lock` and swapped the staged file sets. No content lost; branch is local and unpushed. Cost if wrong: none.
+
+## Final state
+
+- Suites: server 3/3, Flutter 4/4, Vue build ok, both .NET builds ok, `flutter analyze --no-fatal-infos` exit 0.
+- Branch `chore/repo-hygiene`, commits from `d5ad7b5` to the fix-pass commits above.
+- Deferred work: linting/formatting change, the deep-module refactor, the auth test, Vue auth hardening, Flutter display rendering.
+
