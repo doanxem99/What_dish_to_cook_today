@@ -220,52 +220,6 @@ const createIngredient = async function(_postData){
     }
 }
 
-const updateIngredientPost = async function(_postData) {
-    let ingredient_id = _postData.ingredient_id;
-    let ingredient_name = _postData.ingredient_name;
-    let user_id = _postData.data.user_id
-    let type = _postData.data.type;
-    let short_detail = _postData.data.short_detail;
-    let profile_image = _postData.data.profile_image;
-    let display_blocks = _postData.data.display_blocks;
-    let unique_id = ingredient_id + "_" + user_id;
-
-    appDebug.writeLine(appDebug.DebugType.Comment, "Update ingredient post : " + unique_id);
-    let ingredientPostData = {
-        'name' : ingredient_name,
-        'user_id' : user_id,
-        'ingredient_id' : ingredient_id, 
-        'unique_id' : unique_id,
-        'date_time' : new Date().toJSON(),
-        'type' : type,
-        'short_detail' : short_detail,
-        'profile_image' : profile_image,
-        'display_blocks' : display_blocks
-    };
-    try {
-        const _res = await database.collections.IngredientPost.findOneAndUpdate(
-            { unique_id: unique_id },
-            ingredientPostData,
-            { new: true }
-        );
-        appDebug.writeLine(appDebug.DebugType.Comment, "Success update ingredient post");
-        return {
-            'status' : profileEnum.ProfileStatus_PostCreate.EditingSuccess,
-            'status_code': profileEnum.Status_Code_Website.Success,
-            'detail' : "Success update ingredient post",
-            'ingredient_post_id' : _res._id
-        };
-    } catch (_err) {
-        appDebug.writeLine(appDebug.DebugType.Exception, "Error : " + _err);
-        return {
-            'status' : profileEnum.ProfileStatus_PostCreate.Exception,
-            'status_code': profileEnum.Status_Code_Website.InternalServerError,
-            'detail' : _err
-        };
-    }
-}
-
-
 const getIngredientDetail = async function(_ingredientId)
 {
     try {
@@ -327,10 +281,6 @@ router.get('/get_ingredient/:ingredient_id', async function(req, res){
 });
 router.get('/get_ingredient_post/:ingredient_post_id', async function(req, res){
     const result = await getIngredientPostDetail(req.params.ingredient_post_id);
-    res.status(result.status_code).send(result);
-});
-router.patch('/update_ingredient_post', verifyToken, async function(req, res){
-    const result = await updateIngredientPost(req.body);
     res.status(result.status_code).send(result);
 });
 
