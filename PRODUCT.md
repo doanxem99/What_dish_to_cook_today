@@ -21,10 +21,9 @@ Ingredient-first selection over a shared curated catalog, not a personal recipe 
 
 ## Operating Context
 
-- Development spans several runtimes: Node.js/Express server (port 3000) serving API, static web build, and a worker websocket; MongoDB and MySQL databases; a C# Windows `database_control_center` for database operation and maintenance.
+- Development spans several runtimes: Node.js/Express server (port 3000) serving API, static web build, and a worker websocket; MongoDB; a C# Windows `database_control_center` for database operation and maintenance.
 - Two front ends share the API: `web_ui` (Vue 3, Vite, Tailwind, Pinia) and `flutter_web_dev` (Flutter web, built into `server/web`).
-- Root `index.html` and `style.css` are a stray "Vue Chatter" template left from scaffolding; they are not a product surface.
-- Auth is cookie-session based on the Express server; dish/ingredient images are uploaded through a gallery flow served by the same server.
+- Auth is a JWT stored in an httpOnly cookie named `token`, valid for 24 hours; dish/ingredient images are uploaded through a gallery flow served by the same server.
 - Curation today is assumed to happen through the same web clients; the editor role is a product requirement, not yet a recorded implementation.
 
 ## Capabilities and Constraints

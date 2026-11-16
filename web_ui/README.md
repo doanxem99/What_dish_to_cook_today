@@ -1,29 +1,13 @@
 # web_ui
 
-This template should help get you started developing with Vue 3 in Vite.
+Vue 3 client for "What dish to cook today?". It talks to the Express API in `../server`.
 
-## Recommended IDE Setup
-
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur) + [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin).
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vitejs.dev/config/).
-
-## Project Setup
-
-```sh
+```bash
 npm install
+npm run dev     # http://localhost:5173, API at http://localhost:3000
+npm run build   # dist/
 ```
 
-### Compile and Hot-Reload for Development
+The API base URL defaults to `http://localhost:3000/`; override it with `VITE_SERVER_URL`.
 
-```sh
-npm run dev
-```
-
-### Compile and Minify for Production
-
-```sh
-npm run build
-```
+Architecture, endpoints and data model: `../docs/ARCHITECTURE.md`.

@@ -1,16 +1,13 @@
-# what_dish_to_cook_today
+# flutter_web_dev
 
-A new Flutter project.
+Earlier Flutter client for "What dish to cook today?". The Vue client in `../web_ui` is the
+current one; this build is still served by the API.
 
-## Getting Started
+```bash
+flutter pub get
+flutter test
+flutter build web
+```
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Copy `build/web/*` into `../server/web/` to serve the new build at `http://localhost:3000/`.
+The API base URL lives in `lib/storages/app_storage.dart`.
