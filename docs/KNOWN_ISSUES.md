@@ -39,28 +39,25 @@ the failing case so it can be picked up without re-reading the codebase.
 11. **Both seed tools are hand-written and diverge.** `db_control/InitData.cs` seeds 9
     ingredients; `database_control_center/Workspace/Reset/ResetData.cs` seeds 6. A change in one
     never reaches the other. Consider one seed implementation called by both.
-12. **Git history still contains build output.** `bin/`, `obj/`, `.vs/`, `.cxx/` were removed
-    from the index and are now ignored, but old commits still carry hundreds of megabytes. Use
+12. **Git history still contains build output.** The index is clean and `bin/`, `obj/`, `.vs/`,
+    `.cxx/` are ignored, but old commits still carry hundreds of megabytes. Use
     `git filter-repo` if the repository must shrink.
 
 ## Lean
 
-13. **Repository root holds files from an unrelated Vite template:** `package.json`
-    (name `chatter`), `index.html`, `style.css`, `image.png` and a `.sdocx` document. Nothing
-    references them. Delete when the owner confirms they are not wanted.
-14. **Duplicate templates.** `server/config/template/template_dish.js` and
+13. **Duplicate templates.** `server/config/template/template_dish.js` and
     `template_ingredient.js` are near-copies; so are `dish_profile.js` and
     `ingredient_profile.js`. They must change together today.
-15. **Reserved fields that nothing uses:** `ingredient.is_need_update`,
+14. **Reserved fields that nothing uses:** `ingredient.is_need_update`,
     `dish.is_need_update`, `WorkerStatus` in the worker module, and `role.description`.
-16. **`web_ui/src/views/homemade_dishes_view.vue`, `about_view.vue`, `profile_view.vue` are
+15. **`web_ui/src/views/homemade_dishes_view.vue`, `about_view.vue`, `profile_view.vue` are
     placeholders** ("Hello", "About"). They are linked from the header, so users can reach an
     empty page.
 
 ## Deployment notes
 
-17. **CORS allows localhost only by default.** Set `CORS_ORIGINS` (comma separated) for any real
+16. **CORS allows localhost only by default.** Set `CORS_ORIGINS` (comma separated) for any real
     domain, otherwise the browser client is blocked.
-18. **The server spawns the worker from a Debug build path.** Set `DATABASE_WORKER_EXE` to the
+17. **The server spawns the worker from a Debug build path.** Set `DATABASE_WORKER_EXE` to the
     Release executable, or the API logs "Cannot start database worker" and jobs stay queued.
-19. **Port 3000 is hardcoded** in `server/app.js`; there is no `PORT` variable yet.
+18. **Port 3000 is hardcoded** in `server/app.js`; there is no `PORT` variable yet.

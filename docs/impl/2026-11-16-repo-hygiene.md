@@ -67,4 +67,12 @@ dotnet build database_control_center/database_control_center/database_control_ce
 
 ## Progress log
 
-(appended per task)
+- Pre-flight: shared interfaces checked — `LICENSE` (T2→T3), `.nvmrc`/engines/CI Node 22 (T2→T3→T5), lockfiles (T3→T5), command list (T3→T4→T5). No conflicts.
+- Task 0: plan + this record committed as `d5ad7b5`.
+- Task 1: complete. Suites green (`# pass 2`, `✓ built`, `All tests passed!`), tree clean. Commit `72a0213`.
+- Task 2: complete. Six template files deleted, `LICENSE`, `.editorconfig`, `.nvmrc`, `.gitattributes` added; both template READMEs replaced; `PRODUCT.md` corrected (MySQL claim, JWT description, stale root-file note). Commit `c958bbd`.
+- Ruling: added `.gitattributes` (`* text=auto` plus binary markers) though the plan did not list it — the commits emit CRLF warnings without it. No forced `eol`, so no working-tree rewrite. Cost if wrong: none, it only affects future commits.
+- Task 3: complete. `npm ci` + `npm test` (2 pass), `npm ci` + `npm run build` (built), `flutter pub get` + `flutter test` (4 pass); `npm pkg get` returns the new names, MIT, engines. Commit `a675a48`.
+- Task 4: complete. Eight link targets exist. Commit `29265be`.
+- Task 5: complete. All four CI command sets pass locally; `flutter analyze --no-fatal-infos` exits 0; both YAML files parse with `js-yaml`; both `dotnet build` succeed. Commit follows.
+
