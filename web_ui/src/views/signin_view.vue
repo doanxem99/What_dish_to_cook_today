@@ -34,25 +34,19 @@ export default {
         }
     },
     methods: {
-        handleSubmit(_data) {
-            if (useAuthStore().signIn(_data)) {
-                if (this.jumpPage) {
-                    this.$router.push({ path: this.jumpPage });
-                    useAuthStore().jumpPage = null;
-                }
-                else 
-                    this.$router.push({ path: '/home' });
+        async handleSubmit(_data) {
+            const success = await useAuthStore().signIn(_data);
+            if (success) {
+                const jumpPage = this.jumpPage;
+                useAuthStore().jumpPage = null;
+                this.$router.push({ path: jumpPage || '/' });
             }
         }
     },
     created() {
         if (this.isLogin) {
-            if (this.jumpPage) {
-                this.$router.push({ path: this.jumpPage });
-                useAuthStore().jumpPage = null;
-            }
-            else 
-                this.$router.push({ path: '/home' });
+            this.$router.push({ path: this.jumpPage || '/' });
+            useAuthStore().jumpPage = null;
         }
     }
 }

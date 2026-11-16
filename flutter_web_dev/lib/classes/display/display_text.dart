@@ -9,6 +9,26 @@ class DisplayText{
   Color color = Colors.black;
 }
 
+//The server sends color names ("black") or numbers, not Color objects
+Color parseColor(dynamic value){
+  if(value is int){
+    return Color(value);
+  }
+  if(value is String){
+    switch(value.toLowerCase()){
+      case 'white': return Colors.white;
+      case 'red': return Colors.red;
+      case 'blue': return Colors.blue;
+      case 'green': return Colors.green;
+      case 'orange': return Colors.orange;
+      case 'grey':
+      case 'gray': return Colors.grey;
+      default: return Colors.black;
+    }
+  }
+  return Colors.black;
+}
+
 class UrlDisplayText extends DisplayText{
   String url = "";
 }
@@ -35,7 +55,7 @@ class DisplayTextGenerator{
         displayText.fontSize = data['font_size'];
       }
       if(data['color'] != null){
-        displayText.color = data['color'];
+        displayText.color = parseColor(data['color']);
       }
 
       return displayText;

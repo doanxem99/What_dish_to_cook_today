@@ -81,12 +81,15 @@ namespace database_control_center
             BsonArray _ingredientIds)
         {
             return new BsonDocument{
+                { "name", "Spagetti" },
                 { "dish_id", _dishId },
                 { "user_id", _userId },
                 { "unique_id", _uniqueId },
                 { "is_best_post", _isBestPost },
                 { "date_time", DateTime.Now.ToLocalTime() },
                 { "points", 0 },
+                { "views", 0 },
+                { "comments", 0 },
                 { "ingredients" , _ingredientIds },
                 { "short_detail", "Nutritional food" },
                 { "profile_image" , "public/pictures/dishs/Spaghetti.jpg" },

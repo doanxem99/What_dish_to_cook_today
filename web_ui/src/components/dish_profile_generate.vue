@@ -56,10 +56,6 @@
                     }
                 });
             },
-            changeInfo : function(){
-                this.dishData.name = this.$refs.name.value;
-                this.dishData.short_detail = this.$refs.shortDetail.value;
-            },
             openImageUpload : function(){
                 this.$refs.image_upload.click();
             },

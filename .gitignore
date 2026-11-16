@@ -10,3 +10,33 @@
 
 # Built Visual Studio Code Extensions
 *.vsix
+
+# Node
+node_modules/
+dist/
+npm-debug.log*
+
+# Secrets (use server/.env.example as a template)
+.env
+.env.local
+
+# .NET build output and IDE state
+bin/
+obj/
+.vs/
+*.suo
+*.user
+*.userosscache
+*.csproj.user
+
+# Flutter / Dart build output and IDE state
+.dart_tool/
+build/
+.cxx/
+.flutter-plugins
+.flutter-plugins-dependencies
+.idea/
+
+# Local app logs
+**/Temporary/AppLog.txt
+server/config/debug/data/

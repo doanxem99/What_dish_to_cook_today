@@ -5,7 +5,6 @@
 
   import dishServerAction from '../assets/js/dish_server_action.js'
   import profileEnum from '../assets/js/profile_enum.js'
-import { comment } from 'postcss'
 
   export default{
     components : {
@@ -117,11 +116,11 @@ import { comment } from 'postcss'
               </span>
             </span>
           </div>
-          <p class="large_font_size view_space">{{dishDetail.best_post.name}}</p>
+          <p class="large_font_size view_space" v-if="dishDetail.best_post">{{dishDetail.best_post.name || dishDetail.name}}</p>
           <div v-if="dishDetail.best_post">
-            <ingredient_available :ingredientsId = "dishDetail.best_post.ingredients.join('-')" />
+            <ingredient_available :ingredientsId = "(dishDetail.best_post.ingredients || []).join('-')" />
             <p class="medium_font_size view_space">{{dishDetail.best_post.short_detail}}</p>
-            <display_block :datas = "dishDetail.best_post.display_blocks" />
+            <display_block :datas = "dishDetail.best_post.display_blocks || []" />
           </div>
         </div>
 

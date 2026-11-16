@@ -2,21 +2,28 @@ import { defineStore } from "pinia";
 import authAction from "../js/auth_server_action.js";
 import Cookie from 'js-cookie'
 
-const user = Cookie.get('user');
-
-const initialState = user
-    ? { 
-        user: JSON.parse(user),
-        isLogin: true,
-        errorMessage: null,
-        jumpPage: null,
+const readUser = function(){
+    try {
+        return JSON.parse(Cookie.get('user'));
+    } catch (error) {
+        //A broken cookie must not stop the app from loading
+        Cookie.remove('user');
+        return null;
     }
-    : {
-        user: null,
-        isLogin: false,
-        errorMessage: null,
-        jumpPage: null,
-    };
+}
+
+const user = readUser();
+
+const initialState = {
+    user: user,
+    isLogin: user != null,
+    errorMessage: null,
+    jumpPage: null,
+};
+
+const errorText = function(error) {
+    return error?.response?.data?.message || error?.data?.message || error?.message;
+}
 
 export const useAuthStore = defineStore("auth", {
     namespace: true,
@@ -24,41 +31,36 @@ export const useAuthStore = defineStore("auth", {
         ...initialState,
     }),
     actions: {
-        signIn(user) {
+        async signIn(user) {
             this.errorMessage = null;
-            authAction.signin(user).then((response) => {
+            try {
+                const response = await authAction.signin(user);
                 this.user = response.data.user;
                 this.isLogin = true;
                 this.errorMessage = null;
                 Cookie.set('user', JSON.stringify(response.data.user));
-            }, (error) => {
-                this.errorMessage = ( error?.response?.data?.message || 
-                    error?.data?.message || error?.message);
-                    return false;
-            });
-            return true;
+                return true;
+            } catch (error) {
+                this.errorMessage = errorText(error);
+                return false;
+            }
         },
-        signUp(user) {
+        async signUp(user) {
             this.errorMessage = null;
-            authAction.signup(user).then((response) => {
+            try {
+                await authAction.signup(user);
                 this.errorMessage = null;
-            }, (error) => {
-                this.errorMessage = ( error?.response?.data?.message || 
-                    error?.data?.message || error?.message);
-            });
+                return true;
+            } catch (error) {
+                this.errorMessage = errorText(error);
+                return false;
+            }
         },
         signOut() {
+            authAction.signout();
             this.user = null;
             this.isLogin = false;
             Cookie.remove('user');
         },
-        updateUser(user) {
-            this.errorMessage = null;
-            const response = authAction.updateUser(user);
-            if (response.status != 200) {
-                this.errorMessage = ( error?.response?.data?.message || 
-                    error?.data?.message || error?.message);
-            }
-        }
     }
 });

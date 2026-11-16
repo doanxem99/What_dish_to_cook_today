@@ -45,7 +45,13 @@ const requestWorkerStatus = function(){
         else{
             //Open db_control
             // exec('"' + path.join(__dirname, '../../../database_control_center/database_control_center/bin/Debug/net6.0-windows/database_control_center.exe') + '"');
-            exec('"' + path.join(__dirname, '../../../database_control_center/database_control_center/bin/Debug/net9.0-windows/database_control_center.exe') + '"');
+            const workerExe = process.env.DATABASE_WORKER_EXE || path.join(__dirname, '../../../database_control_center/database_control_center/bin/Debug/net9.0-windows/database_control_center.exe');
+            //A missing exe must log a warning, not crash the server
+            exec('"' + workerExe + '"', (err) => {
+                if (err) {
+                    console.error('Cannot start database worker: ' + err.message);
+                }
+            });
         }
         
         //Reset time to recheck worker status

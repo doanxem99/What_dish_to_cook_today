@@ -8,11 +8,16 @@ namespace db_control
 {
     public class InitData
     {
+        private static string adminId = "";
+
         public static void Init()
         {
             MongoClient dbClient = new MongoClient("mongodb://localhost:27017");
             //Get DB(Create new if not aready exist)
             IMongoDatabase mongoDatabase = dbClient.GetDatabase("what_dish_to_cook_today");
+
+            //Resolve the admin user before any collection is dropped
+            adminId = FindAdminId(mongoDatabase);
 
             //*Create new data
             // CreateDefaultRoles(mongoDatabase);
@@ -20,6 +25,17 @@ namespace db_control
             CreateDefaultIngredients(mongoDatabase);
             UpdateIdIngredientPost(mongoDatabase);
             CreateDefaultDishs(mongoDatabase);
+        }
+
+        private static string FindAdminId(IMongoDatabase _mongoDatabase)
+        {
+            var filter = Builders<BsonDocument>.Filter.Eq("username", "moonshine@gmail.com");
+            var admin = _mongoDatabase.GetCollection<BsonDocument>("user").Find(filter).FirstOrDefault();
+            if (admin == null)
+            {
+                throw new InvalidOperationException("User moonshine@gmail.com must exist before data init.");
+            }
+            return admin.GetValue("_id").ToString();
         }
         // private static void CreateDefaultRoles(IMongoDatabase _mongoDatabase) {
         //     // Create role collection
@@ -49,10 +65,6 @@ namespace db_control
             _mongoDatabase.CreateCollection(collectionName);
             IMongoCollection<BsonDocument> ingredientPostCollection = _mongoDatabase.GetCollection<BsonDocument>(collectionName);
 
-            // Find adminId
-            var filter = Builders<BsonDocument>.Filter.Eq("username", "moonshine@gmail.com");
-            var adminId = _mongoDatabase.GetCollection<BsonDocument>("user").Find(filter).FirstOrDefault().GetValue("_id").ToString();
-
             //Then, we create default data
             ingredientPostCollection.InsertMany([
                 CreateDefaultIngredientPostItem("Beef", adminId, "Food"),
@@ -76,8 +88,6 @@ namespace db_control
             IMongoCollection<BsonDocument> ingredientCollection = _mongoDatabase.GetCollection<BsonDocument>(collectionName);
 
             //Then, we create default data
-            var filter = Builders<BsonDocument>.Filter.Eq("username", "moonshine@gmail.com");
-            var adminId = _mongoDatabase.GetCollection<BsonDocument>("user").Find(filter).FirstOrDefault().GetValue("_id").ToString();
             
             ingredientCollection.InsertMany([
                 CreateDefaultIngredientItem("Beef", adminId, _mongoDatabase),
@@ -114,9 +124,6 @@ namespace db_control
 
             // Get adminId
             collectionName = "user";
-            IMongoCollection<BsonDocument> userCollection = _mongoDatabase.GetCollection<BsonDocument>(collectionName);
-            var filter = Builders<BsonDocument>.Filter.Eq("username", "moonshine@gmail.com");
-            var adminId = userCollection.Find(filter).FirstOrDefault().GetValue("_id").ToString();
 
             //Then we get some id
             collectionName = "ingredient";
@@ -252,7 +259,7 @@ namespace db_control
             _mongoDatabase.CreateCollection(collectionName);
 
             // Find dish_id in dish collection
-            filter = Builders<BsonDocument>.Filter.Eq("name", "Spagetti");
+            var filter = Builders<BsonDocument>.Filter.Eq("name", "Spagetti");
             var dishId = _mongoDatabase.GetCollection<BsonDocument>("dish").Find(filter).FirstOrDefault().GetValue("_id").ToString();
             post["dish_id"] = dishId;
             post["unique_id"] += dishId;

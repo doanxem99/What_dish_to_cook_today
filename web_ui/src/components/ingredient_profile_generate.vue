@@ -85,11 +85,6 @@
                     }
                 });
             },
-            changeInfo : function(){
-                this.ingredientData.name = this.$refs.name.value;
-                this.ingredientData.type = this.$refs.type.value;
-                this.ingredientData.short_detail = this.$refs.shortDetail.value;
-            },
             openImageUpload : function(){
                 this.$refs.image_upload.click();
             },
@@ -141,9 +136,6 @@
                         <img class="editable_item_button" const src="../assets/icons/edit_square.png" v-on:click="editIngredientShortDetail()"/>
                         </div>
                     </div>
-                    <display_block :datas = "ingredientData.display_blocks" :isEditable = "true" 
-                        :onMoveUp = "moveUpBlock" :onMoveDown = "moveDownBlock" :onEdit = "editIngredientBlock" 
-                        :onAdd = "addBlock" :onRemove = "removeBlock"/>
                     <div class="view_space">
                         <input class="small_font_size action_button" type="button" value="Change image" v-on:click="openImageUpload" />
                         <input ref="image_upload" class="hidden_inputfield" type="file" accept="image/png, image/gif, image/jpeg"

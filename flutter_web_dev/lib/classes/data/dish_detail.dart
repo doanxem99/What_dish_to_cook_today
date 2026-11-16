@@ -8,15 +8,26 @@ class DishDetail extends DishPreview{
   List<IngredientPreview> ingredientsUsing;
   List<DisplayBlock> displayBlocks;
 
-  DishDetail(super.id, super.name, super.sortDetail, super.urlImage, this.ingredientsUsing, this.displayBlocks);
+  DishDetail(String id, String name, String sortDetail, String imageSrc,
+      this.ingredientsUsing, this.displayBlocks)
+      : super(id, name, sortDetail, imageSrc);
 
-  static DishDetail? fromJson(String jsonData){
+  //Build from the /api/dish/profile/get_dish_post answer
+  static DishDetail? fromPostJsonDecode(dynamic jsonData, String dishName){
     try{
-      dynamic data = json.decode(jsonData);
+      dynamic payload = jsonData is String ? json.decode(jsonData) : jsonData;
+      dynamic data = payload is Map && payload.containsKey('data') ? payload['data'] : payload;
+      if(data == null){
+        return null;
+      }
 
-      return DishDetail(data['id'], data['name'], data['short_detail'], data['image_src'],
-          IngredientPreview.listFromJson(data['ingredients']),
-          DisplayBlockGenerator.listFromJson(data['display_blocks']));
+      return DishDetail(
+          data['dish_id']?.toString() ?? '',
+          data['name']?.toString() ?? dishName,
+          data['short_detail']?.toString() ?? '',
+          data['profile_image']?.toString() ?? '',
+          [],
+          DisplayBlockGenerator.listFromJsonDecode(data['display_blocks'] ?? []));
     }
     catch(e){
       return null;

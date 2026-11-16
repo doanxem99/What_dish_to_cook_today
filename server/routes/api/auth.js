@@ -3,12 +3,10 @@ const router = express.Router();
 const database = require('../../config/database/connection');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { stat } = require('fs-extra');
 const { verifyToken } = require('./verifyToken');
 
 const checkDuplicate = async function(req, res, next) {
     try {
-        console.log(req);
         let [username, email] = await Promise.all([
             database.collections.User.findOne({ username: req.body.username }),
             database.collections.User.findOne({ email: req.body.email })
@@ -33,6 +31,11 @@ const checkDuplicate = async function(req, res, next) {
 
 const signin = async function(req, res) {
     try {
+        if (!req.body.username || !req.body.password) {
+            return res.status(400).send({
+                message: "User/email and password are required!"
+            });
+        }
         let user = await database.collections.User.findOne({ $or: [{ username: req.body.username }, { email: req.body.username }] })
         if (!user) {
             return res.status(404).send({
@@ -53,8 +56,9 @@ const signin = async function(req, res) {
         
         res.cookie('token', token, {
             httpOnly: true,
-            // secure: false, // Set to true if using HTTPS
-            sameSite: 'lax'
+            secure: req.secure, // Only sent over HTTPS when the request is HTTPS
+            sameSite: 'lax',
+            maxAge: 86400 * 1000
         });
 
         return res.status(200).send({
@@ -62,7 +66,6 @@ const signin = async function(req, res) {
             user: {
                 username: user.username || user.email,
             },
-            token: token,
         });
     } catch (err) {
         return res.status(500).send({
@@ -73,7 +76,11 @@ const signin = async function(req, res) {
 
 const signup = async function(req, res) {
     try {
-        console.log(req);
+        if (!req.body.username || !req.body.email || !req.body.password) {
+            return res.status(400).send({
+                message: "Username, email and password are required!"
+            });
+        }
         let hashedPassword = bcrypt.hashSync(req.body.password, 10);
         let user = new database.collections.User({
             username: req.body.username,
@@ -81,6 +88,10 @@ const signup = async function(req, res) {
             password: hashedPassword
         });
         let role = await database.collections.Role.findOne({ name: "user" });
+        if (!role) {
+            //The seed does not create roles, so create the default role on first signup
+            role = await database.collections.Role.create({ name: "user", description: "User role" });
+        }
         user.roles = [role._id];
         await user.save();
         return res.status(200).send({
@@ -105,7 +116,22 @@ router.post('/signup',
     signup);
 
 router.post('/verifytoken', 
-    verifyToken
+    verifyToken,
+    function(req, res){
+        //verifyToken already checked the cookie and the user
+        return res.status(200).send({
+            message: "Token is valid!",
+            userid: req.body.userid,
+            roles: req.roles,
+        });
+    }
 )
+
+router.post('/signout', function(req, res){
+    res.clearCookie('token');
+    return res.status(200).send({
+        message: "Logout successfully!"
+    });
+})
 
 module.exports = router;

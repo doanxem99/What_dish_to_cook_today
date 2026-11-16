@@ -8,6 +8,17 @@ const getFileExtentionSync = function(_fileName)
     return datas[datas.length - 1].toLowerCase();
 }
 
+//Join a relative path on the root, or return null when the result leaves the root ("../" in user input)
+const resolveInside = function(_rootPath, _relativePath)
+{
+    const root = path.resolve(_rootPath);
+    const target = path.resolve(root, _relativePath);
+    if (target !== root && !target.startsWith(root + path.sep)) {
+        return null;
+    }
+    return target;
+}
+
 const createFoldersByFolderNames_Loop = function(_index, _parentPath, _folders, _callBack)
 {
     if(_index >= _folders.length){
@@ -15,11 +26,11 @@ const createFoldersByFolderNames_Loop = function(_index, _parentPath, _folders, 
         return;
     }
 
-    folderPath = path.join(_parentPath, _folders[_index]);
+    let folderPath = path.join(_parentPath, _folders[_index]);
     fs.access(folderPath, fs.constants.F_OK, async (err) => {
         //If file not exist, we create new
         if(err){
-            const createDir = await fs.mkdir(folderPath);
+            await fs.mkdir(folderPath);
         }
         //Create new sub forder
         createFoldersByFolderNames_Loop(_index + 1, folderPath, _folders, _callBack)
@@ -66,33 +77,15 @@ const findFilePathToUpload = function(_rootPath, _relativeFolderPath, _fileExten
 
 const moveFileToFolder = function(_rootPath, _relativeFolderPath, _filePath, _callBack)
 {
-    let extension = getFileExtentionSync(_filePath);
-    findFilePathToUpload(_rootPath, _relativeFolderPath, extension, async (_pathToUpload) => {
-        await fs.rename(_filePath, _pathToUpload.absolutePath);
-        _callBack(_pathToUpload.relativePath);
-    });
-}
-
-const moveFilesToFolder_Loop = function(_index, _rootPath, _relativeFolderPath, _filesPath, _pathsReturn, _callBack){
-    if(_index >= _filesPath.length){
-        _callBack(_pathsReturn);
+    let absoluteFilePath = path.isAbsolute(_filePath) ? _filePath : resolveInside(_rootPath, _filePath);
+    if (absoluteFilePath == null) {
+        _callBack(null);
         return;
     }
-
-    let filePath = _filesPath[_index];
-    let extension = getFileExtentionSync(filePath);
-    findFilePathToUpload(_rootPath, _relativeFolderPath, extension, async (_pathToUpload)=>{
-        await fs.rename(filePath, _pathToUpload.absolutePath);
-        _pathsReturn.push(_pathToUpload.relativePath);
-        moveFilesToFolder_Loop(_index + 1, _rootPath, _relativeFolderPath, _filesPath, _pathsReturn, _callBack);
-    });
-}
-
-const moveFilesToFolder = function(_rootPath, _relativeFolderPath, _filesPath, _callBack)
-{
-    //Loop throught all file to move
-    moveFilesToFolder_Loop(0, _rootPath, _relativeFolderPath, _filesPath, [], (_pathsReturn)=>{
-        _callBack(_pathsReturn);
+    let extension = getFileExtentionSync(_filePath);
+    findFilePathToUpload(_rootPath, _relativeFolderPath, extension, async (_pathToUpload) => {
+        await fs.rename(absoluteFilePath, _pathToUpload.absolutePath);
+        _callBack(_pathToUpload.relativePath);
     });
 }
 
@@ -102,7 +95,7 @@ const findFilePathsAndMove = function(_data, _rootPath, _relativeFolderSource, _
     //Check type _data for action
     if(typeof(_data) === 'string' || _data instanceof String){
         //If thís part start by _relativeFolderSource, we move all path to _relativeFolderDestination
-        if(_data.startsWith(_relativeFolderSource)){
+        if(_data.startsWith(_relativeFolderSource) && resolveInside(_rootPath, _relativeFolderDestination) != null){
             moveFileToFolder(_rootPath, _relativeFolderDestination, _data, (_newPath) => {
                 _callBack(_newPath);
             });
@@ -178,9 +171,9 @@ module.exports = {
     getFileExtentionSync,
     createFoldersByPath,
     findFilePathToUpload,
+    resolveInside,
 
     moveFileToFolder,
-    moveFilesToFolder,
 
     findFilePathsAndMove,
 

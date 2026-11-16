@@ -39,12 +39,7 @@ namespace database_control_center
             AppLog.Log(AppLogType.Comment, "Add request : " + _request);
 
             //Add new job into db
-            //Create connect to DB
-            MongoClient dbClient = new MongoClient("mongodb://localhost:27017");
-            //Get DB(Create new if not aready exist)
-            IMongoDatabase mongoDatabase = dbClient.GetDatabase("what_dish_to_cook_today");
-            //Get database_worker_job collection
-            IMongoCollection<BsonDocument> jobCollection = mongoDatabase.GetCollection<BsonDocument>("database_worker_job");
+            IMongoCollection<BsonDocument> jobCollection = GetJobCollection();
             //Inset job to jobCollection
             jobCollection.InsertOne(new BsonDocument
             {
@@ -53,6 +48,15 @@ namespace database_control_center
             });
 
             eventRequest?.Invoke(_request);
+        }
+
+        //One client is enough for the whole process
+        private static readonly MongoClient dbClient = new MongoClient("mongodb://localhost:27017");
+
+        private static IMongoCollection<BsonDocument> GetJobCollection()
+        {
+            IMongoDatabase mongoDatabase = dbClient.GetDatabase("what_dish_to_cook_today");
+            return mongoDatabase.GetCollection<BsonDocument>("database_worker_job");
         }
     }
 

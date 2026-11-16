@@ -2,75 +2,51 @@ const express = require('express');
 const router = express.Router();
 const database = require('../../config/database/connection');
 
-const getDishPostSearchDetail = function(_dishId, _dishName, _dishPostId, _callBack){
-    database.collections.DishPost.findById(_dishPostId, "short_detail", function(_err, _response){
-        if(!_err){
-            _callBack({
-                "id" : _dishId,
-                "name" : _dishName,
-                "short_detail" : _response.short_detail
-            });
-        }
-        else{
-            _callBack({
-                "id" : _dishId,
-                "name" : _dishName,
-                "short_detail" : null
-            });
-        }
-    });
+//Escape user input so a keyword like "a.*b" is matched as plain text
+const escapeRegex = function(_text){
+    return String(_text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-const findDishsByKeyword = function(_keyword, _callBack)
+
+const findDishsByKeyword = async function(_keyword)
 {
     //- Find with keyword
     //- Only get result have bestPost
-    database.collections.Dish.find({name : { "$regex": _keyword, "$options": "i" }, best_post_id: { $exists: true, $ne: "" }}, 'name best_post_id',function(_err, _response){
-        if(!_err){
-            let numberTaskWaiting = _response.length;
-            let dataReturn = [];
-            for(let subData of _response){
-                //loop to get detail each dish
-                getDishPostSearchDetail(subData._id, subData.name, subData.best_post_id, function(_data){
-                    //Add data
-                    dataReturn.push(_data);
-                    //Minus a numberTaskWaiting
-                    numberTaskWaiting--;
-                    //If numberTaskWaiting = 0, we call back
-                    if(numberTaskWaiting == 0){
-                        _callBack({'isSuccess' : true, 'data' : dataReturn});
-                    }
-                });
-            }
-        }
-        else{
-            _callBack({'isSuccess' : false, 'status' : _err.toString()});
-        }
-    }).limit(10);
+    const dishs = await database.collections.Dish.find(
+        {name : { "$regex": escapeRegex(_keyword), "$options": "i" }, best_post_id: { $exists: true, $ne: "" }},
+        'name best_post_id'
+    ).limit(10);
+
+    const dishPosts = await database.collections.DishPost.find(
+        { _id: { $in: dishs.map(dish => dish.best_post_id) } },
+        'short_detail'
+    );
+    const shortDetails = new Map(dishPosts.map(post => [post._id.toString(), post.short_detail]));
+
+    return dishs.map(dish => ({
+        "id" : dish._id,
+        "name" : dish.name,
+        "short_detail" : shortDetails.get(dish.best_post_id.toString()) || null,
+    }));
 }
+
+const sendList = async function(res, _task) {
+    try {
+        res.status(200).send(await _task());
+    } catch (_err) {
+        res.status(400).send(_err.toString());
+    }
+}
+
 router.get('/', function(req, res){
-    findDishsByKeyword("", (_data) => {
-        if(_data.isSuccess){
-            res.statusCode = 200;
-            res.send(_data.data);
-        }
-        else{
-            res.statusCode = 400;
-            res.send(_data.status);
-        }
-    });
+    sendList(res, () => findDishsByKeyword(""));
 });
 
 router.get('/keyword', function(req, res){
-    findDishsByKeyword("", (_data) => {
-        if(_data.isSuccess){
-            res.statusCode = 200;
-            res.send(_data.data);
-        }
-        else{
-            res.statusCode = 400;
-            res.send(_data.status);
-        }
-    });
+    sendList(res, () => findDishsByKeyword(""));
+});
+
+router.get('/keyword/:keyword', function(req, res){
+    sendList(res, () => findDishsByKeyword(req.params.keyword));
 });
 
 //export this router to use in our index.js

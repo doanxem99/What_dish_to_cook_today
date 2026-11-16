@@ -26,12 +26,13 @@
         this.$router.push({ path: '/ingredient_detail', query: { ingredient_id: _id }})
       },
       openIngredientGenerateBox : function(){
-        this.isGenerateIngredient = true;
         if (!useAuthStore().isLogin) { 
-          useAuthStore().errorMessage = "You must login to create new dish profile.";
+          useAuthStore().errorMessage = "You must login to create new ingredient profile.";
           useAuthStore().jumpPage = '/ingredients'
           this.$router.push({ path: '/signin' });
+          return;
         }
+        this.isGenerateIngredient = true;
       },
       closeIngredientGenerateBox : function(){
         this.isGenerateIngredient = false;

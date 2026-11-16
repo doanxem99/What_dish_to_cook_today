@@ -1,7 +1,8 @@
-import axios from 'axios';
+//Base address of the Express API. Set VITE_SERVER_URL at build time for a real deployment.
+const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000/';
 
 export default {
-    serverUrl : 'http://localhost:3000/',
+    serverUrl : serverUrl.endsWith('/') ? serverUrl : serverUrl + '/',
     getFullPath : function(_relativePath){
         //Because when load background-image by url, it need '/' instead of '\\'.
         //Otherwise, the url will error

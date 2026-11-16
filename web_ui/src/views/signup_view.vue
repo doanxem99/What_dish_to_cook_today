@@ -39,21 +39,16 @@ export default {
         }
     },
     methods: {
-        handleSubmit(_data) {
-            useAuthStore().signUp(_data)
-            if (!this.errorMessage) {
-                this.$router.push('./login')
+        async handleSubmit(_data) {
+            if (await useAuthStore().signUp(_data)) {
+                this.$router.push({ path: '/signin' });
             }
         }
     },
     created() {
         if (this.isLogin) {
-            if (this.jumpPage) {
-                this.$router.push({ path: this.jumpPage });
-                useAuthStore().jumpPage = null;
-            }
-            else 
-                this.$router.push({ path: '/home' });
+            this.$router.push({ path: this.jumpPage || '/' });
+            useAuthStore().jumpPage = null;
         }
     }
 }

@@ -2,13 +2,6 @@ import axios from 'axios';
 import serverInfo from './server_info.js'
 
 export default {
-    getImageTemplate : function(_callBack){
-        axios.get(serverInfo.serverUrl + 'api/template/image').then(response => {
-            if(response.status == 200){
-                _callBack(response.data);
-            }
-        });
-    },
     getImageBlockTemplate : function(_callBack){
         axios.get(serverInfo.serverUrl + 'api/template/image_block').then(response => {
             if(response.status == 200){
