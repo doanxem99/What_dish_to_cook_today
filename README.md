@@ -49,7 +49,7 @@ cd flutter_web_dev
 flutter pub get
 flutter test
 flutter build web
-# copy build/web/* into server/web/ to serve it at http://localhost:3000/
+# copy build/web/* into server/web/ to serve it at http://localhost:3000/flutter
 ```
 
 ## Data

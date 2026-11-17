@@ -16,5 +16,10 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
+  },
+  build: {
+    //The Express server serves this build at /
+    outDir: '../server/web_ui',
+    emptyOutDir: true
   }
 })

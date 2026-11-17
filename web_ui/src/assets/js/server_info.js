@@ -1,5 +1,6 @@
 //Base address of the Express API. Set VITE_SERVER_URL at build time for a real deployment.
-const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000/';
+//In a production build the app is served by the same server, so relative paths are correct.
+const serverUrl = import.meta.env.VITE_SERVER_URL || (import.meta.env.DEV ? 'http://localhost:3000/' : '/');
 
 export default {
     serverUrl : serverUrl.endsWith('/') ? serverUrl : serverUrl + '/',

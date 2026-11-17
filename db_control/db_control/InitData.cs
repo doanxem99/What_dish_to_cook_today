@@ -90,15 +90,15 @@ namespace db_control
             //Then, we create default data
             
             ingredientCollection.InsertMany([
-                CreateDefaultIngredientItem("Beef", adminId, _mongoDatabase),
-                CreateDefaultIngredientItem("Salmon", adminId, _mongoDatabase),
-                CreateDefaultIngredientItem("Egg", adminId, _mongoDatabase),
-                CreateDefaultIngredientItem("Salt", adminId, _mongoDatabase),
-                CreateDefaultIngredientItem("Honey", adminId, _mongoDatabase),
-                CreateDefaultIngredientItem("Orangle", adminId, _mongoDatabase),
-                CreateDefaultIngredientItem("Pork", adminId, _mongoDatabase),
-                CreateDefaultIngredientItem("Chicken", adminId, _mongoDatabase),
-                CreateDefaultIngredientItem("Potato", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Beef", "Thịt bò", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Salmon", "Cá hồi", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Egg", "Trứng", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Salt", "Muối", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Honey", "Mật ong", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Orangle", "Cam", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Pork", "Thịt heo", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Chicken", "Thịt gà", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Potato", "Khoai tây", adminId, _mongoDatabase),
             ]);
         }
         private static void UpdateIdIngredientPost(IMongoDatabase _mongoDatabase)
@@ -135,6 +135,7 @@ namespace db_control
             BsonDocument post = new()
             {
                 { "name", "Spagetti" },
+                { "name_vi", "Mì Ý" },
                 { "user_id", adminId },
                 { "dish_id", "" },
                 { "is_best_post", true },
@@ -150,6 +151,7 @@ namespace db_control
                     }
                 },
                 { "short_detail", "Italian food" },
+                { "short_detail_vi", "Món ăn Ý" },
                 { "profile_image" , "public/pictures/dishs/Spaghetti.jpg" },
                 { "display_blocks" ,
                     new BsonArray
@@ -158,6 +160,7 @@ namespace db_control
                         {
                             { "type" , "text" },
                             { "text", "There's nothing like classic spaghetti and meat sauce to bring people together around the dinner table. This homemade spaghetti sauce with ground beef recipe will satisfy all your comfort food cravings. " },
+                            { "text_vi", "Không gì bằng mì Ý sốt thịt bò kiểu truyền thống cho bữa cơm gia đình. Công thức sốt cà chua với thịt bò băm này sẽ làm hài lòng mọi người." },
                             { "font_size" , 14 },
                             { "text_align" , "left" },
                             { "color" , "black" }
@@ -247,6 +250,7 @@ namespace db_control
                 new BsonDocument
                 {
                     { "name" , "Spagetti" },
+                    { "name_vi" , "Mì Ý" },
                     //Every day, the system will check to find the best post base on points and author popular
                     { "best_post_id" , "" },
                 }
@@ -256,6 +260,8 @@ namespace db_control
             // Create dish_post collection
             collectionName = "dish_post";
             _mongoDatabase.DropCollection(collectionName); 
+            _mongoDatabase.DropCollection("vote");
+            _mongoDatabase.DropCollection("comment");
             _mongoDatabase.CreateCollection(collectionName);
 
             // Find dish_id in dish collection
@@ -302,12 +308,13 @@ namespace db_control
             };
         }
 
-        private static BsonDocument CreateDefaultIngredientItem(string _name, string adminId, IMongoDatabase _mongoDatabase)
+        private static BsonDocument CreateDefaultIngredientItem(string _name, string _nameVi, string adminId, IMongoDatabase _mongoDatabase)
         {
             var ingredientPost = _mongoDatabase.GetCollection<BsonDocument>("ingredient_post").Find(Builders<BsonDocument>.Filter.Eq("name", _name)).FirstOrDefault();
 
             return new() {
                 { "name", _name },
+                { "name_vi", _nameVi },
                 { "best_post_id", ingredientPost.GetValue("_id").ToString() },
                 // { "date_time", DateTime.Now.ToLocalTime() },
                 // { "points", 0 },

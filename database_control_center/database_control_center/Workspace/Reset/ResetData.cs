@@ -49,6 +49,7 @@ namespace database_control_center
                 { "points", 0 },
                 { "type" , "Food" } ,
                 { "short_detail", "Nutritional food" },
+                { "short_detail_vi", "Thực phẩm bổ dưỡng" },
                 { "profile_image" , "public/pictures/ingredients/salt.jpg" },
                 { "display_blocks" ,
                     new BsonArray
@@ -66,11 +67,12 @@ namespace database_control_center
             };
         }
 
-        private static BsonDocument CreateDefaultIngredient(string _name)
+        private static BsonDocument CreateDefaultIngredient(string _name, string _nameVi)
         {
             return new BsonDocument
             {
                 { "name" , _name },
+                { "name_vi" , _nameVi },
                 { "best_post_id" , "" },
                 { "is_need_update" , false }
             };
@@ -82,6 +84,7 @@ namespace database_control_center
         {
             return new BsonDocument{
                 { "name", "Spagetti" },
+                { "name_vi", "Mì Ý" },
                 { "dish_id", _dishId },
                 { "user_id", _userId },
                 { "unique_id", _uniqueId },
@@ -92,6 +95,7 @@ namespace database_control_center
                 { "comments", 0 },
                 { "ingredients" , _ingredientIds },
                 { "short_detail", "Nutritional food" },
+                { "short_detail_vi", "Món ăn bổ dưỡng" },
                 { "profile_image" , "public/pictures/dishs/Spaghetti.jpg" },
                 { "display_blocks" ,
                     new BsonArray
@@ -100,6 +104,7 @@ namespace database_control_center
                         {
                             { "type" , "text" },
                             { "text", "There's nothing like classic spaghetti and meat sauce to bring people together around the dinner table. This homemade spaghetti sauce with ground beef recipe will satisfy all your comfort food cravings. " },
+                            { "text_vi", "Không gì bằng mì Ý sốt thịt bò kiểu truyền thống cho bữa cơm gia đình. Công thức sốt cà chua với thịt bò băm này sẽ làm hài lòng mọi người." },
                             { "font_size" , 14 },
                             { "text_align" , "left" },
                             { "color" , "black" }
@@ -210,7 +215,7 @@ namespace database_control_center
             //*Then, we create default data
             BsonDocument ingredientDocument, ingredientPostDocument;
             string ingredientId, ingredientPostId, unique_id;
-            ingredientCollection.InsertOne(CreateDefaultIngredient("Beef"));
+            ingredientCollection.InsertOne(CreateDefaultIngredient("Beef", "Thịt bò"));
             ingredientDocument = ingredientCollection.Find(Builders<BsonDocument>.Filter.Eq("name", "Beef")).FirstOrDefault();
             ingredientId = ingredientDocument.GetValue("_id").ToString();
             unique_id = ingredientId + "_unknow";
@@ -219,7 +224,7 @@ namespace database_control_center
             ingredientPostId = ingredientPostDocument.GetValue("_id").ToString();
             ingredientCollection.UpdateOne(ingredientDocument, Builders<BsonDocument>.Update.Set("best_post_id", ingredientPostId));
 
-            ingredientCollection.InsertOne(CreateDefaultIngredient("Salmon"));
+            ingredientCollection.InsertOne(CreateDefaultIngredient("Salmon", "Cá hồi"));
             ingredientDocument = ingredientCollection.Find(Builders<BsonDocument>.Filter.Eq("name", "Salmon")).FirstOrDefault();
             ingredientId = ingredientDocument.GetValue("_id").ToString();
             unique_id = ingredientId + "_unknow";
@@ -228,7 +233,7 @@ namespace database_control_center
             ingredientPostId = ingredientPostDocument.GetValue("_id").ToString();
             ingredientCollection.UpdateOne(ingredientDocument, Builders<BsonDocument>.Update.Set("best_post_id", ingredientPostId));
 
-            ingredientCollection.InsertOne(CreateDefaultIngredient("Egg"));
+            ingredientCollection.InsertOne(CreateDefaultIngredient("Egg", "Trứng"));
             ingredientDocument = ingredientCollection.Find(Builders<BsonDocument>.Filter.Eq("name", "Egg")).FirstOrDefault();
             ingredientId = ingredientDocument.GetValue("_id").ToString();
             unique_id = ingredientId + "_unknow";
@@ -237,7 +242,7 @@ namespace database_control_center
             ingredientPostId = ingredientPostDocument.GetValue("_id").ToString();
             ingredientCollection.UpdateOne(ingredientDocument, Builders<BsonDocument>.Update.Set("best_post_id", ingredientPostId));
 
-            ingredientCollection.InsertOne(CreateDefaultIngredient("Salt"));;
+            ingredientCollection.InsertOne(CreateDefaultIngredient("Salt", "Muối"));;;
             ingredientDocument = ingredientCollection.Find(Builders<BsonDocument>.Filter.Eq("name", "Salt")).FirstOrDefault();
             ingredientId = ingredientDocument.GetValue("_id").ToString();
             unique_id = ingredientId + "_unknow";
@@ -246,7 +251,7 @@ namespace database_control_center
             ingredientPostId = ingredientPostDocument.GetValue("_id").ToString();
             ingredientCollection.UpdateOne(ingredientDocument, Builders<BsonDocument>.Update.Set("best_post_id", ingredientPostId));
 
-            ingredientCollection.InsertOne(CreateDefaultIngredient("Honey"));
+            ingredientCollection.InsertOne(CreateDefaultIngredient("Honey", "Mật ong"));
             ingredientDocument = ingredientCollection.Find(Builders<BsonDocument>.Filter.Eq("name", "Honey")).FirstOrDefault();
             ingredientId = ingredientDocument.GetValue("_id").ToString();
             unique_id = ingredientId + "_unknow";
@@ -255,7 +260,7 @@ namespace database_control_center
             ingredientPostId = ingredientPostDocument.GetValue("_id").ToString();
             ingredientCollection.UpdateOne(ingredientDocument, Builders<BsonDocument>.Update.Set("best_post_id", ingredientPostId));
 
-            ingredientCollection.InsertOne(CreateDefaultIngredient("Orangle"));
+            ingredientCollection.InsertOne(CreateDefaultIngredient("Orangle", "Cam"));
             ingredientDocument = ingredientCollection.Find(Builders<BsonDocument>.Filter.Eq("name", "Orangle")).FirstOrDefault();
             ingredientId = ingredientDocument.GetValue("_id").ToString();
             unique_id = ingredientId + "_unknow";
@@ -272,6 +277,8 @@ namespace database_control_center
             //*First, we get collection collection
             _mongoDatabase.DropCollection(dishCollectionName);
             _mongoDatabase.DropCollection(dishPostCollectionName);
+            _mongoDatabase.DropCollection("vote");
+            _mongoDatabase.DropCollection("comment");
             _mongoDatabase.CreateCollection(dishCollectionName);
             _mongoDatabase.CreateCollection(dishPostCollectionName);
             IMongoCollection<BsonDocument> dishCollection = _mongoDatabase.GetCollection<BsonDocument>(dishCollectionName);

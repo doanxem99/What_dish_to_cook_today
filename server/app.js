@@ -56,8 +56,6 @@ appDebug.init();
 
 //*Set public folder
 const rootPath = __dirname;
-app.use("/", express.static(path.join(rootPath, 'web')));
-app.use("/web", express.static(path.join(rootPath, 'web')));
 app.use("/public", express.static(path.join(rootPath, 'public')));
 
 //* Add router listener
@@ -67,8 +65,12 @@ app.use('/api/ingredient', require('./routes/api/ingredient'));
 app.use('/api/dish', require('./routes/api/dish'));
 app.use('/api/template', require('./routes/api/template'));
 app.use('/api/gallery_upload', require('./routes/api/gallery_upload'));
-//+ Web
-app.use('/web', require('./routes/web/index.js'));
+
+//Built clients: Vue at /, Flutter at /flutter
+app.use(require('./routes/web/static_site')({
+  vueRoot: path.join(rootPath, 'web_ui'),
+  flutterRoot: path.join(rootPath, 'web'),
+}));
 
 //Add websocket
 app.ws('/worker', function(ws, req) {

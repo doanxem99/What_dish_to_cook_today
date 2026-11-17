@@ -23,6 +23,7 @@ Created on demand at signup if missing (the seed tools do not create roles).
 | `password` | String, required | bcrypt hash |
 | `email` | String, unique, required | |
 | `roles` | [ObjectId → `role`], required | array; signup assigns the `user` role |
+| `created_at` | Date | set at signup; null for older users, and `/api/auth/me` returns null |
 | `profile_image` | Buffer | unused by the clients today |
 
 ### `ingredient`
@@ -30,6 +31,7 @@ Created on demand at signup if missing (the seed tools do not create roles).
 | Field | Type | Notes |
 |---|---|---|
 | `name` | String, unique | letters and spaces only |
+| `name_vi` | String | optional Vietnamese name; clients fall back to `name` |
 | `best_post_id` | String | `_id` of the winning `ingredient_post` |
 | `is_need_update` | Boolean | reserved for the vote job, never read today |
 
@@ -46,6 +48,7 @@ Created on demand at signup if missing (the seed tools do not create roles).
 | `points` | Number | votes |
 | `type` | String | `Food`, `Spice`, `Fruit`, ... |
 | `short_detail` | String | |
+| `short_detail_vi` | String | optional Vietnamese description |
 | `profile_image` | String | relative path under `server/` |
 | `display_blocks` | Array | rendered content, see below |
 
@@ -54,6 +57,7 @@ Created on demand at signup if missing (the seed tools do not create roles).
 | Field | Type | Notes |
 |---|---|---|
 | `name` | String, unique | letters and spaces only |
+| `name_vi` | String | optional Vietnamese name |
 | `best_post_id` | String | `_id` of the winning `dish_post` |
 | `is_need_update` | Boolean | reserved, never read today |
 
@@ -69,14 +73,37 @@ Created on demand at signup if missing (the seed tools do not create roles).
 | `date_time` | Date | rewritten on every edit |
 | `points` | Number | votes; editing a post no longer resets it |
 | `views` | Number | incremented by `GET /get_dish_post/:id` |
-| `comments` | Number | a counter only; there is no comment collection |
+| `comments` | Number | visible counter kept in step with the `comment` collection |
 | `ingredients` | Array of String | ingredient ids |
 | `short_detail` | String | |
+| `short_detail_vi` | String | optional Vietnamese description |
 | `profile_image` | String | relative path under `server/` |
 | `display_blocks` | Array | rendered content, see below |
 
-### `database_worker_job`
+### `comment`
 
+| Field | Type | Notes |
+|---|---|---|
+| `dish_post_id` | String | parent `dish_post._id` |
+| `user_id` | String | author id from the token |
+| `body` | String | 1–1000 characters, stored as plain text; clients must render it as text, never HTML |
+| `date_time` | Date | creation time |
+
+Listing joins `user.username`; deleting keeps `dish_post.comments` in step. Comments exist only for dish posts.
+
+### `vote`
+
+| Field | Type | Notes |
+|---|---|---|
+| `user_id` | String | voter id |
+| `dish_post_id` | String | parent `dish_post._id` |
+| `date_time` | Date | when the vote was cast |
+
+Unique compound index on `{user_id, dish_post_id}`. The toggle route inserts or deletes the row and updates
+`dish_post.points` (increment on vote, floored decrement on unvote), so `points` stays the stored counter that
+`get_best_dish_post` and the C# vote job rank by.
+
+### `database_worker_job`
 | Field | Type | Notes |
 |---|---|---|
 | `data` | String | `ResetData` or `VoteBestPostIngredient:<ingredientId>` |
@@ -90,9 +117,11 @@ order, one batch per second.
 `display_blocks` is an array of objects. Text blocks:
 
 ```json
-{ "type": "text", "text": "...", "font_size": 14, "font_weight": "bold",
+{ "type": "text", "text": "...", "text_vi": "...", "font_size": 14, "font_weight": "bold",
   "text_align": "left", "color": "black" }
 ```
+
+`text_vi` is optional; clients fall back to `text` when it is empty or missing.
 
 Image blocks:
 

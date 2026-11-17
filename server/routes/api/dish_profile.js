@@ -3,6 +3,7 @@ const router = express.Router();
 const database = require('../../config/database/connection');
 const fileAction = require('../../config/file/file_action');
 const path = require('path');
+const jwt = require('jsonwebtoken');
 const appDebug = require('../../config/debug/app_debug');
 const profileEnum = require('../../config/enum/profile_enum');
 const { verifyToken } = require('./verifyToken');
@@ -312,6 +313,43 @@ const getBestDishPost = async function() {
     }
 }
 
+const COMMENT_MAX_LENGTH = 1000;
+
+//Comments are readable without a session; a valid cookie only marks the viewer's own rows
+const getViewerId = function(req) {
+    try {
+        const token = req.cookies ? req.cookies.token : null;
+        if (!token) {
+            return null;
+        }
+        return jwt.verify(token, process.env.JWT_SECRET).id || null;
+    } catch (err) {
+        return null;
+    }
+};
+
+const toCommentData = function(_comment, _username, _viewerId) {
+    return {
+        'id' : _comment._id,
+        'body' : _comment.body,
+        'user_id' : _comment.user_id,
+        'username' : _username || "Unknown User",
+        'date_time' : _comment.date_time,
+        'is_mine' : _viewerId != null && _viewerId.toString() === String(_comment.user_id),
+    };
+};
+
+const listComments = async function(_dishPostId, _viewerId) {
+    const comments = await database.collections.Comment.find({ dish_post_id: _dishPostId })
+        .sort({ date_time: -1 })
+        .limit(50);
+    const userIds = [...new Set(comments.map(comment => comment.user_id))];
+    const users = await database.collections.User.find({ _id: { $in: userIds } }, 'username');
+    const usernames = new Map(users.map(user => [user._id.toString(), user.username]));
+
+    return comments.map(comment => toCommentData(comment, usernames.get(String(comment.user_id)), _viewerId));
+};
+
 // Route handlers with async/await
 // Post request to create a dish with verification token
 router.post('/create_dish', verifyToken, async function(req, res) {
@@ -343,6 +381,219 @@ router.get('/get_best_dish_post', async function(req, res) {
     const result = await getBestDishPost();
     res.status(200).send(result);
 })
+
+// Comments on a dish post
+router.get('/mine', verifyToken, async function(req, res) {
+    try {
+        const posts = await database.collections.DishPost.find({ user_id: req.body.userid })
+            .sort({ date_time: -1 })
+            .limit(50);
+
+        res.status(200).send({
+            'status' : profileEnum.ProfileStatus_Detail.Success,
+            'status_code': profileEnum.Status_Code_Website.Success,
+            'data' : posts.map(post => ({
+                'id' : post._id,
+                'name' : post.name,
+                'name_vi' : post.name_vi || null,
+                'short_detail' : post.short_detail,
+                'profile_image' : post.profile_image,
+                'is_best_post' : !!post.is_best_post,
+                'date_time' : post.date_time,
+            }))
+        });
+    } catch (err) {
+        appDebug.writeLine(appDebug.DebugType.Exception, "Error listing own dish posts : " + err);
+        res.status(500).send({
+            'status' : profileEnum.ProfileStatus_Detail.Exception,
+            'status_code': profileEnum.Status_Code_Website.InternalServerError,
+            'detail' : err.toString()
+        });
+    }
+});
+router.get('/comments/:dish_post_id', async function(req, res) {
+    try {
+        const data = await listComments(req.params.dish_post_id, getViewerId(req));
+        res.status(200).send({
+            'status' : profileEnum.ProfileStatus_Detail.Success,
+            'status_code': profileEnum.Status_Code_Website.Success,
+            'data' : data
+        });
+    } catch (err) {
+        appDebug.writeLine(appDebug.DebugType.Exception, "Error listing comments : " + err);
+        res.status(500).send({
+            'status' : profileEnum.ProfileStatus_Detail.Exception,
+            'status_code': profileEnum.Status_Code_Website.InternalServerError,
+            'detail' : err.toString()
+        });
+    }
+});
+
+router.post('/comment/:dish_post_id', verifyToken, async function(req, res) {
+    const body = typeof req.body.body === 'string' ? req.body.body.trim() : '';
+    if (body.length === 0 || body.length > COMMENT_MAX_LENGTH) {
+        return res.status(400).send({
+            'status' : profileEnum.ProfileStatus_PostCreate.Exception,
+            'status_code': profileEnum.Status_Code_Website.BadRequest,
+            'detail' : "Comment must contain 1 to " + COMMENT_MAX_LENGTH + " characters"
+        });
+    }
+
+    try {
+        const dishPost = await database.collections.DishPost.findById(req.params.dish_post_id);
+        if (!dishPost) {
+            return res.status(404).send({
+                'status' : profileEnum.ProfileStatus_PostCreate.Exception,
+                'status_code': profileEnum.Status_Code_Website.NotFound,
+                'detail' : "Dish post not found"
+            });
+        }
+        const created = await database.collections.Comment.create({
+            dish_post_id: req.params.dish_post_id,
+            user_id: req.body.userid,
+            body: body,
+            date_time: new Date()
+        });
+        //Keep the visible comment counter on the dish post in step
+        await database.collections.DishPost.updateOne(
+            { _id: req.params.dish_post_id },
+            { $inc: { comments: 1 } }
+        );
+        const user = await database.collections.User.findOne({ _id: req.body.userid }, 'username');
+        res.status(200).send({
+            'status' : profileEnum.ProfileStatus_PostCreate.CreatingSuccess,
+            'status_code': profileEnum.Status_Code_Website.Success,
+            'data' : toCommentData(created, user && user.username, req.body.userid)
+        });
+    } catch (err) {
+        appDebug.writeLine(appDebug.DebugType.Exception, "Error creating comment : " + err);
+        res.status(500).send({
+            'status' : profileEnum.ProfileStatus_PostCreate.Exception,
+            'status_code': profileEnum.Status_Code_Website.InternalServerError,
+            'detail' : err.toString()
+        });
+    }
+});
+
+router.delete('/comment/:comment_id', verifyToken, async function(req, res) {
+    try {
+        const comment = await database.collections.Comment.findById(req.params.comment_id);
+        if (!comment) {
+            return res.status(404).send({
+                'status' : profileEnum.ProfileStatus_PostDetail.Exception,
+                'status_code': profileEnum.Status_Code_Website.NotFound,
+                'detail' : "Comment not found"
+            });
+        }
+        if (String(comment.user_id) !== String(req.body.userid)) {
+            return res.status(403).send({
+                'status' : profileEnum.ProfileStatus_PostDetail.Exception,
+                'status_code': profileEnum.Status_Code_Website.Forbidden,
+                'detail' : "Only the author can delete a comment"
+            });
+        }
+
+        const removed = await database.collections.Comment.findByIdAndDelete(req.params.comment_id);
+        if (!removed) {
+            //Another request deleted it first: do not decrement twice
+            return res.status(404).send({
+                'status' : profileEnum.ProfileStatus_PostDetail.Exception,
+                'status_code': profileEnum.Status_Code_Website.NotFound,
+                'detail' : "Comment not found"
+            });
+        }
+        //Keep the visible comment counter on the dish post in step, floored at zero
+        await database.collections.DishPost.updateOne(
+            { _id: comment.dish_post_id },
+            [{ $set: { comments: { $max: [0, { $subtract: [{ $ifNull: ["$comments", 0] }, 1] }] } } }]
+        );
+        res.status(200).send({
+            'status' : profileEnum.ProfileStatus_PostDetail.Success,
+            'status_code': profileEnum.Status_Code_Website.Success,
+            'data' : { 'deleted' : true }
+        });
+    } catch (err) {
+        appDebug.writeLine(appDebug.DebugType.Exception, "Error deleting comment : " + err);
+        res.status(500).send({
+            'status' : profileEnum.ProfileStatus_PostDetail.Exception,
+            'status_code': profileEnum.Status_Code_Website.InternalServerError,
+            'detail' : err.toString()
+        });
+    }
+});
+
+// One vote per user and dish post; calling again removes it
+router.post('/vote/:dish_post_id', verifyToken, async function(req, res) {
+    try {
+        const dishPost = await database.collections.DishPost.findById(req.params.dish_post_id);
+        if (!dishPost) {
+            return res.status(404).send({
+                'status' : profileEnum.ProfileStatus_PostDetail.Exception,
+                'status_code': profileEnum.Status_Code_Website.NotFound,
+                'detail' : "Dish post not found"
+            });
+        }
+
+        const voteFilter = {
+            user_id: req.body.userid,
+            dish_post_id: req.params.dish_post_id
+        };
+        let voted;
+        let updated;
+
+        try {
+            //Delete first: only the request that really removed a row may decrement
+            const removed = await database.collections.Vote.findOneAndDelete(voteFilter);
+            if (removed) {
+                voted = false;
+                //Floor at zero so a drifted counter can never go negative
+                updated = await database.collections.DishPost.findByIdAndUpdate(
+                    req.params.dish_post_id,
+                    [{ $set: { points: { $max: [0, { $subtract: [{ $ifNull: ["$points", 0] }, 1] }] } } }],
+                    { new: true }
+                );
+            } else {
+                await database.collections.Vote.create({
+                    ...voteFilter,
+                    date_time: new Date()
+                });
+                voted = true;
+                updated = await database.collections.DishPost.findByIdAndUpdate(
+                    req.params.dish_post_id,
+                    { $inc: { points: 1 } },
+                    { new: true }
+                );
+            }
+        } catch (err) {
+            //A concurrent first vote hit the unique index: the vote exists, so report that state
+            if (err && err.code === 11000) {
+                const current = await database.collections.DishPost.findById(req.params.dish_post_id);
+                return res.status(200).send({
+                    'status' : profileEnum.ProfileStatus_PostDetail.Success,
+                    'status_code': profileEnum.Status_Code_Website.Success,
+                    'data' : { 'voted' : true, 'points' : current ? current.points : 0 }
+                });
+            }
+            throw err;
+        }
+
+        res.status(200).send({
+            'status' : profileEnum.ProfileStatus_PostDetail.Success,
+            'status_code': profileEnum.Status_Code_Website.Success,
+            'data' : {
+                'voted' : voted,
+                'points' : updated ? updated.points : 0
+            }
+        });
+    } catch (err) {
+        appDebug.writeLine(appDebug.DebugType.Exception, "Error voting : " + err);
+        res.status(500).send({
+            'status' : profileEnum.ProfileStatus_PostDetail.Exception,
+            'status_code': profileEnum.Status_Code_Website.InternalServerError,
+            'detail' : err.toString()
+        });
+    }
+});
 
 // export this router to use in our index.js
 module.exports = router;

@@ -1,0 +1,1 @@
+const s={Success:0},t={CreatingSuccess:0,EditingSuccess:1},e={Success:0},c={Success:0},o={ProfileStatus_Create:s,ProfileStatus_PostCreate:t,ProfileStatus_Detail:e,ProfileStatus_PostDetail:c};export{o as p};

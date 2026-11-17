@@ -9,16 +9,18 @@ const escapeRegex = function(_text){
 
 const findIngredientsByKeyword = async function(_keyword)
 {
-    //- Find with keyword
+    //- Find with keyword in English or Vietnamese
     //- Only get result have bestPost
+    const nameFilter = { "$regex": escapeRegex(_keyword), "$options": "i" };
     const ingredients = await database.collections.Ingredient.find(
-        {name : { "$regex": escapeRegex(_keyword), "$options": "i" }, best_post_id: { $exists: true, $ne: "" }},
-        'name best_post_id'
+        { $or: [ { name: nameFilter }, { name_vi: nameFilter } ], best_post_id: { $exists: true, $ne: "" } },
+        'name name_vi best_post_id'
     ).limit(10);
 
     return ingredients.map(ingredient => ({
         "id" : ingredient._id,
         "name" : ingredient.name,
+        "name_vi" : ingredient.name_vi || null,
     }));
 }
 
@@ -29,12 +31,13 @@ const findIngredientsByIds = async function(_ids)
     //- limit is 10 result
     const ingredients = await database.collections.Ingredient.find(
         {_id : { $in : _ids.split('-') }},
-        'name best_post_id'
+        'name name_vi best_post_id'
     ).limit(10);
 
     return ingredients.map(ingredient => ({
         "id" : ingredient._id,
         "name" : ingredient.name,
+        "name_vi" : ingredient.name_vi || null,
     }));
 }
 
