@@ -151,5 +151,8 @@ test('DELETE removes the author comment and decrements the counter', async () =>
 
     assert.strictEqual(status, 200);
     assert.deepStrictEqual(deleted, ['c3']);
-    assert.deepStrictEqual(commentCounts[commentCounts.length - 1], { $inc: { comments: -1 } });
+    //A floored decrement, like points, so the visible counter cannot go negative
+    assert.deepStrictEqual(commentCounts[commentCounts.length - 1], [
+        { $set: { comments: { $max: [0, { $subtract: [{ $ifNull: ["$comments", 0] }, 1] }] } } }
+    ]);
 });

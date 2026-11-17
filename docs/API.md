@@ -105,7 +105,9 @@ folder and is moved to its final folder by the profile create/update routes.
 
 | Method | Path | Answer |
 |---|---|---|
-| GET | `/` | Flutter build (`server/web/index.html`) |
+| GET | `/` | Vue build (`server/web_ui/index.html`) with SPA fallback |
+| GET | `/flutter` | Flutter build (`server/web/index.html`) and its assets |
+| GET | `/web`, `/web/*` | 301 redirect to `/flutter/` |
 | GET | `/web` | same |
 | GET | `/web/:page` | redirect to `/` |
 | GET | `/public/*` | uploaded images |

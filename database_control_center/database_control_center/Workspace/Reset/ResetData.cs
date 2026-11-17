@@ -278,6 +278,7 @@ namespace database_control_center
             _mongoDatabase.DropCollection(dishCollectionName);
             _mongoDatabase.DropCollection(dishPostCollectionName);
             _mongoDatabase.DropCollection("vote");
+            _mongoDatabase.DropCollection("comment");
             _mongoDatabase.CreateCollection(dishCollectionName);
             _mongoDatabase.CreateCollection(dishPostCollectionName);
             IMongoCollection<BsonDocument> dishCollection = _mongoDatabase.GetCollection<BsonDocument>(dishCollectionName);

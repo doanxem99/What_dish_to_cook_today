@@ -502,10 +502,10 @@ router.delete('/comment/:comment_id', verifyToken, async function(req, res) {
                 'detail' : "Comment not found"
             });
         }
-        //Keep the visible comment counter on the dish post in step
+        //Keep the visible comment counter on the dish post in step, floored at zero
         await database.collections.DishPost.updateOne(
             { _id: comment.dish_post_id },
-            { $inc: { comments: -1 } }
+            [{ $set: { comments: { $max: [0, { $subtract: [{ $ifNull: ["$comments", 0] }, 1] }] } } }]
         );
         res.status(200).send({
             'status' : profileEnum.ProfileStatus_PostDetail.Success,

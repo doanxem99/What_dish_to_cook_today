@@ -73,7 +73,7 @@ Created on demand at signup if missing (the seed tools do not create roles).
 | `date_time` | Date | rewritten on every edit |
 | `points` | Number | votes; editing a post no longer resets it |
 | `views` | Number | incremented by `GET /get_dish_post/:id` |
-| `comments` | Number | a counter only; there is no comment collection |
+| `comments` | Number | visible counter kept in step with the `comment` collection |
 | `ingredients` | Array of String | ingredient ids |
 | `short_detail` | String | |
 | `short_detail_vi` | String | optional Vietnamese description |

@@ -261,6 +261,7 @@ namespace db_control
             collectionName = "dish_post";
             _mongoDatabase.DropCollection(collectionName); 
             _mongoDatabase.DropCollection("vote");
+            _mongoDatabase.DropCollection("comment");
             _mongoDatabase.CreateCollection(collectionName);
 
             // Find dish_id in dish collection
