@@ -21,6 +21,7 @@ const mongod = await MongoMemoryServer.create({
 process.env.MONGODB_URI = mongod.getUri('what_dish_to_cook_today')
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'dev-demo-secret'
 process.env.DATABASE_WORKER_EXE = process.env.DATABASE_WORKER_EXE || 'C:/Windows/Temp/opencode/missing-worker.exe'
+process.env.TRANSLATE_URL = process.env.TRANSLATE_URL || 'http://localhost:5000/translate'
 
 const connectionModule = await import('../config/database/connection.js')
 const { collections } = connectionModule.default || connectionModule
