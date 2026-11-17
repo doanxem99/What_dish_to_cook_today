@@ -78,6 +78,7 @@ Created on demand at signup if missing (the seed tools do not create roles).
 | `short_detail` | String | |
 | `short_detail_vi` | String | optional Vietnamese description |
 | `profile_image` | String | relative path under `server/` |
+| `images` | Array of String | extra photos, relative paths under `server/` |
 | `display_blocks` | Array | rendered content, see below |
 
 ### `comment`
