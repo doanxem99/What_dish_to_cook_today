@@ -49,7 +49,6 @@ export default {
     <ul v-else class="mt-4 ruled">
       <li v-for="row in rows" :key="row.id" class="row-line">
         <router-link class="flex items-center gap-4 p-3" :to="{ path: '/dish_detail', query: { dish_id: row.id } }">
-          <span class="lamp ok" aria-hidden="true"></span>
           <img v-if="row.profile_image" class="w-16 h-16 object-cover rounded" :src="image(row.profile_image)" alt="" />
           <span class="flex-1">
             <span class="block font-bold">{{ localName(row) }}</span>

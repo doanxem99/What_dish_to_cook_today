@@ -66,9 +66,11 @@ export default {
           <button
             class="btn btn-quiet"
             type="button"
-            :aria-pressed="theme === 'light'"
+            role="switch"
+            :aria-checked="theme === 'light'"
+            :aria-label="t('theme.label')"
             @click="switchTheme"
-          >{{ theme === 'light' ? t('theme.dark') : t('theme.light') }}</button>
+          >{{ t('theme.label') }}: {{ theme === 'light' ? t('theme.light') : t('theme.dark') }}</button>
         </div>
 
         <div class="flex items-center gap-2 text-sm">

@@ -126,10 +126,11 @@ export default {
             </span>
           </div>
           <p v-else class="mt-3 text-sm" style="color: var(--board-dim)">{{ t('home.chosenEmpty') }}</p>
-          <p v-if="needIngredient" class="mt-2 text-sm" role="alert" style="color: var(--board-red)">{{ t('home.needOne') }}</p>
+          <p v-if="needIngredient" class="mt-2 text-sm" role="alert" style="color: var(--board-danger)">{{ t('home.needOne') }}</p>
           <button class="btn btn-primary mt-4" type="button" @click="findDishes">
             {{ t('home.find') }}
           </button>
+          <p v-if="chosen.length" class="eyebrow mt-2">{{ t('home.ready', { n: chosen.length }) }}</p>
         </div>
       </div>
 

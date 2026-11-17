@@ -58,7 +58,7 @@ export default {
         <span class="text-sm">{{ t('auth.confirmPassword') }}</span>
         <input v-model="confirm" class="input" type="password" autocomplete="new-password" required />
       </label>
-      <p v-if="error" class="text-sm" style="color: var(--board-red)">{{ error }}</p>
+      <p v-if="error" class="text-sm" style="color: var(--board-danger)">{{ error }}</p>
       <button class="btn btn-primary" type="submit">{{ t('auth.submitSignUp') }}</button>
       <p class="text-sm" style="color: var(--board-dim)">
         {{ t('auth.haveAccount') }}

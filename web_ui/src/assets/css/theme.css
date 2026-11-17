@@ -1,11 +1,12 @@
 :root {
     --board-bg: #14171c;
     --board-raised: #1b2027;
-    --board-line: #2a313b;
+    --board-line: #3a434f;
     --board-line-strong: #5b6470;
     --board-ink: #f2f0ea;
     --board-dim: #a7b0bb;
     --board-red: #a85634;
+    --board-danger: #e0785a;
     --board-amber: #d99a4e;
     --board-green: #6fae86;
     --radius: 6px;
@@ -20,11 +21,12 @@
 [data-theme="light"] {
     --board-bg: #f6f4ef;
     --board-raised: #ffffff;
-    --board-line: #d7d2c7;
+    --board-line: #c3bcae;
     --board-line-strong: #8a8578;
     --board-ink: #1d2127;
     --board-dim: #5b6470;
     --board-red: #96482b;
+    --board-danger: #8f2f18;
     --board-amber: #8a5a12;
     --board-green: #2f6b45;
 }
@@ -126,8 +128,9 @@ a {
 }
 
 .btn[disabled] {
-    opacity: 0.55;
+    opacity: 0.8;
     cursor: not-allowed;
+    border-color: var(--board-line-strong);
 }
 
 /*Active language: a marker, never the primary action's fill*/

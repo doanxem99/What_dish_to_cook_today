@@ -186,7 +186,7 @@ export default {
               :disabled="!auth.isLogin"
               @click="toggleVote"
             >{{ voted ? t('dish.voted') : t('dish.vote') }}</button>
-            <p v-if="voteError" class="text-xs mt-2" role="alert" style="color: var(--board-red)">{{ t('common.errorBody') }}</p>
+            <p v-if="voteError" class="text-xs mt-2" role="alert" style="color: var(--board-danger)">{{ t('common.errorBody') }}</p>
             <p v-if="!auth.isLogin" class="text-xs mt-2" style="color: var(--board-dim)">
               <router-link class="link" to="/signin">{{ t('nav.signIn') }}</router-link>
             </p>
@@ -237,7 +237,7 @@ export default {
               <span class="text-sm">{{ t('dish.commentPlaceholder') }}</span>
               <textarea v-model="commentBody" class="textarea" rows="3" maxlength="1000"></textarea>
             </label>
-            <p v-if="commentError" class="text-sm mt-2" role="alert" style="color: var(--board-red)">
+            <p v-if="commentError" class="text-sm mt-2" role="alert" style="color: var(--board-danger)">
               {{ t('common.errorBody') }}
             </p>
             <button class="btn btn-primary mt-2" type="submit" :disabled="!commentBody.trim()">

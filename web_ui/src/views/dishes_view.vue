@@ -20,7 +20,7 @@ export default {
     query() { return this.$route.query.q || '' },
     heading() {
       if (this.query) return this.t('dishes.resultsFor', { q: this.query })
-      if (this.chosen.length) return this.t('home.find')
+      if (this.chosen.length) return this.t('dishes.board')
       return this.t('dishes.title')
     }
   },
@@ -33,6 +33,9 @@ export default {
       return (this.locale === 'vi' && item.name_vi) ? item.name_vi : item.name
     },
     chosenName(item) {
+      return (this.locale === 'vi' && item.name_vi) ? item.name_vi : item.name
+    },
+    missingName(item) {
       return (this.locale === 'vi' && item.name_vi) ? item.name_vi : item.name
     },
     image(path) { return path ? serverInfo.getFullPath(path) : '' },
@@ -125,6 +128,9 @@ export default {
             <span class="block font-bold text-lg">{{ localName(row) }}</span>
             <span class="block text-sm" style="color: var(--board-dim)">
               {{ locale === 'vi' && row.short_detail_vi ? row.short_detail_vi : row.short_detail }}
+            </span>
+            <span v-if="row.missing && row.missing.length" class="block text-sm" style="color: var(--board-dim)">
+              {{ t('dishes.needs', { list: row.missing.map(missingName).join(', ') }) }}
             </span>
           </span>
           <span class="eyebrow">{{ t('common.open') }}</span>

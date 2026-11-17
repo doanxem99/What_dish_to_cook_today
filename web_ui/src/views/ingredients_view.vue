@@ -70,7 +70,9 @@ export default {
       <p>{{ t('common.errorTitle') }}</p>
       <button class="btn mt-3" type="button" @click="search">{{ t('common.retry') }}</button>
     </div>
-    <p v-else-if="groups.length === 0" class="state">{{ t('ingredients.empty', { q: q }) }}</p>
+    <p v-else-if="groups.length === 0" class="state">
+      {{ q.trim() ? t('ingredients.empty', { q: q }) : t('common.emptyTitle') }}
+    </p>
 
     <div v-else class="mt-6 grid gap-6">
       <section v-for="group in groups" :key="group.type">
@@ -83,7 +85,9 @@ export default {
             >
               <img v-if="item.profile_image" class="w-12 h-12 object-cover rounded" :src="image(item.profile_image)" alt="" />
               <span class="flex-1 font-bold">{{ localName(item) }}</span>
-              <span class="text-sm" style="color: var(--board-dim)">{{ item.short_detail }}</span>
+              <span class="text-sm" style="color: var(--board-dim)">
+                {{ locale === 'vi' && item.short_detail_vi ? item.short_detail_vi : item.short_detail }}
+              </span>
             </router-link>
           </li>
         </ul>

@@ -43,7 +43,7 @@ export default {
         <span class="text-sm">{{ t('auth.password') }}</span>
         <input v-model="password" class="input" type="password" autocomplete="current-password" required />
       </label>
-      <p v-if="error" class="text-sm" style="color: var(--board-red)">{{ error }}</p>
+      <p v-if="error" class="text-sm" style="color: var(--board-danger)">{{ error }}</p>
       <button class="btn btn-primary" type="submit">{{ t('auth.submitSignIn') }}</button>
       <p class="text-sm" style="color: var(--board-dim)">
         {{ t('auth.needAccount') }}
