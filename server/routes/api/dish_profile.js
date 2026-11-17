@@ -59,6 +59,7 @@ const createDishPost = async function(_postData) {
     let short_detail = _postData.data.short_detail;
     let short_detail_vi = _postData.data.short_detail_vi || "";
     let profile_image = _postData.data.profile_image;
+    let images = Array.isArray(_postData.data.images) ? _postData.data.images : [];
     let display_blocks = _postData.data.display_blocks;
     let unique_id = dish_id + "_" + user_id;
 
@@ -82,6 +83,7 @@ const createDishPost = async function(_postData) {
         'short_detail': short_detail,
         'short_detail_vi': short_detail_vi,
         'profile_image': profile_image,
+        'images': images,
         'display_blocks': display_blocks
     };
 
@@ -150,7 +152,8 @@ const createDish = async function(_postData) {
     // Then, try to create Dish with this name
     // If already exists, we return status existed
     console.log("Create dish with data: ", _postData);
-    let dishName = _postData.name;
+    let dishName = (typeof _postData.name === 'string' ? _postData.name.trim() : '') ||
+        (typeof _postData.name_vi === 'string' ? _postData.name_vi.trim() : '');
     let user_id = _postData.userid;
     let ingredients = _postData.ingredients;
     let short_detail = _postData.short_detail;
@@ -159,7 +162,7 @@ const createDish = async function(_postData) {
     
     appDebug.writeLine(appDebug.DebugType.Comment, "Create dish: " + dishName);
     
-    if (!/^[A-Za-z _]+$/.test(dishName)) {
+    if (!/^[\p{L} _]+$/u.test(dishName)) {
         appDebug.writeLine(appDebug.DebugType.Exception, "Dish name only allow letter and space");
         return {
             "status": profileEnum.ProfileStatus_Create.NameFormatException,
@@ -252,7 +255,7 @@ const getDishPostDetail = async function(_dishPostId) {
     try {
         const response = await database.collections.DishPost.findById(
             _dishPostId,
-            "name name_vi dish_id user_id is_best_post date_time points ingredients short_detail short_detail_vi profile_image display_blocks"
+            "name name_vi dish_id user_id is_best_post date_time points ingredients short_detail short_detail_vi profile_image images display_blocks"
         );
 
         // Update views count
@@ -284,7 +287,7 @@ const getBestDishPost = async function() {
         // Find the best dish post based on the maximum points in the DishPost collection
         const dishPost = await database.collections.DishPost.findOne(
             { is_best_post: true },
-            "name name_vi dish_id user_id is_best_post date_time points views comments ingredients short_detail short_detail_vi profile_image display_blocks"
+            "name name_vi dish_id user_id is_best_post date_time points views comments ingredients short_detail short_detail_vi profile_image images display_blocks"
         ).sort({ points: -1 });
 
         if (!dishPost) {

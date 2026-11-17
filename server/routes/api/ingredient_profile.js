@@ -146,13 +146,14 @@ const createIngredient = async function(_postData){
     //Begin letter is upcase and other is lower case
     //*Then, try to create Ingredient with this name
     //If aready exist, we return status existed
-    let ingredient_name = _postData.name;
+    let ingredient_name = (typeof _postData.name === 'string' ? _postData.name.trim() : '') ||
+        (typeof _postData.name_vi === 'string' ? _postData.name_vi.trim() : '');
     let user_id = _postData.userid;
     let type = _postData.type;
     let short_detail = _postData.short_detail;
     let profile_image = _postData.profile_image;
     appDebug.writeLine(appDebug.DebugType.Comment, "Create ingredient : " + ingredient_name);
-    if (/^[A-Za-z _]+$/.test(ingredient_name)){
+    if (/^[\p{L} _]+$/u.test(ingredient_name)){
         let ingredientData = {
             'name' : ingredient_name, 
             'name_vi' : _postData.name_vi || "",

@@ -34,18 +34,22 @@ const toPreviews = async function(_dishPosts, _selectedIds = []) {
             };
         });
 
-    //Name the missing ingredients so the row can say why it is not a full match
-    const missingIds = [...new Set(previews.flatMap(preview => preview.missing_ids))]
-        .filter(id => selected.size > 0);
-    if (missingIds.length > 0) {
-        const missingRows = await database.collections.Ingredient.find(
-            { _id: { $in: missingIds } },
+    //Name every ingredient so a compact row can list them, and so the row can say what is missing
+    const allIds = [...new Set(previews.flatMap(preview => [...(preview.matched_ids || []), ...(preview.missing_ids || [])]))];
+    if (allIds.length > 0) {
+        const rows = await database.collections.Ingredient.find(
+            { _id: { $in: allIds } },
             "name name_vi"
         );
-        const missingById = new Map(missingRows.map(row => [row._id.toString(), row]));
+        const byId = new Map(rows.map(row => [row._id.toString(), row]));
         for (const preview of previews) {
-            preview.missing = preview.missing_ids
-                .map(id => missingById.get(id))
+            const allIdsForRow = [...(preview.matched_ids || []), ...(preview.missing_ids || [])];
+            preview.ingredients_detail = allIdsForRow
+                .map(id => byId.get(String(id)))
+                .filter(Boolean)
+                .map(row => ({ id: row._id, name: row.name, name_vi: row.name_vi || null }));
+            preview.missing = (preview.missing_ids || [])
+                .map(id => byId.get(String(id)))
                 .filter(Boolean)
                 .map(row => ({ id: row._id, name: row.name, name_vi: row.name_vi || null }));
         }

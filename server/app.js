@@ -65,6 +65,7 @@ app.use('/api/ingredient', require('./routes/api/ingredient'));
 app.use('/api/dish', require('./routes/api/dish'));
 app.use('/api/template', require('./routes/api/template'));
 app.use('/api/gallery_upload', require('./routes/api/gallery_upload'));
+app.use('/api/translate', require('./routes/api/translate'));
 
 //Built clients: Vue at /, Flutter at /flutter
 app.use(require('./routes/web/static_site')({
