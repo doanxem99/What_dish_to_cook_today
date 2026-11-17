@@ -73,5 +73,12 @@ dotnet build both projects                             -> Build succeeded
 - Ledgered minors (review 3): index `comment.dish_post_id` for the list query; filter invalid user ids before the username join; two-element fixture to prove sort order.
 - Task 4: complete. 4 tests RED then GREEN; review found a Critical (concurrent unvote double-decrements `points`, can go negative) and two Important (concurrent first vote answered 500; tests did not assert the counter). Fixed with `findOneAndDelete`, duplicate-key handling, and a floored atomic decrement; tests now assert real counter values and the zero floor; suite 18/18, then 19/19. Commits `753e012`, fixes with this entry.
 - Ledgered minor (review 4): a `CastError` from an invalid id answers 500 instead of 404; `ResetData` drops `dish_post` but not `vote`, so orphan votes accumulate after a reseed (pick up in Task 8).
+- Task 5: complete. 3 tests RED then GREEN; review asked for cap, sort and empty assertions; strengthened, then an amend after a red first attempt (below); suite 23/23. Commit `0448f85`.
+- Ruling: committed `test: pin the mine list sort...` once while its empty-case assertion was red, because the stub captured the array by value; fixed the stub and amended, leaving one green commit. Cost if wrong: none now, but the ledger records the slip.
+- Ledgered minor (review 5): misplaced `// Comments on a dish post` label above `/mine`; no `{user_id, date_time}` index; `type` can be absent where `name_vi` is null; the 50 cap has no `has_more` for clients.
+- Task 6: complete. 1 test RED then GREEN, second test added; review found one Important (posts with no `user_id` were listed as homemade) and one latent (ObjectId-typed author). Fixed with `$exists`, a JS guard, and a two-post fixture; suite 25/25. Commits `ac4fe6d`, `bd3302e`.
+- Ledgered minor (review 6): homemade has no ordering beyond `limit(10)`; admin-missing test does not assert the query was skipped; `server.close()` not awaited in the tests.
+- Next: Task 7 (hosting) — biggest step, touches `server/app.js`, Vite output, both builds, and commits `server/web_ui`.
+
 
 
