@@ -25,12 +25,13 @@ can be picked up without re-reading the codebase.
 - **Editor screens are still on the old styling and have no Vietnamese fields.**
   `dish_edit_view.vue`, `ingredient_edit_view.vue`, the generate dialogs and `edit_box` predate the
   new system; they cannot set `name_vi`/`short_detail_vi`, so a dish created there falls back to
-  English. Next increment of plan 2.
-- **The board cannot rank by match count.** No endpoint reports how many of a dish's ingredients the
-  cook already has, so rows show a status lamp only instead of a ranked number. Add a match field to
-  `/api/dish/selection/*` before reinstating the number.
+  English. Next increment of plan 2. Entry links now exist from dish and ingredient detail.
 - **The display face is not self-hosted.** `theme.css` asks for `Be Vietnam Pro` and falls back to
   the system sans; the woff2 needs adding before the typography matches the direction.
+- **No "used in" list on ingredient detail.** It needs an endpoint that answers which dishes include
+  the ingredient; deferred rather than faked.
+- **Votes are not reflected on the board.** `get_best_dish_post` and selection previews rank by
+  `points`, but the UI shows the count only on detail.
 
 ## Risks
 
