@@ -10,6 +10,15 @@ import '../theme/tokens.dart';
 import '../widgets/board_card.dart';
 import 'editor_api.dart';
 
+class PickedImage {
+  const PickedImage(this.bytes, this.name);
+
+  final Uint8List bytes;
+  final String name;
+}
+
+typedef ImagePicker = Future<PickedImage?> Function();
+
 ///Pick, drop, upload and preview one image.
 class EditorImageField extends StatefulWidget {
   const EditorImageField({
@@ -29,7 +38,7 @@ class EditorImageField extends StatefulWidget {
   final String value;
   final ValueChanged<String> onChanged;
   final ValueChanged<String>? onError;
-  final Future<Uint8List?> Function()? pickImage;
+  final ImagePicker? pickImage;
   final String imageName;
   final double height;
 
@@ -41,33 +50,96 @@ class _EditorImageFieldState extends State<EditorImageField> {
   bool _busy = false;
   bool _dragging = false;
 
-  Future<Uint8List?> _pick() async {
+  bool _allowed(String name) {
+    final lower = name.toLowerCase();
+    return lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg');
+  }
+
+  Future<PickedImage?> _pick() async {
     if (widget.pickImage != null) {
       return widget.pickImage!();
     }
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['png', 'jpg', 'jpeg'],
-      withData: true,
+      withReadStream: true,
     );
-    return result?.files.firstOrNull?.bytes;
+    final file = result?.files.firstOrNull;
+    if (file == null) {
+      return null;
+    }
+    if (file.size > EditorApi.maxBytes || !_allowed(file.name)) {
+      throw EditorException(file.size > EditorApi.maxBytes ? 'too-large' : 'type');
+    }
+    final bytes = file.bytes ?? await _readStream(file.readStream);
+    if (bytes == null) {
+      return null;
+    }
+    return PickedImage(bytes, file.name);
   }
 
-  Future<void> _upload(Uint8List? bytes, {String? name}) async {
-    if (bytes == null || bytes.isEmpty) {
+  Future<Uint8List?> _readStream(Stream<List<int>>? stream) async {
+    if (stream == null) {
+      return null;
+    }
+    final builder = BytesBuilder(copy: false);
+    await for (final chunk in stream) {
+      builder.add(chunk);
+    }
+    return builder.takeBytes();
+  }
+
+  Future<void> _upload(PickedImage? picked) async {
+    if (picked == null || picked.bytes.isEmpty || _busy) {
       return;
     }
     setState(() => _busy = true);
     try {
-      final path = await widget.api.upload(bytes, name ?? widget.imageName);
+      final path = await widget.api.upload(picked.bytes, picked.name.isEmpty ? widget.imageName : picked.name);
       if (mounted) {
         widget.onChanged(path);
       }
     } on EditorException catch (error) {
       widget.onError?.call(error.kind);
+    } catch (_) {
+      widget.onError?.call('upload');
     } finally {
       if (mounted) {
         setState(() => _busy = false);
+      }
+    }
+  }
+
+  Future<void> _handleTap() async {
+    if (_busy) {
+      return;
+    }
+    try {
+      await _upload(await _pick());
+    } catch (error) {
+      widget.onError?.call(error is EditorException ? error.kind : 'upload');
+    }
+  }
+
+  Future<void> _handleDrop(DropDoneDetails details) async {
+    setState(() => _dragging = false);
+    if (_busy) {
+      return;
+    }
+    for (final item in details.files) {
+      if (!_allowed(item.name)) {
+        widget.onError?.call('type');
+        continue;
+      }
+      try {
+        if (await item.length() > EditorApi.maxBytes) {
+          widget.onError?.call('too-large');
+          continue;
+        }
+        await _upload(PickedImage(await item.readAsBytes(), item.name));
+        return;
+      } catch (_) {
+        widget.onError?.call('upload');
       }
     }
   }
@@ -80,21 +152,10 @@ class _EditorImageFieldState extends State<EditorImageField> {
     return DropTarget(
       onDragEntered: (_) => setState(() => _dragging = true),
       onDragExited: (_) => setState(() => _dragging = false),
-      onDragDone: (details) async {
-        setState(() => _dragging = false);
-        final item = details.files.firstOrNull;
-        if (item == null) {
-          return;
-        }
-        await _upload(await item.readAsBytes(), name: item.name);
-      },
+      onDragDone: _handleDrop,
       child: InkWell(
         key: const ValueKey('image-pick'),
-        onTap: _busy
-            ? null
-            : () async {
-                await _upload(await _pick());
-              },
+        onTap: _busy ? null : _handleTap,
         child: Container(
           height: widget.height,
           decoration: BoxDecoration(

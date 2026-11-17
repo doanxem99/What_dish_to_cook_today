@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:what_dish_to_cook_today/api/api_client.dart';
 import 'package:what_dish_to_cook_today/editor/blocks_editor.dart';
+import 'package:what_dish_to_cook_today/editor/editor_image_field.dart';
 import 'package:what_dish_to_cook_today/i18n/i18n.dart';
 import 'package:what_dish_to_cook_today/state/app_state.dart';
 import 'package:what_dish_to_cook_today/theme/app_theme.dart';
@@ -23,6 +24,8 @@ const _catalogue = {
   'edit.alignCenter': 'Align centre',
   'edit.blockTextEn': 'Text (English)',
   'edit.blockTextVi': 'Text (Vietnamese)',
+  'edit.imageCaptionEn': 'Caption (English)',
+  'edit.imageCaptionVi': 'Caption (Vietnamese)',
   'edit.moveUp': 'Move up',
   'edit.moveDown': 'Move down',
   'edit.removeBlock': 'Remove block',
@@ -54,7 +57,7 @@ Widget _harness(ApiClient api, List<EditorBlock> blocks, void Function(List<Edit
                 onChanged(next);
                 setState(() => blocks = next);
               },
-              pickImage: () async => Uint8List.fromList([1, 2, 3]),
+              pickImage: () async => PickedImage(Uint8List.fromList([1, 2, 3]), 'block.png'),
               imageName: 'block.png',
             ),
           );
@@ -144,5 +147,30 @@ void main() {
       'font_style': 'normal',
       'text_align': 'center',
     });
+  });
+  test('image blocks serialise with their source and no text-only keys', () {
+    final json = EditorBlock.image('public/gallery/a.png').toJson();
+
+    expect(json['type'], 'image');
+    expect(json['src'], 'public/gallery/a.png');
+    expect(json.containsKey('font_weight'), isFalse);
+    expect(json.containsKey('text_align'), isFalse);
+  });
+
+  testWidgets('image captions can be entered in both languages', (tester) async {
+    tester.view.physicalSize = const Size(900, 1400);
+    tester.view.devicePixelRatio = 1;
+    var blocks = <EditorBlock>[];
+
+    await tester.pumpWidget(_harness(_uploadApi(<String>[]), blocks, (next) => blocks = next));
+    await tester.tap(find.text('Add image block'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const ValueKey('block-caption-en-0')), 'Served hot');
+    await tester.enterText(find.byKey(const ValueKey('block-caption-vi-0')), 'Dùng nóng');
+    await tester.pump();
+
+    expect(blocks.first.text, 'Served hot');
+    expect(blocks.first.textVi, 'Dùng nóng');
   });
 }
