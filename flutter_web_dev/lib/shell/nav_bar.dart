@@ -89,7 +89,7 @@ class _NavBarState extends State<NavBar> {
                   const SizedBox(width: 4),
                   _ThemeButton(),
                   const SizedBox(width: 4),
-                  _AccountEntry(showName: constraints.maxWidth >= 1024),
+                  _AccountEntry(showName: constraints.maxWidth >= 1024, onProfile: widget.active == '/profile'),
                 ],
               );
 
@@ -242,9 +242,10 @@ class _ThemeButton extends StatelessWidget {
 ///Guest sees a sign-in icon (plus Sign up on wide screens); a session shows
 ///the profile entry and Sign out.
 class _AccountEntry extends StatelessWidget {
-  const _AccountEntry({required this.showName});
+  const _AccountEntry({required this.showName, required this.onProfile});
 
   final bool showName;
+  final bool onProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -326,7 +327,12 @@ class _AccountEntry extends StatelessWidget {
         if (showName) ...[
           const SizedBox(width: 10),
           InkWell(
-            onTap: () => state.signOut(),
+            onTap: () async {
+              await state.signOut();
+              if (context.mounted && onProfile) {
+                Navigator.pushReplacementNamed(context, '/');
+              }
+            },
             child: Text(state.t('nav.signOut'), style: TextStyle(fontSize: 13, color: tokens.dim)),
           ),
         ],

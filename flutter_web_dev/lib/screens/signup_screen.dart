@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../shell/app_shell.dart';
+import '../shell/route_arguments.dart';
 import '../state/app_state.dart';
 import '../theme/tokens.dart';
 import '../widgets/board_card.dart';
@@ -55,15 +56,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       });
       return;
     }
-    Navigator.pushReplacementNamed(context, _nextRoute());
-  }
-
-  String _nextRoute() {
-    final arguments = ModalRoute.of(context)?.settings.arguments;
-    if (arguments is Map && arguments['next'] is String) {
-      return arguments['next'] as String;
-    }
-    return '/';
+    Navigator.pushReplacementNamed(context, nextRoute(context));
   }
 
   @override

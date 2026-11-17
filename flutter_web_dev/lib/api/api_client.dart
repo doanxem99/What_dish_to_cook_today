@@ -50,6 +50,7 @@ class ApiClient {
         message == null || message.toString().isEmpty
             ? 'Request $path answered ${response.statusCode}'
             : message.toString(),
+        response.statusCode,
       );
     }
     if (decoded is Map<String, dynamic> && decoded.containsKey('data')) {
@@ -69,9 +70,10 @@ class ApiClient {
 }
 
 class ApiException implements Exception {
-  ApiException(this.message);
+  ApiException(this.message, [this.statusCode]);
 
   final String message;
+  final int? statusCode;
 
   @override
   String toString() => message;

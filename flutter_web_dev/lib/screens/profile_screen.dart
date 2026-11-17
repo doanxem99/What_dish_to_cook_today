@@ -20,7 +20,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = true;
   bool _failed = false;
   bool _started = false;
+  bool _checked = false;
   bool _redirecting = false;
+  bool _signingOut = false;
 
   @override
   void didChangeDependencies() {
@@ -44,6 +46,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) {
       return;
     }
+    _checked = true;
     if (!state.isSignedIn) {
       _redirectToSignIn();
       return;
@@ -52,7 +55,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _redirectToSignIn() {
-    if (_redirecting) {
+    if (_redirecting || _signingOut) {
       return;
     }
     _redirecting = true;
@@ -70,6 +73,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _failed = false;
     });
     var failed = false;
+    var unauthorised = false;
 
     Future<List<dynamic>> safe(String path) async {
       try {
@@ -77,9 +81,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return payload is List ? payload : const [];
       } catch (error) {
         failed = true;
-        if (error is ApiException) {
-          //An expired cookie must send the user to sign-in, not show empty lists.
-          await state.refreshAccount();
+        if (error is ApiException && error.statusCode == 401) {
+          unauthorised = true;
         }
         return const [];
       }
@@ -92,9 +95,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) {
       return;
     }
-    if (!state.isSignedIn) {
-      _redirectToSignIn();
-      return;
+    if (unauthorised) {
+      //Only an expired session sends the user away; a 500 keeps the page up.
+      await state.refreshAccount();
+      if (!mounted) {
+        return;
+      }
+      if (!state.isSignedIn) {
+        _redirectToSignIn();
+        return;
+      }
     }
     setState(() {
       _dishes = _rows(results[0]);
@@ -115,18 +125,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return I18n.label('${row['name_vi'] ?? ''}', '${row['name'] ?? ''}', locale);
   }
 
-  String _joined(String value) {
-    final date = DateTime.tryParse(value);
+  String _joined(String value, String locale) {
+    final date = DateTime.tryParse(value)?.toLocal();
     if (date == null) {
       return '';
     }
-    return MaterialLocalizations.of(context).formatShortDate(date.toLocal());
+    if (locale == 'vi') {
+      return '${date.day}/${date.month}/${date.year}';
+    }
+    return MaterialLocalizations.of(context).formatShortDate(date);
   }
 
   Future<void> _signOut() async {
     final state = AppScope.of(context);
-    //The guest guard would otherwise race this navigation to /signin.
-    _redirecting = true;
+    //The guest guard would otherwise race this navigation.
+    _signingOut = true;
     await state.signOut();
     if (!mounted) {
       return;
@@ -138,7 +151,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
     final tokens = BoardTokens.of(state.isLight);
-    if (!state.isSignedIn && _started) {
+    if (_checked && !state.isSignedIn && !_signingOut) {
       _redirectToSignIn();
     }
 
@@ -160,10 +173,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    if (_joined(state.account?.createdAt ?? '').isNotEmpty) ...[
+                    if (_joined(state.account?.createdAt ?? '', state.locale).isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
-                        state.t('profile.joined', {'date': _joined(state.account?.createdAt ?? '')}),
+                        state.t('profile.joined', {'date': _joined(state.account?.createdAt ?? '', state.locale)}),
                         style: TextStyle(fontSize: 13, color: tokens.dim),
                       ),
                     ],
@@ -174,7 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          if (_loading)
+          if (!_checked || _loading)
             Text(state.t('common.loading'), style: TextStyle(fontSize: 13, color: tokens.dim))
           else if (_failed)
             Column(

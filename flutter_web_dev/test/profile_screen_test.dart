@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -39,18 +40,23 @@ http.Response _ok(Object body) {
       headers: {'content-type': 'application/json; charset=utf-8'});
 }
 
-ApiClient _api({List<String>? calls, bool failMine = false, bool noJoined = false}) {
+ApiClient _api({List<String>? calls, bool failMine = false, int failMineTimes = 0, bool noJoined = false, Future<http.Response>? delayedMe}) {
+  var mineFailures = 0;
   return ApiClient('http://test', client: MockClient((request) async {
     calls?.add('${request.method} ${request.url.path}');
     final path = request.url.path;
     if (path == '/api/auth/me') {
+      if (delayedMe != null) {
+        return delayedMe;
+      }
       return _ok({
         'user': noJoined
             ? {'id': 'u1', 'username': 'demo', 'email': 'demo@example.com'}
             : {'id': 'u1', 'username': 'demo', 'email': 'demo@example.com', 'created_at': '2024-05-01T00:00:00.000Z'}
       });
     }
-    if (failMine) {
+    if (failMine || mineFailures < failMineTimes) {
+      mineFailures += 1;
       return http.Response(json.encode({'message': 'boom'}), 500,
           headers: {'content-type': 'application/json; charset=utf-8'});
     }
@@ -74,12 +80,14 @@ ApiClient _api({List<String>? calls, bool failMine = false, bool noJoined = fals
   }));
 }
 
-Future<void> _pumpProfile(WidgetTester tester, ApiClient api) async {
+Future<void> _pumpProfile(WidgetTester tester, ApiClient api, {bool warm = true}) async {
   final state = AppState(
     catalogues: {'en': I18n(_catalogue), 'vi': I18n(const {})},
     api: api,
   );
-  await state.refreshAccount();
+  if (warm) {
+    await state.refreshAccount();
+  }
 
   await tester.pumpWidget(AppScope(
     state: state,
@@ -140,5 +148,33 @@ void main() {
     expect(find.textContaining('Joined'), findsNothing);
     expect(find.text('Beef noodle soup'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+  testWidgets('a slow /auth/me still shows the profile instead of bouncing to sign-in', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    final completer = Completer<http.Response>();
+    await _pumpProfile(tester, _api(delayedMe: completer.future), warm: false);
+
+    completer.complete(_ok({
+      'user': {'id': 'u1', 'username': 'demo'}
+    }));
+    await tester.pumpAndSettle();
+
+    expect(find.text('signin-route'), findsNothing);
+    expect(find.text('demo'), findsWidgets);
+    expect(find.text('Beef noodle soup'), findsOneWidget);
+  });
+
+  testWidgets('retry recovers the lists after a failure', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    await _pumpProfile(tester, _api(failMineTimes: 2));
+
+    expect(find.text('Something went wrong.'), findsOneWidget);
+    await tester.tap(find.widgetWithText(BoardButton, 'Retry'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Beef noodle soup'), findsOneWidget);
+    expect(find.text('Something went wrong.'), findsNothing);
   });
 }
