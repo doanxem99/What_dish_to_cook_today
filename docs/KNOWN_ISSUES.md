@@ -75,3 +75,7 @@ can be picked up without re-reading the codebase.
     `JWT_SECRET = 'what-dish-to-cook-today'`. Anyone with a clone can forge tokens if a
     deployment reuses that value. Generate a fresh random secret; never restore the old one.
     History is not rewritten here.
+
+## Responsive layout
+
+18. **No automated guard for layout.** The 320-1440 px pass was verified with a temporary probe harness that measured header height, overflow and tap targets, then was deleted. Any CSS change can regress it silently; repeat the probe or add a Playwright-style check before touching theme.css media queries.
