@@ -79,6 +79,7 @@ main {
     font-weight: 800;
     letter-spacing: -0.01em;
     margin: 0;
+    overflow-wrap: anywhere;
 }
 
 .board-sub {

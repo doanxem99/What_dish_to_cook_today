@@ -168,24 +168,26 @@ export default {
       </div>
 
       <header class="ruled p-4">
-        <div class="flex flex-wrap items-start justify-between gap-4">
-          <div>
+        <div class="grid gap-3 sm:flex sm:flex-wrap sm:items-start sm:justify-between sm:gap-4">
+          <div class="min-w-0">
             <h1 class="board-title">{{ title }}</h1>
             <p class="board-sub">{{ shortDetail }}</p>
             <p class="eyebrow mt-3">
               {{ t('dish.author', { name: post.username || post.user_id || t('common.unknown') }) }}
             </p>
           </div>
-          <div class="text-right">
-            <p class="match-number">{{ votePoints }}</p>
-            <p class="eyebrow">{{ t('dish.vote') }}</p>
-            <button
-              class="btn mt-2"
-              :class="{ 'btn-primary': voted }"
-              type="button"
-              :disabled="!auth.isLogin"
-              @click="toggleVote"
-            >{{ voted ? t('dish.voted') : t('dish.vote') }}</button>
+          <div class="min-w-0 sm:text-right">
+            <div class="flex items-center gap-2 sm:block">
+              <p class="match-number">{{ votePoints }}</p>
+              <p class="eyebrow">{{ t('dish.vote') }}</p>
+              <button
+                class="btn ml-auto sm:ml-0 sm:mt-2"
+                :class="{ 'btn-primary': voted }"
+                type="button"
+                :disabled="!auth.isLogin"
+                @click="toggleVote"
+              >{{ voted ? t('dish.voted') : t('dish.vote') }}</button>
+            </div>
             <p v-if="voteError" class="text-xs mt-2" role="alert" style="color: var(--board-danger)">{{ t('common.errorBody') }}</p>
             <p v-if="!auth.isLogin" class="text-xs mt-2" style="color: var(--board-dim)">
               <router-link class="link" to="/signin">{{ t('nav.signIn') }}</router-link>
