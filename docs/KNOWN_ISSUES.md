@@ -20,6 +20,18 @@ can be picked up without re-reading the codebase.
 5. **Views count every read.** `getDishPostDetail` increments `views` even when the page is the
    editor loading the same post, so editing inflates views.
 
+## Vue UI gaps (plan 2, current state)
+
+- **Editor screens are still on the old styling and have no Vietnamese fields.**
+  `dish_edit_view.vue`, `ingredient_edit_view.vue`, the generate dialogs and `edit_box` predate the
+  new system; they cannot set `name_vi`/`short_detail_vi`, so a dish created there falls back to
+  English. Next increment of plan 2.
+- **The board cannot rank by match count.** No endpoint reports how many of a dish's ingredients the
+  cook already has, so rows show a status lamp only instead of a ranked number. Add a match field to
+  `/api/dish/selection/*` before reinstating the number.
+- **The display face is not self-hosted.** `theme.css` asks for `Be Vietnam Pro` and falls back to
+  the system sans; the woff2 needs adding before the typography matches the direction.
+
 ## Risks
 
 6. **No rate limit or lockout on signin.**
