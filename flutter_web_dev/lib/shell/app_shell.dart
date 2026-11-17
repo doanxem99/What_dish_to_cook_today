@@ -24,18 +24,22 @@ class AppShell extends StatelessWidget {
             NavBar(active: active, initialQuery: query),
             Expanded(
               child: SingleChildScrollView(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: BoardTokens.boardWidth),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      child: child,
+                child: Column(
+                  children: [
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: BoardTokens.boardWidth),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          child: child,
+                        ),
+                      ),
                     ),
-                  ),
+                    const AppFooter(),
+                  ],
                 ),
               ),
             ),
-            const AppFooter(),
           ],
         ),
       ),
