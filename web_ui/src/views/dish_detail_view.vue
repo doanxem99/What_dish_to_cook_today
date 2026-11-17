@@ -150,6 +150,7 @@ export default {
           </div>
           <div class="text-right">
             <p class="match-number">{{ votePoints }}</p>
+            <p class="eyebrow">{{ t('dish.vote') }}</p>
             <button
               class="btn mt-2"
               :class="{ 'btn-primary': voted }"

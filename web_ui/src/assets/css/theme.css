@@ -162,3 +162,49 @@ a {
     text-align: center;
     color: var(--board-dim);
 }
+
+/*Legacy sheets set every element to position: relative and main to absolute; the shell is normal flow.*/
+header,
+main,
+footer,
+nav,
+section,
+article,
+aside,
+form,
+ul,
+li,
+h1,
+h2,
+h3,
+p {
+    position: static;
+}
+
+main {
+    position: static;
+    max-width: none;
+    margin: 0;
+    width: 100%;
+}
+
+/*Header controls stay small; the legacy sheet sizes buttons for full-width editor actions.*/
+.site-header .btn {
+    padding: 6px 10px;
+    font-size: 13px;
+    line-height: 1.2;
+}
+
+.site-header .input {
+    padding: 8px 10px;
+    min-height: 36px;
+}
+
+.site-header .board-title {
+    font-size: 18px;
+    white-space: nowrap;
+}
+
+.site-header a.link {
+    padding: 4px 2px;
+}

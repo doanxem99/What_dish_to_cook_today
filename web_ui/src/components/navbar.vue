@@ -28,7 +28,7 @@ export default {
 </script>
 
 <template>
-  <header class="border-b" style="border-color: var(--board-line)">
+  <header class="site-header border-b" style="border-color: var(--board-line)">
     <div class="board py-3 flex flex-wrap items-center gap-3">
       <router-link to="/" class="board-title" style="font-size: 20px">{{ t('common.appName') }}</router-link>
 
