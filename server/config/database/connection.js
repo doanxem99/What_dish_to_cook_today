@@ -118,6 +118,13 @@ const DatabaseWorkerJob = mongoose.model('database_worker_job', {
     time_request : String,
 },'database_worker_job');
 
+const Comment = mongoose.model('comment', {
+    dish_post_id : String,
+    user_id : String,
+    body : String,
+    date_time : Date,
+},'comment');
+
 module.exports = {
     "mongoose" : mongoose,
     "collections" : {
@@ -127,6 +134,7 @@ module.exports = {
         IngredientPost,
         Dish,
         DishPost,
-        DatabaseWorkerJob
+        DatabaseWorkerJob,
+        Comment
     }
 };

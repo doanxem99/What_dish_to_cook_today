@@ -3,6 +3,7 @@ const router = express.Router();
 const database = require('../../config/database/connection');
 const fileAction = require('../../config/file/file_action');
 const path = require('path');
+const jwt = require('jsonwebtoken');
 const appDebug = require('../../config/debug/app_debug');
 const profileEnum = require('../../config/enum/profile_enum');
 const { verifyToken } = require('./verifyToken');
@@ -312,6 +313,43 @@ const getBestDishPost = async function() {
     }
 }
 
+const COMMENT_MAX_LENGTH = 1000;
+
+//Comments are readable without a session; a valid cookie only marks the viewer's own rows
+const getViewerId = function(req) {
+    try {
+        const token = req.cookies ? req.cookies.token : null;
+        if (!token) {
+            return null;
+        }
+        return jwt.verify(token, process.env.JWT_SECRET).id || null;
+    } catch (err) {
+        return null;
+    }
+};
+
+const toCommentData = function(_comment, _username, _viewerId) {
+    return {
+        'id' : _comment._id,
+        'body' : _comment.body,
+        'user_id' : _comment.user_id,
+        'username' : _username || "Unknown User",
+        'date_time' : _comment.date_time,
+        'is_mine' : _viewerId != null && _viewerId.toString() === String(_comment.user_id),
+    };
+};
+
+const listComments = async function(_dishPostId, _viewerId) {
+    const comments = await database.collections.Comment.find({ dish_post_id: _dishPostId })
+        .sort({ date_time: -1 })
+        .limit(50);
+    const userIds = [...new Set(comments.map(comment => comment.user_id))];
+    const users = await database.collections.User.find({ _id: { $in: userIds } }, 'username');
+    const usernames = new Map(users.map(user => [user._id.toString(), user.username]));
+
+    return comments.map(comment => toCommentData(comment, usernames.get(String(comment.user_id)), _viewerId));
+};
+
 // Route handlers with async/await
 // Post request to create a dish with verification token
 router.post('/create_dish', verifyToken, async function(req, res) {
@@ -343,6 +381,92 @@ router.get('/get_best_dish_post', async function(req, res) {
     const result = await getBestDishPost();
     res.status(200).send(result);
 })
+
+// Comments on a dish post
+router.get('/comments/:dish_post_id', async function(req, res) {
+    try {
+        const data = await listComments(req.params.dish_post_id, getViewerId(req));
+        res.status(200).send({
+            'status' : profileEnum.ProfileStatus_Detail.Success,
+            'status_code': profileEnum.Status_Code_Website.Success,
+            'data' : data
+        });
+    } catch (err) {
+        appDebug.writeLine(appDebug.DebugType.Exception, "Error listing comments : " + err);
+        res.status(500).send({
+            'status' : profileEnum.ProfileStatus_Detail.Exception,
+            'status_code': profileEnum.Status_Code_Website.InternalServerError,
+            'detail' : err.toString()
+        });
+    }
+});
+
+router.post('/comment/:dish_post_id', verifyToken, async function(req, res) {
+    const body = typeof req.body.body === 'string' ? req.body.body.trim() : '';
+    if (body.length === 0 || body.length > COMMENT_MAX_LENGTH) {
+        return res.status(400).send({
+            'status' : profileEnum.ProfileStatus_PostCreate.Exception,
+            'status_code': profileEnum.Status_Code_Website.BadRequest,
+            'detail' : "Comment must contain 1 to " + COMMENT_MAX_LENGTH + " characters"
+        });
+    }
+
+    try {
+        const created = await database.collections.Comment.create({
+            dish_post_id: req.params.dish_post_id,
+            user_id: req.body.userid,
+            body: body,
+            date_time: new Date()
+        });
+        const user = await database.collections.User.findOne({ _id: req.body.userid }, 'username');
+        res.status(200).send({
+            'status' : profileEnum.ProfileStatus_PostCreate.CreatingSuccess,
+            'status_code': profileEnum.Status_Code_Website.Success,
+            'data' : toCommentData(created, user && user.username, req.body.userid)
+        });
+    } catch (err) {
+        appDebug.writeLine(appDebug.DebugType.Exception, "Error creating comment : " + err);
+        res.status(500).send({
+            'status' : profileEnum.ProfileStatus_PostCreate.Exception,
+            'status_code': profileEnum.Status_Code_Website.InternalServerError,
+            'detail' : err.toString()
+        });
+    }
+});
+
+router.delete('/comment/:comment_id', verifyToken, async function(req, res) {
+    try {
+        const comment = await database.collections.Comment.findById(req.params.comment_id);
+        if (!comment) {
+            return res.status(404).send({
+                'status' : profileEnum.ProfileStatus_PostDetail.Exception,
+                'status_code': profileEnum.Status_Code_Website.NotFound,
+                'detail' : "Comment not found"
+            });
+        }
+        if (String(comment.user_id) !== String(req.body.userid)) {
+            return res.status(403).send({
+                'status' : profileEnum.ProfileStatus_PostDetail.Exception,
+                'status_code': profileEnum.Status_Code_Website.Forbidden,
+                'detail' : "Only the author can delete a comment"
+            });
+        }
+
+        await database.collections.Comment.findByIdAndDelete(req.params.comment_id);
+        res.status(200).send({
+            'status' : profileEnum.ProfileStatus_PostDetail.Success,
+            'status_code': profileEnum.Status_Code_Website.Success,
+            'data' : { 'deleted' : true }
+        });
+    } catch (err) {
+        appDebug.writeLine(appDebug.DebugType.Exception, "Error deleting comment : " + err);
+        res.status(500).send({
+            'status' : profileEnum.ProfileStatus_PostDetail.Exception,
+            'status_code': profileEnum.Status_Code_Website.InternalServerError,
+            'detail' : err.toString()
+        });
+    }
+});
 
 // export this router to use in our index.js
 module.exports = router;
