@@ -1,11 +1,21 @@
 //The shell must fit a 320 px phone and a desktop without overflowing.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:what_dish_to_cook_today/api/api_client.dart';
 import 'package:what_dish_to_cook_today/app.dart';
 import 'package:what_dish_to_cook_today/i18n/i18n.dart';
 
+ApiClient quietApi() {
+  return ApiClient('http://test', client: MockClient((request) async {
+    return http.Response('{"isSuccess":true,"data":[]}', 200,
+        headers: {'content-type': 'application/json; charset=utf-8'});
+  }));
+}
+
 Widget buildApp() {
-  return BoardApp(catalogues: {
+  return BoardApp(api: quietApi(), catalogues: {
     'en': I18n(const {
       'nav.dishes': 'Dishes',
       'nav.homemade': 'Homemade',
