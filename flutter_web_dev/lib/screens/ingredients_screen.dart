@@ -100,6 +100,14 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
           Text(state.t('ingredients.title'), style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 4),
           Text(state.t('ingredients.subtitle'), style: TextStyle(fontSize: 13, color: tokens.dim)),
+          if (state.isSignedIn) ...[
+            const SizedBox(height: 10),
+            BoardButton(
+              key: const ValueKey('new-ingredient'),
+              label: state.t('edit.createIngredientTitle'),
+              onPressed: () => Navigator.pushNamed(context, '/ingredient-edit'),
+            ),
+          ],
           const SizedBox(height: 12),
           SizedBox(
             height: 34,
