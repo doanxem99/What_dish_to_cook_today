@@ -412,24 +412,7 @@ main {
     width: 100%;
 }
 
-/*Header controls stay small; the legacy sheet sizes buttons for full-width editor actions.*/
-.site-header .btn {
-    padding: 6px 10px;
-    font-size: 13px;
-    line-height: 1.2;
-}
-
-.site-header .board {
-    padding-top: 10px;
-    padding-bottom: 10px;
-}
-
-.site-header .input {
-    padding: 4px 34px 4px 10px;
-    height: 30px;
-    min-height: 30px;
-}
-
+/*Header: one grid, mobile-first; controls are dense but never under 30px*/
 .site-header .btn {
     padding: 0 10px;
     height: 30px;
@@ -443,18 +426,158 @@ main {
 }
 
 .site-header .brand {
+    grid-area: brand;
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+.header-bar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+        "brand tools"
+        "search search"
+        "nav nav";
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 6px;
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-bottom: 8px;
+}
+
+.header-search {
+    grid-area: search;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+}
+
+.header-tools {
+    grid-area: tools;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.header-nav {
+    grid-area: nav;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.header-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.header-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
     white-space: nowrap;
 }
 
-.site-header form {
-    flex: 0 1 360px;
-    max-width: 360px;
-    min-width: 180px;
+.account-name,
+.account-signout {
+    display: none;
+}
+
+.site-header .search-input {
+    height: 34px;
+    min-height: 34px;
+    padding: 4px 34px 4px 10px;
+}
+
+.site-header .btn,
+.site-header .account-link {
+    height: 34px;
+    min-height: 34px;
+}
+
+.site-header .icon-only,
+.site-header .account-link {
+    width: 34px;
+    padding: 0;
+    justify-content: center;
+}
+
+.site-header .search-go {
+    height: 30px;
 }
 
 .site-header nav a.router-link-active {
     border-bottom: 2px solid var(--board-amber);
     padding-bottom: 2px;
+}
+
+@media (max-width: 399px) {
+    .site-header .board {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+    .site-header .brand {
+        font-size: 12px;
+    }
+    .site-header .btn {
+        padding: 0 6px;
+    }
+    .site-header .icon-only,
+    .site-header .account-link {
+        width: 30px;
+    }
+}
+
+@media (min-width: 640px) {
+    .header-bar {
+        grid-template-columns: auto minmax(160px, 1fr) auto;
+        grid-template-areas:
+            "brand search tools"
+            "nav nav nav";
+        column-gap: 16px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+    .site-header .brand {
+        font-size: 16px;
+    }
+    .header-nav {
+        gap: 16px;
+    }
+    .header-search {
+        max-width: 360px;
+        justify-self: start;
+    }
+    .site-header .search-input {
+        height: 30px;
+        min-height: 30px;
+    }
+    .site-header .btn,
+    .site-header .account-link,
+    .site-header .icon-only {
+        height: 30px;
+        min-height: 30px;
+    }
+    .site-header .account-link {
+        width: 30px;
+        padding: 0;
+    }
+}
+
+@media (min-width: 1024px) {
+    .site-header .account-link {
+        width: auto;
+        padding: 0 10px;
+    }
+    .account-name,
+    .account-signout {
+        display: inline;
+    }
 }
 
 /*Search: one field with the action inside it, right aligned*/

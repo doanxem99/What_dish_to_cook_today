@@ -10,7 +10,10 @@ export default {
   computed: {
     t() { return useI18n().t },
     locale() { return useI18n().locale.value },
-    auth() { return useAuthStore() }
+    auth() { return useAuthStore() },
+    accountName() {
+      return this.auth.isLogin ? (this.auth.user?.username || this.t('nav.profile')) : this.t('nav.signIn')
+    }
   },
   methods: {
     submitSearch() {
@@ -33,65 +36,65 @@ export default {
 
 <template>
   <header class="site-header border-b" style="border-color: var(--board-line)">
-    <div class="board py-3 flex flex-col gap-2">
-      <div class="flex flex-wrap items-center gap-5">
-        <router-link to="/" class="board-title brand" style="font-size: 16px">What dish to cook today?</router-link>
+    <div class="board header-bar">
+      <router-link to="/" class="board-title brand">What dish to cook today?</router-link>
 
-        <form class="flex-1 min-w-48" role="search" @submit.prevent="submitSearch">
-          <label class="sr-only" for="nav-search">{{ t('common.search') }}</label>
-          <span class="search-wrap">
-            <input
-              id="nav-search"
-              v-model="q"
-              class="input search-input"
-              type="search"
-              :placeholder="t('nav.searchPlaceholder')"
-            />
-            <button class="search-go" type="submit" :aria-label="t('common.search')">
-              <font-awesome-icon :icon="['fas', 'magnifying-glass']" />
-            </button>
-          </span>
-        </form>
+      <form class="header-search" role="search" @submit.prevent="submitSearch">
+        <label class="sr-only" for="nav-search">{{ t('common.search') }}</label>
+        <span class="search-wrap">
+          <input
+            id="nav-search"
+            v-model="q"
+            class="input search-input"
+            type="search"
+            :placeholder="t('nav.searchPlaceholder')"
+          />
+          <button class="search-go" type="submit" :aria-label="t('common.search')">
+            <font-awesome-icon :icon="['fas', 'magnifying-glass']" />
+          </button>
+        </span>
+      </form>
 
-        <div class="flex items-center gap-2">
-          <button
-            class="btn btn-quiet"
-            :class="{ 'is-active': locale === 'en' }"
-            type="button"
-            :aria-pressed="locale === 'en'"
-            @click="switchLocale('en')"
-          >EN</button>
-          <button
-            class="btn btn-quiet"
-            :class="{ 'is-active': locale === 'vi' }"
-            type="button"
-            :aria-pressed="locale === 'vi'"
-            @click="switchLocale('vi')"
-          >VI</button>
-          <button
-            class="btn btn-quiet icon-only"
-            type="button"
-            role="switch"
-            :aria-checked="theme === 'light'"
-            :aria-label="t('theme.label')"
-            :title="theme === 'light' ? t('theme.dark') : t('theme.light')"
-            @click="switchTheme"
-          ><font-awesome-icon :icon="theme === 'light' ? ['fas', 'moon'] : ['fas', 'sun']" /></button>
-        </div>
+      <div class="header-tools">
+        <button
+          class="btn btn-quiet"
+          :class="{ 'is-active': locale === 'en' }"
+          type="button"
+          :aria-pressed="locale === 'en'"
+          @click="switchLocale('en')"
+        >EN</button>
+        <button
+          class="btn btn-quiet"
+          :class="{ 'is-active': locale === 'vi' }"
+          type="button"
+          :aria-pressed="locale === 'vi'"
+          @click="switchLocale('vi')"
+        >VI</button>
+        <button
+          class="btn btn-quiet icon-only"
+          type="button"
+          role="switch"
+          :aria-checked="theme === 'light'"
+          :aria-label="t('theme.label')"
+          :title="theme === 'light' ? t('theme.dark') : t('theme.light')"
+          @click="switchTheme"
+        ><font-awesome-icon :icon="theme === 'light' ? ['fas', 'moon'] : ['fas', 'sun']" /></button>
 
-        <div class="flex items-center gap-2 text-sm">
-          <template v-if="auth.isLogin">
-            <router-link to="/profile" class="link">{{ auth.user?.username || t('nav.profile') }}</router-link>
-            <button class="btn btn-quiet" type="button" @click="signOut">{{ t('nav.signOut') }}</button>
-          </template>
-          <template v-else>
-            <router-link to="/signin" class="link">{{ t('nav.signIn') }}</router-link>
-            <router-link to="/signup" class="link">{{ t('nav.signUp') }}</router-link>
-          </template>
-        </div>
+        <router-link
+          :to="auth.isLogin ? '/profile' : '/signin'"
+          class="btn btn-quiet account-link"
+          :aria-label="accountName"
+        >
+          <font-awesome-icon :icon="['fas', 'circle-user']" />
+          <span class="account-name">{{ accountName }}</span>
+        </router-link>
+        <button v-if="auth.isLogin" class="btn btn-quiet account-signout" type="button" @click="signOut">
+          {{ t('nav.signOut') }}
+        </button>
+        <router-link v-else to="/signup" class="btn btn-quiet account-signout">{{ t('nav.signUp') }}</router-link>
       </div>
 
-      <nav class="flex flex-wrap items-center gap-4 text-sm">
+      <nav class="header-nav" aria-label="Main">
         <router-link to="/dishes" class="link">{{ t('nav.dishes') }}</router-link>
         <router-link to="/homemade" class="link">{{ t('nav.homemade') }}</router-link>
         <router-link to="/ingredients" class="link">{{ t('nav.ingredients') }}</router-link>
