@@ -245,7 +245,7 @@ const getDishPostDetail = async function(_dishPostId) {
     try {
         const response = await database.collections.DishPost.findById(
             _dishPostId,
-            "name dish_id user_id is_best_post date_time points ingredients short_detail profile_image display_blocks"
+            "name name_vi dish_id user_id is_best_post date_time points ingredients short_detail short_detail_vi profile_image display_blocks"
         );
 
         // Update views count
@@ -254,9 +254,15 @@ const getDishPostDetail = async function(_dishPostId) {
             { $inc: { views: 1 } }
         );
 
+        const data = response ? response.toObject() : null;
+        if (data && data.user_id) {
+            const author = await database.collections.User.findById(data.user_id, "username");
+            data.username = author ? author.username : null;
+        }
+
         return {
             'status': profileEnum.ProfileStatus_PostDetail.Success,
-            'data': response
+            'data': data
         };
     } catch (err) {
         return {
@@ -271,7 +277,7 @@ const getBestDishPost = async function() {
         // Find the best dish post based on the maximum points in the DishPost collection
         const dishPost = await database.collections.DishPost.findOne(
             { is_best_post: true },
-            "name dish_id user_id is_best_post date_time points views comments ingredients short_detail profile_image display_blocks"
+            "name name_vi dish_id user_id is_best_post date_time points views comments ingredients short_detail short_detail_vi profile_image display_blocks"
         ).sort({ points: -1 });
 
         if (!dishPost) {
