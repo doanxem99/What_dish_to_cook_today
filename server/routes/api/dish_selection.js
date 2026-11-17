@@ -13,7 +13,7 @@ const toPreviews = async function(_dishPosts, _selectedIds = []) {
     );
     const dishById = new Map(dishes.map(dish => [dish._id.toString(), dish]));
 
-    return _dishPosts
+    const previews = _dishPosts
         .filter(post => dishById.has(post.dish_id.toString()))
         .map(post => {
             const dish = dishById.get(post.dish_id.toString());
@@ -30,8 +30,28 @@ const toPreviews = async function(_dishPosts, _selectedIds = []) {
                 "match_count": matchedIds.length,
                 "total_ingredients": ingredientIds.length,
                 "matched_ids": matchedIds,
+                "missing_ids": ingredientIds.filter(id => !selected.has(id)),
             };
         });
+
+    //Name the missing ingredients so the row can say why it is not a full match
+    const missingIds = [...new Set(previews.flatMap(preview => preview.missing_ids))]
+        .filter(id => selected.size > 0);
+    if (missingIds.length > 0) {
+        const missingRows = await database.collections.Ingredient.find(
+            { _id: { $in: missingIds } },
+            "name name_vi"
+        );
+        const missingById = new Map(missingRows.map(row => [row._id.toString(), row]));
+        for (const preview of previews) {
+            preview.missing = preview.missing_ids
+                .map(id => missingById.get(id))
+                .filter(Boolean)
+                .map(row => ({ id: row._id, name: row.name, name_vi: row.name_vi || null }));
+        }
+    }
+
+    return previews;
 }
 
 const findDishSelectionByIds = async function(_ingredientIds){

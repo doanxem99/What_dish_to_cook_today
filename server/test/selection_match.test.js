@@ -20,6 +20,9 @@ require.cache[connectionPath] = {
             },
             Dish: {
                 find: async () => [{ _id: 'd1', name: 'Phở', name_vi: 'Phở bò' }]
+            },
+            Ingredient: {
+                find: async () => [{ _id: 'i3', name: 'Ginger', name_vi: 'Gừng' }]
             }
         }
     }
@@ -41,6 +44,8 @@ test('selection reports how many chosen ingredients each dish matches', async ()
         assert.strictEqual(body.data[0].match_count, 2);
         assert.strictEqual(body.data[0].total_ingredients, 3);
         assert.deepStrictEqual(body.data[0].matched_ids, ['i1', 'i2']);
+        assert.deepStrictEqual(body.data[0].missing_ids, ['i3']);
+        assert.strictEqual(body.data[0].missing[0].name, 'Ginger');
     } finally {
         server.close();
     }
