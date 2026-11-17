@@ -658,4 +658,11 @@ main {
         min-height: 30px;
         padding: 4px 10px;
     }
+    .input,
+    .textarea {
+        min-height: 34px;
+    }
+    .btn {
+        min-height: 32px;
+    }
 }

@@ -87,13 +87,15 @@ export default {
         <ul class="ruled mt-2">
           <li v-for="item in group.rows" :key="item.id" class="row-line">
             <router-link
-              class="flex items-center gap-4 p-2"
+              class="flex items-center gap-3 sm:gap-4 p-2"
               :to="{ path: '/ingredient_detail', query: { ingredient_id: item.id } }"
             >
-              <img v-if="item.profile_image" class="w-12 h-12 object-cover rounded" :src="image(item.profile_image)" alt="" />
-              <span class="flex-1 font-bold">{{ localName(item) }}</span>
-              <span class="text-sm" style="color: var(--board-dim)">
-                {{ locale === 'vi' && item.short_detail_vi ? item.short_detail_vi : item.short_detail }}
+              <img v-if="item.profile_image" class="w-11 h-11 sm:w-12 sm:h-12 shrink-0 object-cover rounded" :src="image(item.profile_image)" alt="" />
+              <span class="flex-1 min-w-0">
+                <span class="block font-bold truncate">{{ localName(item) }}</span>
+                <span class="block text-xs sm:text-sm truncate" style="color: var(--board-dim)">
+                  {{ locale === 'vi' && item.short_detail_vi ? item.short_detail_vi : item.short_detail }}
+                </span>
               </span>
             </router-link>
           </li>
