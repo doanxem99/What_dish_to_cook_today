@@ -35,7 +35,7 @@ export default {
 </script>
 
 <template>
-  <section class="board py-8">
+  <section class="board py-6">
     <h1 class="board-title">{{ t('homemade.title') }}</h1>
     <p class="board-sub">{{ t('homemade.subtitle') }}</p>
 
@@ -48,8 +48,8 @@ export default {
 
     <ul v-else class="mt-4 ruled">
       <li v-for="row in rows" :key="row.id" class="row-line">
-        <router-link class="flex items-center gap-4 p-3" :to="{ path: '/dish_detail', query: { dish_id: row.id } }">
-          <img v-if="row.profile_image" class="w-16 h-16 object-cover rounded" :src="image(row.profile_image)" alt="" />
+        <router-link class="flex items-center gap-4 p-2" :to="{ path: '/dish_detail', query: { dish_id: row.id } }">
+          <img v-if="row.profile_image" class="w-12 h-12 object-cover rounded" :src="image(row.profile_image)" alt="" />
           <span class="flex-1">
             <span class="block font-bold">{{ localName(row) }}</span>
             <span class="block text-sm" style="color: var(--board-dim)">

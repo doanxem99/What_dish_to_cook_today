@@ -34,7 +34,7 @@ export default {
   <section class="board py-10 max-w-md">
     <h1 class="board-title">{{ t('auth.signInTitle') }}</h1>
 
-    <form class="grid gap-4 mt-6 ruled p-5" @submit.prevent="submit">
+    <form class="grid gap-4 mt-4 ruled p-4" @submit.prevent="submit">
       <label class="field">
         <span class="text-sm">{{ t('auth.username') }}</span>
         <input v-model="username" class="input" autocomplete="username" required />

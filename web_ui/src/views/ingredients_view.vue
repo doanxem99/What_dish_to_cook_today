@@ -58,7 +58,7 @@ export default {
 </script>
 
 <template>
-  <section class="board py-8">
+  <section class="board py-6">
     <h1 class="board-title">{{ t('ingredients.title') }}</h1>
     <p class="board-sub">{{ t('ingredients.subtitle') }}</p>
 
@@ -80,7 +80,7 @@ export default {
         <ul class="ruled mt-2">
           <li v-for="item in group.rows" :key="item.id" class="row-line">
             <router-link
-              class="flex items-center gap-4 p-3"
+              class="flex items-center gap-4 p-2"
               :to="{ path: '/ingredient_detail', query: { ingredient_id: item.id } }"
             >
               <img v-if="item.profile_image" class="w-12 h-12 object-cover rounded" :src="image(item.profile_image)" alt="" />

@@ -79,8 +79,8 @@ export default {
 </script>
 
 <template>
-  <section class="board py-8">
-    <div class="flex flex-wrap items-start justify-between gap-3">
+  <section class="board py-6">
+    <div class="flex flex-wrap items-start justify-between gap-2">
       <div>
         <h1 class="board-title">{{ heading }}</h1>
         <p class="board-sub">{{ t('dishes.subtitle') }}</p>
@@ -111,21 +111,21 @@ export default {
     <ul v-else class="mt-4 ruled">
       <li v-for="row in rows" :key="row.id" class="row-line">
         <router-link
-          class="flex items-center gap-4 p-3"
+          class="flex items-center gap-4 p-2"
           :to="{ path: '/dish_detail', query: { dish_id: row.id } }"
         >
           <span class="lamp" :class="lampClass(row)" aria-hidden="true"></span>
-          <span v-if="row.total_ingredients" class="match-number" style="min-width: 58px">
+          <span v-if="row.total_ingredients" class="match-number" style="min-width: 48px">
             {{ row.match_count }}<span class="text-sm" style="color: var(--board-dim)">/{{ row.total_ingredients }}</span>
           </span>
           <img
             v-if="row.profile_image"
-            class="w-16 h-16 object-cover rounded"
+            class="w-12 h-12 object-cover rounded"
             :src="image(row.profile_image)"
             alt=""
           />
           <span class="flex-1">
-            <span class="block font-bold text-lg">{{ localName(row) }}</span>
+            <span class="block font-bold text-base">{{ localName(row) }}</span>
             <span class="block text-sm" style="color: var(--board-dim)">
               {{ locale === 'vi' && row.short_detail_vi ? row.short_detail_vi : row.short_detail }}
             </span>

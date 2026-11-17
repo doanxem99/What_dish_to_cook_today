@@ -34,18 +34,23 @@ export default {
 <template>
   <header class="site-header border-b" style="border-color: var(--board-line)">
     <div class="board py-3 flex flex-col gap-2">
-      <div class="flex flex-wrap items-center gap-3">
-        <router-link to="/" class="board-title" style="font-size: 18px">{{ t('common.appName') }}</router-link>
+      <div class="flex flex-wrap items-center gap-4">
+        <router-link to="/" class="board-title mr-2" style="font-size: 16px">{{ t('common.appName') }}</router-link>
 
-        <form class="flex-1 min-w-48 flex gap-2" @submit.prevent="submitSearch">
-          <input
-            v-model="q"
-            class="input"
-            type="search"
-            :aria-label="t('common.search')"
-            :placeholder="t('nav.searchPlaceholder')"
-          />
-          <button class="btn" type="submit">{{ t('common.search') }}</button>
+        <form class="flex-1 min-w-48" role="search" @submit.prevent="submitSearch">
+          <label class="sr-only" for="nav-search">{{ t('common.search') }}</label>
+          <span class="search-wrap">
+            <input
+              id="nav-search"
+              v-model="q"
+              class="input search-input"
+              type="search"
+              :placeholder="t('nav.searchPlaceholder')"
+            />
+            <button class="search-go" type="submit" :aria-label="t('common.search')">
+              <font-awesome-icon :icon="['fas', 'magnifying-glass']" />
+            </button>
+          </span>
         </form>
 
         <div class="flex items-center gap-2">

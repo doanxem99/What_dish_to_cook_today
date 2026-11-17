@@ -37,6 +37,7 @@
   "home.chosenEmpty": "No ingredients yet. Add two or three, then open the board.",
   "home.find": "Find dishes",
   "home.ready": "{n} ingredients ready",
+  "home.clear": "Clear",
   "home.needOne": "Add at least one ingredient first.",
   "home.dishOfDay": "Dish of the day",
   "home.howTitle": "How selection works",

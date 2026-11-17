@@ -46,7 +46,7 @@ export default {
 </script>
 
 <template>
-  <section class="board py-8">
+  <section class="board py-6">
     <p v-if="loading" class="state">{{ t('common.loading') }}</p>
     <div v-else-if="failed" class="state">
       <p>{{ t('common.errorTitle') }}</p>
@@ -54,7 +54,7 @@ export default {
     </div>
 
     <template v-else-if="user">
-      <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 class="board-title">{{ user.username }}</h1>
           <p v-if="joined(user.created_at)" class="board-sub">
@@ -64,12 +64,12 @@ export default {
         <button class="btn" type="button" @click="signOut">{{ t('nav.signOut') }}</button>
       </div>
 
-      <div class="grid gap-6 mt-6 lg:grid-cols-2">
+      <div class="grid gap-4 mt-4 lg:grid-cols-2">
         <section>
           <h2 class="eyebrow">{{ t('profile.myDishes') }}</h2>
           <p v-if="dishes.length === 0" class="state text-sm">{{ t('profile.noPosts') }}</p>
           <ul v-else class="ruled mt-2">
-            <li v-for="row in dishes" :key="row.id" class="row-line p-3 flex items-center justify-between gap-3">
+            <li v-for="row in dishes" :key="row.id" class="row-line p-2 flex items-center justify-between gap-2">
               <span>{{ row.name_vi && locale === 'vi' ? row.name_vi : row.name }}</span>
               <span v-if="row.is_best_post" class="chip text-xs">{{ t('profile.best') }}</span>
             </li>
@@ -80,7 +80,7 @@ export default {
           <h2 class="eyebrow">{{ t('profile.myIngredients') }}</h2>
           <p v-if="ingredients.length === 0" class="state text-sm">{{ t('profile.noPosts') }}</p>
           <ul v-else class="ruled mt-2">
-            <li v-for="row in ingredients" :key="row.id" class="row-line p-3 flex items-center justify-between gap-3">
+            <li v-for="row in ingredients" :key="row.id" class="row-line p-2 flex items-center justify-between gap-2">
               <span>{{ row.name_vi && locale === 'vi' ? row.name_vi : row.name }}</span>
               <span v-if="row.is_best_post" class="chip text-xs">{{ t('profile.best') }}</span>
             </li>

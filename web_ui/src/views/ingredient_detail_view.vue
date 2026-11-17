@@ -44,7 +44,7 @@ export default {
 </script>
 
 <template>
-  <section class="board py-8">
+  <section class="board py-6">
     <p v-if="loading" class="state" aria-live="polite">{{ t('common.loading') }}</p>
     <div v-else-if="failed" class="state" role="alert">
       <p>{{ t('common.errorTitle') }}</p>
@@ -53,7 +53,7 @@ export default {
     <p v-else-if="!ingredient" class="state">{{ t('common.emptyTitle') }}</p>
 
     <template v-else>
-      <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
         <h1 class="board-title">{{ title }}</h1>
         <router-link
           v-if="auth.isLogin"
@@ -65,7 +65,7 @@ export default {
         {{ locale === 'vi' && post.short_detail_vi ? post.short_detail_vi : post.short_detail }}
       </p>
 
-      <div v-if="post" class="ruled p-5 mt-6">
+      <div v-if="post" class="ruled p-4 mt-6">
         <template v-for="(block, index) in (post.display_blocks || [])" :key="index">
           <p v-if="block.type === 'text'" class="mb-4 leading-relaxed">{{ blockText(block) }}</p>
           <figure v-else-if="block.type === 'image' && block.src" class="mb-4">

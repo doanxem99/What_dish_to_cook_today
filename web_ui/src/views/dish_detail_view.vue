@@ -151,7 +151,7 @@ export default {
 </script>
 
 <template>
-  <section class="board py-8">
+  <section class="board py-6">
     <p v-if="loading" class="state" aria-live="polite">{{ t('common.loading') }}</p>
     <div v-else-if="pageError" class="state" role="alert">
       <p>{{ t('common.errorTitle') }}</p>
@@ -160,14 +160,14 @@ export default {
     <div v-else-if="!post" class="state">{{ t('dish.notFound') }}</div>
 
     <template v-else>
-      <div v-if="ownPostId && ownPostId !== post._id" class="ruled p-3 mb-4 flex items-center justify-between gap-3">
+      <div v-if="ownPostId && ownPostId !== post._id" class="ruled p-2 mb-4 flex items-center justify-between gap-2">
         <span class="text-sm">{{ t('dish.yourVersion') }}</span>
         <router-link class="btn" :to="{ path: '/dish_detail', query: { dish_post_id: ownPostId } }">
           {{ t('dish.showYours') }}
         </router-link>
       </div>
 
-      <header class="ruled p-5">
+      <header class="ruled p-4">
         <div class="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 class="board-title">{{ title }}</h1>
@@ -199,7 +199,7 @@ export default {
         </div>
       </header>
 
-      <section v-if="ingredients.length" class="ruled p-5 mt-4">
+      <section v-if="ingredients.length" class="ruled p-4 mt-4">
         <h2 class="eyebrow">{{ t('dish.ingredients') }}</h2>
         <div class="flex flex-wrap gap-2 mt-3">
           <span
@@ -211,8 +211,8 @@ export default {
         </div>
       </section>
 
-      <div class="grid gap-6 mt-6 lg:grid-cols-3">
-        <article class="lg:col-span-2 ruled p-5">
+      <div class="grid gap-4 mt-4 lg:grid-cols-3">
+        <article class="lg:col-span-2 ruled p-4">
           <template v-for="(block, index) in (post.display_blocks || [])" :key="index">
             <p v-if="block.type === 'text'" class="mb-4 leading-relaxed" :style="{ fontSize: (block.font_size || 16) + 'px' }">
               {{ blockText(block) }}
@@ -229,7 +229,7 @@ export default {
           </p>
         </article>
 
-        <aside class="ruled p-5">
+        <aside class="ruled p-4">
           <h2 class="eyebrow">{{ t('dish.commentsTitle') }}</h2>
 
           <form v-if="auth.isLogin" class="mt-3" @submit.prevent="submitComment">
@@ -249,7 +249,7 @@ export default {
           </p>
 
           <p v-if="comments.length === 0" class="state text-sm">{{ t('dish.commentEmpty') }}</p>
-          <ul v-else class="mt-4 grid gap-3">
+          <ul v-else class="mt-4 grid gap-2">
             <li v-for="comment in comments" :key="comment.id" class="row-line pb-3">
               <p class="text-sm font-bold">{{ comment.username }}</p>
               <p class="text-sm">{{ comment.body }}</p>
