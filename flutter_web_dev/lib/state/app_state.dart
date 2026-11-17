@@ -35,9 +35,19 @@ class AppState extends ChangeNotifier {
 
   String _locale;
   bool _isLight;
+  String _view = 'list';
 
   String get locale => _locale;
   bool get isLight => _isLight;
+  String get view => _view;
+
+  void setView(String value) {
+    if (value == _view) {
+      return;
+    }
+    _view = value;
+    notifyListeners();
+  }
   List<BasketItem> get basket => List.unmodifiable(_basket);
 
   I18n get i18n => catalogues[_locale] ?? catalogues['en'] ?? I18n(const {});
