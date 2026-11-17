@@ -36,7 +36,8 @@ Add a test with any change to a branch, a loop, input validation, or a filesyste
 `web_ui/dist`, `bin/`, `obj/`, `.vs/`, `.dart_tool/`, `android/app/.cxx/` and any `.env` are
 ignored. Do not force-add them.
 
-`server/web` is the exception: it is the Flutter build the API serves. It is generated but
-tracked on purpose, so a Flutter change is expected to rebuild it and commit the result.
+`server/web` and `server/web_ui` are the exception: they are the Flutter and Vue builds the API
+serves. They are generated but tracked on purpose, so a client change is expected to rebuild
+the matching build and commit the result. Everything else above stays ignored.
 
 Known problems worth fixing are listed in [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
