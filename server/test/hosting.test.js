@@ -62,3 +62,24 @@ test('api routes are never swallowed by the fallback', async () => {
     const text = await missing.text();
     assert.ok(!text.includes('vue-root'));
 });
+
+test('a missing asset answers 404 instead of the app shell', async () => {
+    const response = await fetch(`${baseUrl}/assets/missing-hash.js`);
+    const text = await response.text();
+
+    assert.strictEqual(response.status, 404);
+    assert.ok(!text.includes('vue-root'));
+});
+
+test('a missing flutter asset answers 404, not the flutter shell', async () => {
+    const response = await fetch(`${baseUrl}/flutter/main.dart.js`);
+
+    assert.strictEqual(response.status, 404);
+});
+
+test('the old /web path redirects to /flutter/', async () => {
+    const response = await fetch(`${baseUrl}/web`, { redirect: 'manual' });
+
+    assert.strictEqual(response.status, 301);
+    assert.strictEqual(response.headers.get('location'), '/flutter/');
+});
