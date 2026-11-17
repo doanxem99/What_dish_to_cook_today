@@ -13,6 +13,8 @@ const created = [];
 const deleted = [];
 const commentCounts = [];
 let otherComment = { _id: 'c9', user_id: 'u2', body: 'not yours', dish_post_id: 'p1', date_time: new Date() };
+let postExists = true;
+let deleteReturnsNull = false;
 
 require.cache[connectionPath] = {
     id: connectionPath,
@@ -27,6 +29,7 @@ require.cache[connectionPath] = {
             },
             Role: { find: async () => [{ name: 'user' }] },
             DishPost: {
+                findById: async () => (postExists ? { _id: 'p1' } : null),
                 updateOne: async (filter, update) => { commentCounts.push(update); }
             },
             Comment: {
@@ -43,6 +46,9 @@ require.cache[connectionPath] = {
                 },
                 findById: async () => otherComment,
                 findByIdAndDelete: async (id) => {
+                    if (deleteReturnsNull) {
+                        return null;
+                    }
                     deleted.push(id);
                     return otherComment;
                 }
@@ -113,7 +119,32 @@ test('DELETE rejects deleting another user comment', async () => {
     assert.strictEqual(deleted.length, 0);
 });
 
+test('POST rejects a comment for a missing dish post', async () => {
+    postExists = false;
+    const createdBefore = created.length;
+
+    const { status } = await call('POST', '/comment/does-not-exist', { body: 'Hello' }, true);
+
+    assert.strictEqual(status, 404);
+    assert.strictEqual(created.length, createdBefore);
+    postExists = true;
+});
+
+test('DELETE answers 404 when the comment was already removed', async () => {
+    otherComment = { _id: 'c4', user_id: 'u1', body: 'mine', dish_post_id: 'p1', date_time: new Date() };
+    deleteReturnsNull = true;
+    const countsBefore = commentCounts.length;
+
+    const { status } = await call('DELETE', '/comment/c4', undefined, true);
+
+    assert.strictEqual(status, 404);
+    //No counter change when nothing was deleted (concurrent delete, retry)
+    assert.strictEqual(commentCounts.length, countsBefore);
+    deleteReturnsNull = false;
+});
+
 test('DELETE removes the author comment and decrements the counter', async () => {
+    deleteReturnsNull = false;
     otherComment = { _id: 'c3', user_id: 'u1', body: 'mine', dish_post_id: 'p1', date_time: new Date() };
 
     const { status } = await call('DELETE', '/comment/c3', undefined, true);

@@ -412,6 +412,14 @@ router.post('/comment/:dish_post_id', verifyToken, async function(req, res) {
     }
 
     try {
+        const dishPost = await database.collections.DishPost.findById(req.params.dish_post_id);
+        if (!dishPost) {
+            return res.status(404).send({
+                'status' : profileEnum.ProfileStatus_PostCreate.Exception,
+                'status_code': profileEnum.Status_Code_Website.NotFound,
+                'detail' : "Dish post not found"
+            });
+        }
         const created = await database.collections.Comment.create({
             dish_post_id: req.params.dish_post_id,
             user_id: req.body.userid,
@@ -457,7 +465,15 @@ router.delete('/comment/:comment_id', verifyToken, async function(req, res) {
             });
         }
 
-        await database.collections.Comment.findByIdAndDelete(req.params.comment_id);
+        const removed = await database.collections.Comment.findByIdAndDelete(req.params.comment_id);
+        if (!removed) {
+            //Another request deleted it first: do not decrement twice
+            return res.status(404).send({
+                'status' : profileEnum.ProfileStatus_PostDetail.Exception,
+                'status_code': profileEnum.Status_Code_Website.NotFound,
+                'detail' : "Comment not found"
+            });
+        }
         //Keep the visible comment counter on the dish post in step
         await database.collections.DishPost.updateOne(
             { _id: comment.dish_post_id },
