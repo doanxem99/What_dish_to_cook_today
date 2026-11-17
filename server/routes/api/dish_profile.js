@@ -194,6 +194,7 @@ const createDish = async function(_postData) {
                 'short_detail': short_detail,
                 'short_detail_vi': _postData.short_detail_vi || "",
                 'profile_image': profile_image,
+                'images': Array.isArray(_postData.images) ? _postData.images : [],
                 'display_blocks': display_blocks
             }
         };

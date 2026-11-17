@@ -72,7 +72,7 @@ ApiClient _api({bool guest = false, List<String>? calls}) {
   }));
 }
 
-Future<void> _pump(WidgetTester tester, ApiClient api) async {
+Future<void> _pump(WidgetTester tester, ApiClient api, {String dishId = ''}) async {
   final state = AppState(
     catalogues: {'en': I18n(_catalogue), 'vi': I18n(const {})},
     api: api,
@@ -81,11 +81,11 @@ Future<void> _pump(WidgetTester tester, ApiClient api) async {
     state: state,
     child: MaterialApp(
       theme: boardTheme(BoardTokens.dark),
-      initialRoute: '/dish-edit',
+      initialRoute: dishId.isEmpty ? '/dish-edit' : '/dish-edit?dish_id=$dishId',
       onGenerateRoute: (settings) => MaterialPageRoute(
         builder: (_) {
-          if (settings.name == '/dish-edit') {
-            return const DishEditorScreen();
+          if (settings.name != null && settings.name!.startsWith('/dish-edit')) {
+            return DishEditorScreen(dishId: dishId);
           }
           return Scaffold(body: Text('${settings.name}-route'));
         },
@@ -132,5 +132,57 @@ void main() {
 
     expect(calls, contains('POST /api/dish/profile/create_dish'));
     expect(find.text('/dish-route'), findsOneWidget);
+  });
+  testWidgets('editing prefills the Vietnamese name and ingredients, then posts them', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1400);
+    tester.view.devicePixelRatio = 1;
+    late Map<String, dynamic> posted;
+    final api = ApiClient('http://test', client: MockClient((request) async {
+      final path = request.url.path;
+      if (path == '/api/auth/me') {
+        return _ok({'user': {'id': 'u1', 'username': 'demo'}});
+      }
+      if (path == '/api/ingredient/selection/') {
+        return _ok({'isSuccess': true, 'data': []});
+      }
+      if (path == '/api/ingredient/search/ids/i9') {
+        return _ok([
+          {'id': 'i9', 'name': 'Ginger', 'name_vi': 'Gừng', 'type': 'Spice'}
+        ]);
+      }
+      if (path == '/api/dish/profile/get_dish/d1') {
+        return _ok({'status': 0, 'data': {'name': 'Beef noodle soup', 'best_post_id': 'p1'}});
+      }
+      if (path == '/api/dish/profile/get_dish_post/p1') {
+        return _ok({
+          'status': 0,
+          'data': {
+            '_id': 'p1',
+            'dish_id': 'd1',
+            'name': 'Beef noodle soup',
+            'name_vi': 'Phở bò',
+            'short_detail': 'Broth',
+            'short_detail_vi': 'Nước dùng',
+            'profile_image': '',
+            'ingredients': ['i9'],
+            'display_blocks': []
+          }
+        });
+      }
+      if (path == '/api/dish/profile/create_dish_post') {
+        posted = json.decode(request.body) as Map<String, dynamic>;
+        return _ok({'status': 0, 'data': {'id': 'p1'}});
+      }
+      return _ok({'isSuccess': true, 'data': []});
+    }));
+
+    await _pump(tester, api, dishId: 'd1');
+    await tester.ensureVisible(find.byKey(const ValueKey('dish-save')));
+    await tester.tap(find.byKey(const ValueKey('dish-save')));
+    await tester.pumpAndSettle();
+
+    expect(posted['dish_id'], 'd1');
+    expect(posted['data']['name_vi'], 'Phở bò');
+    expect(posted['data']['ingredients'], ['i9']);
   });
 }

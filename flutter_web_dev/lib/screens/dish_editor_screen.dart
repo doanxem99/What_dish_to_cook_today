@@ -34,6 +34,7 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
   bool _autoTranslate = false;
   bool _busy = false;
   bool _loading = true;
+  bool _loadFailed = false;
   bool _started = false;
   String? _error;
 
@@ -80,6 +81,9 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
           if (postId.isNotEmpty) {
             final post = await state.api.getJson('/api/dish/profile/get_dish_post/$postId');
             final parsed = DishPost.fromJson(post, fallbackName: _name.text);
+            if (parsed.nameVi.trim().isNotEmpty) {
+              _nameVi.text = parsed.nameVi;
+            }
             _short.text = parsed.shortDetail;
             _shortVi.text = parsed.shortDetailVi;
             _cover = parsed.image;
@@ -87,9 +91,14 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
               ..clear()
               ..addAll(parsed.extraImages);
             final ids = parsed.ingredientIds;
-            _chosen
-              ..clear()
-              ..addAll(ingredients.where((item) => ids.contains(item.id)));
+            if (ids.isNotEmpty) {
+              final rows = await state.api.getJson('/api/ingredient/search/ids/${ids.join('-')}');
+              _chosen
+                ..clear()
+                ..addAll(IngredientRef.listFromJson(rows));
+            } else {
+              _chosen.clear();
+            }
             _blocks
               ..clear()
               ..addAll(parsed.blocks.map((block) => EditorBlock.fromJson(block.toJson())));
@@ -106,7 +115,10 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
       });
     } catch (_) {
       if (mounted) {
-        setState(() => _error = state.t('common.errorBody'));
+        setState(() {
+          _error = state.t('common.errorBody');
+          _loadFailed = true;
+        });
       }
     } finally {
       if (mounted) {
@@ -119,7 +131,10 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
     final state = AppScope.of(context);
     final name = _name.text.trim();
     final nameVi = _nameVi.text.trim();
-    if ((name.isEmpty && nameVi.isEmpty) || _busy) {
+    if (_busy || _loadFailed) {
+      return;
+    }
+    if (name.isEmpty && nameVi.isEmpty) {
       setState(() => _error = state.t('auth.invalid'));
       return;
     }
@@ -149,10 +164,15 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
         }
         Navigator.pushReplacementNamed(context, '/dish', arguments: {'dish_id': dishId});
       } else {
-        await state.api.postJson('/api/dish/profile/create_dish_post', {
+        final response = await state.api.postJson('/api/dish/profile/create_dish_post', {
           'dish_id': widget.dishId,
           'data': payload,
         });
+        final status = response is Map && response['status'] is num ? (response['status'] as num).toInt() : -1;
+        if (status != 0 && status != 1) {
+          final detail = response is Map ? '${response['detail'] ?? ''}' : '';
+          throw EditorException('save', serverMessage: detail.isEmpty ? null : detail);
+        }
         if (!mounted) {
           return;
         }
@@ -348,12 +368,18 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
               children: [
                 BoardButton(
                   key: const ValueKey('dish-save'),
-                  label: _busy ? state.t('common.loading') : (_creating ? state.t('edit.createAction') : state.t('edit.save')),
+                  label: _busy ? state.t('common.loading') : (_creating ? state.t('edit.createAction') : state.t('common.save')),
                   primary: true,
                   onPressed: _busy ? null : _save,
                 ),
                 const SizedBox(width: 8),
-                BoardButton(label: state.t('common.cancel'), onPressed: () => Navigator.maybePop(context)),
+                BoardButton(label: state.t('common.cancel'), onPressed: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  } else {
+                    Navigator.pushReplacementNamed(context, '/dishes');
+                  }
+                }),
               ],
             ),
           ],
