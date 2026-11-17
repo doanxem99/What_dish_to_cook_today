@@ -83,3 +83,11 @@ test('the old /web path redirects to /flutter/', async () => {
     assert.strictEqual(response.status, 301);
     assert.strictEqual(response.headers.get('location'), '/flutter/');
 });
+
+test('a flutter deep link loads the flutter shell', async () => {
+    const response = await fetch(`${baseUrl}/flutter/dish_detail`);
+    const text = await response.text();
+
+    assert.strictEqual(response.status, 200);
+    assert.match(text, /flutter-root/);
+});

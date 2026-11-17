@@ -4,8 +4,8 @@
 
 ```
 Browser ──HTTP──> Express (server/, port 3000)
-                    ├── /            static Flutter build (server/web)
-                    ├── /web         same static build
+                    ├── /            static Vue build (server/web_ui)
+                    ├── /flutter     static Flutter build (server/web)
                     ├── /public      uploaded images (server/public)
                     ├── /api/...     JSON API (server/routes/api)
                     └── /worker      WebSocket endpoint for the .NET worker
@@ -23,6 +23,8 @@ README mentioned MySQL.
 
 1. `server/app.js` — creates the app, CORS allowlist, body parsers, busboy (5 MB upload limit),
    static folders, routers, the `/worker` WebSocket, and the final 404/error router.
+   `server/routes/web/static_site.js` serves Vue at `/` and Flutter at `/flutter`, and only rewrites
+   HTML navigations; missing assets still answer 404.
    It also stops the process from crashing when `JWT_SECRET` is absent (random secret + warning).
 2. `server/routes/api/*.js` — Express routers, mounted per feature:
    `auth`, `ingredient`, `dish`, `template`, `gallery_upload`.

@@ -8,6 +8,19 @@ const createStaticSite = function({ vueRoot, flutterRoot }) {
 
     router.use('/flutter', express.static(flutterRoot));
 
+    //The Flutter client uses path routing, so a deep link must load its shell for HTML navigations
+    router.get(['/flutter', '/flutter/*'], function(req, res, next) {
+        const requestPath = '/' + req.path.replace(/^\/+/, '');
+        if (path.extname(requestPath) !== '' || !req.accepts('html')) {
+            return next();
+        }
+        res.sendFile(path.join(flutterRoot, 'index.html'), err => {
+            if (err) {
+                next(err);
+            }
+        });
+    });
+
     //The Flutter build used to live at /web
     router.get(['/web', '/web/*'], function(req, res) {
         res.redirect(301, '/flutter/');
