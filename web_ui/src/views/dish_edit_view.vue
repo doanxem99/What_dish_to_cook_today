@@ -204,7 +204,6 @@ export default {
             <input type="checkbox" v-model="autoTranslate" />
             <span>{{ t('edit.autoTranslate') }}</span>
           </label>
-          <p class="text-xs mt-1" style="color: var(--board-dim)">{{ t('edit.translateHint') }}</p>
         </div>
 
         <div class="grid gap-3 sm:grid-cols-2">
@@ -268,7 +267,7 @@ export default {
 
         <div>
           <h2 class="eyebrow mb-2">{{ t('edit.blocks') }}</h2>
-          <blocksEditor v-model="model.blocks" />
+          <blocksEditor v-model="model.blocks" :auto-translate="autoTranslate" />
         </div>
 
         <p v-if="error" class="text-sm" role="alert" style="color: var(--board-danger)">{{ error }}</p>

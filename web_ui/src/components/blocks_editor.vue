@@ -1,9 +1,11 @@
 <script>
 import { useI18n } from '../i18n'
+import { api } from '../api'
 
 export default {
   props: {
-    modelValue: { type: Array, default: () => [] }
+    modelValue: { type: Array, default: () => [] },
+    autoTranslate: { type: Boolean, default: false }
   },
   emits: ['update:modelValue'],
   data() {
@@ -19,6 +21,24 @@ export default {
       const blocks = this.copy()
       blocks[index][key] = value
       this.emit(blocks)
+    },
+    async translateBlock(index, fromKey, toKey) {
+      if (!this.autoTranslate) return
+      const source = this.modelValue[index][fromKey]
+      const target = this.modelValue[index][toKey]
+      if (!source || !source.trim() || (target && target.trim())) return
+      try {
+        const response = await api.post('/api/translate', {
+          text: source,
+          source: fromKey === 'text' ? 'en' : 'vi',
+          target: fromKey === 'text' ? 'vi' : 'en'
+        })
+        const blocks = this.copy()
+        blocks[index][toKey] = response.text
+        this.emit(blocks)
+      } catch (error) {
+        //Leave the target empty; the editor still saves what was typed
+      }
     },
     setStyle(index, key, value) {
       const blocks = this.copy()
@@ -126,11 +146,11 @@ export default {
         </div>
         <label class="field mt-2">
           <span class="eyebrow">{{ t('edit.blockTextEn') }}</span>
-          <textarea class="textarea" rows="2" :value="block.text" @input="updateText(index, 'text', $event.target.value)"></textarea>
+          <textarea class="textarea" rows="2" :value="block.text" @input="updateText(index, 'text', $event.target.value)" @blur="translateBlock(index, 'text', 'text_vi')"></textarea>
         </label>
         <label class="field mt-2">
           <span class="eyebrow">{{ t('edit.blockTextVi') }}</span>
-          <textarea class="textarea" rows="2" :value="block.text_vi" @input="updateText(index, 'text_vi', $event.target.value)"></textarea>
+          <textarea class="textarea" rows="2" :value="block.text_vi" @input="updateText(index, 'text_vi', $event.target.value)" @blur="translateBlock(index, 'text_vi', 'text')"></textarea>
         </label>
       </template>
 

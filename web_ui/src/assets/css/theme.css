@@ -419,6 +419,11 @@ main {
     line-height: 1.2;
 }
 
+.site-header .board {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
 .site-header .input {
     padding: 4px 34px 4px 10px;
     height: 30px;
@@ -437,10 +442,14 @@ main {
     padding: 0;
 }
 
-.site-header .board-title.brand {
-    margin-right: 12px;
-    border-right: 1px solid var(--board-line);
-    padding-right: 20px;
+.site-header .brand {
+    white-space: nowrap;
+}
+
+.site-header form {
+    flex: 0 1 360px;
+    max-width: 360px;
+    min-width: 180px;
 }
 
 .site-header nav a.router-link-active {
