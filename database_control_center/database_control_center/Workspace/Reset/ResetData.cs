@@ -260,8 +260,8 @@ namespace database_control_center
             ingredientPostId = ingredientPostDocument.GetValue("_id").ToString();
             ingredientCollection.UpdateOne(ingredientDocument, Builders<BsonDocument>.Update.Set("best_post_id", ingredientPostId));
 
-            ingredientCollection.InsertOne(CreateDefaultIngredient("Orangle", "Cam"));
-            ingredientDocument = ingredientCollection.Find(Builders<BsonDocument>.Filter.Eq("name", "Orangle")).FirstOrDefault();
+            ingredientCollection.InsertOne(CreateDefaultIngredient("Orange", "Cam"));
+            ingredientDocument = ingredientCollection.Find(Builders<BsonDocument>.Filter.Eq("name", "Orange")).FirstOrDefault();
             ingredientId = ingredientDocument.GetValue("_id").ToString();
             unique_id = ingredientId + "_unknow";
             ingredientPostCollection.InsertOne(CreateDefaultIngredientPost(true, ingredientId, "unknow", unique_id));

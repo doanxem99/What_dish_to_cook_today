@@ -110,6 +110,7 @@ const DishPost = mongoose.model('dish_post', {
     short_detail: String,
     short_detail_vi: String,
     profile_image : String,
+    images : Array,
     display_blocks : Array
 },'dish_post');
 

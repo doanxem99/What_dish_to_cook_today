@@ -1,98 +1,204 @@
 <script>
-  import ingredient_input from '../components/ingredient_input.vue'
-  import ingredient_object_available from '../components/ingredient_object_available.vue'
-  import dish_package from '../components/dish_package.vue'
+import { api } from '../api'
+import { useI18n } from '../i18n'
+import { usePantryStore } from '../assets/store/pantry_store'
 
-  import dish_server_action from '../assets/js/dish_server_action.js'
+const TYPES = ['Food', 'Spice', 'Fruit', 'Other']
 
-  export default{
-    components : {
-      ingredient_input,
-      ingredient_object_available,
-      dish_package
+export default {
+  data() {
+    return {
+      q: '',
+      found: [],
+      catalog: [],
+      bestPost: null,
+      loadingBest: true,
+      searchError: false,
+      needIngredient: false,
+      searchTimer: null
+    }
+  },
+  computed: {
+    t() { return useI18n().t },
+    locale() { return useI18n().locale.value },
+    pantry() { return usePantryStore() },
+    chosen() { return this.pantry.items },
+    groups() {
+      const source = this.q.trim() ? this.found : this.catalog
+      return TYPES
+        .map(type => ({
+          type,
+          label: this.t('ingredients.' + type.toLowerCase()),
+          rows: source.filter(item => (item.type || 'Other') === type)
+        }))
+        .filter(group => group.rows.length > 0)
     },
-    data() {
-      return {
-        keySearch : '',
-        error : '',
-        ingredientsAvailable : [],
-        dishBestPost: null,
+    noResults() {
+      return this.groups.length === 0 && !this.searchError
+    }
+  },
+  mounted() {
+    this.loadBest()
+    this.loadCatalog()
+  },
+  beforeUnmount() {
+    clearTimeout(this.searchTimer)
+  },
+  methods: {
+    localName(item) {
+      return (this.locale === 'vi' && item.name_vi) ? item.name_vi : item.name
+    },
+    async loadBest() {
+      this.loadingBest = true
+      try {
+        const response = await api.get('/api/dish/profile/get_best_dish_post')
+        this.bestPost = response && response.data ? response.data : null
+      } catch (error) {
+        this.bestPost = null
+      } finally {
+        this.loadingBest = false
       }
     },
-    methods : {
-      onAddIngredient : function(_item){
-        if(!this.ingredientsAvailable.find(element => element.id == _item.id)){
-            this.ingredientsAvailable.push(_item);
-            //Invoke onChanged
-            // this.onChanged(this.ingredientsAvailable);
-        }
-      },
-      onRemoveIngredient : function(_item){
-        let index = this.ingredientsAvailable.indexOf(_item);
-        if (index !== -1) {
-          this.ingredientsAvailable.splice(index, 1);
-          //Invoke onChanged
-          // this.onChanged(this.ingredientsAvailable);
-        }
-      },
-      moveToDishSelection : function(){
-        //this.$router.push('/dish_selection')
-        if(this.ingredientsAvailable.length != 0){
-          let ingredientIds = "";
-          this.ingredientsAvailable.forEach(element => {
-            if(ingredientIds != ""){
-              ingredientIds += "-";
-            }
-            ingredientIds += element.id;
-          });
-          this.$router.push({ path: '/dish_selection', query: { ingredients: ingredientIds }})
-        }
-        else{
-          this.error = "Please select ingredients available first!"
-        }
-      },
+    async loadCatalog() {
+      try {
+        const payload = await api.get('/api/ingredient/selection/')
+        this.catalog = payload && Array.isArray(payload.data) ? payload.data : []
+      } catch (error) {
+        this.catalog = []
+        this.searchError = true
+      }
     },
-    mounted : function() {
-      dish_server_action.getBestDishPost((_response) => {
-        this.dishBestPost = _response.data;
-      });
+    queueSearch() {
+      clearTimeout(this.searchTimer)
+      this.searchTimer = setTimeout(() => this.search(), 250)
+    },
+    async search() {
+      this.searchError = false
+      const term = this.q.trim()
+      if (!term) {
+        this.found = []
+        return
+      }
+      try {
+        const found = await api.get(`/api/ingredient/search/keyword/${encodeURIComponent(term)}`)
+        this.found = Array.isArray(found) ? found : []
+      } catch (error) {
+        this.found = []
+        this.searchError = true
+      }
+    },
+    choose(item) {
+      this.pantry.toggle(item)
+      this.needIngredient = false
+    },
+    remove(item) {
+      this.pantry.remove(item.id)
+    },
+    clear() {
+      this.pantry.clear()
+    },
+    isChosen(item) {
+      return this.pantry.items.some(entry => entry.id === item.id)
+    },
+    findDishes() {
+      if (this.chosen.length === 0) {
+        this.needIngredient = true
+        return
+      }
+      this.$router.push({ path: '/dishes' })
     }
   }
+}
 </script>
 
 <template>
-  <main>
-    <div class="screen_view screen_view_block view_center_vertical">
-      <div>
-        <div class="half_split">
-          <div class="half_split_column">
-            <p class="big_font_size view_space">Choose delicious dishes for the family today !</p>
-            <p class="small_font_size view_space">Please enter the food and cooking ingredients you have available.</p>
-            <ingredient_input :onSelected = "onAddIngredient"/>
-          </div>
-          <div class="half_split_column">
-            <div style="height: 100px;"></div>
-            <p class="big_font_size view_space">Ingredient available</p>
-            <p class="small_font_size view_space">The system will automatically find the dish from your available ingredients.</p>
-            <ingredient_object_available :ingredientObjects = "ingredientsAvailable" :onSelect = "onRemoveIngredient" />
-            <p v-if="error != ''" class="small_font_size error">{{error}}</p>
-            <button class="btn w-full h-10 small_font_size" type="button" v-on:click="moveToDishSelection()">Find dishes</button>
-          </div>
-        </div>
-        <!-- Divided -->
-        <div class="w-full h-1 flex justify-center items-center mt-5 mb-15">
-          <div class="w-1/2 h-0.5 border-2">
-          </div>
+  <section class="board py-6">
+    <h1 class="board-title">{{ t('home.title') }}</h1>
+    <p class="board-sub measure">{{ t('home.subtitle') }}</p>
+
+    <div class="grid gap-4 mt-4 lg:grid-cols-3">
+      <div class="lg:col-span-2 ruled p-4">
+        <h2 class="eyebrow">{{ t('home.pickerTitle') }}</h2>
+
+        <form class="mt-2" role="search" @submit.prevent="search">
+          <label class="sr-only" for="ingredient-search">{{ t('home.pickerTitle') }}</label>
+          <input
+            id="ingredient-search"
+            v-model="q"
+            class="input"
+            type="search"
+            :placeholder="t('home.pickerPlaceholder')"
+            @input="queueSearch"
+          />
+        </form>
+
+        <p v-if="searchError" class="state" role="alert">{{ t('common.errorBody') }}</p>
+        <p v-else-if="noResults" class="state">{{ q.trim() ? t('ingredients.empty', { q: q }) : t('common.emptyTitle') }}</p>
+
+        <div v-else class="mt-3 grid gap-3">
+          <section v-for="group in groups" :key="group.type" role="group" :aria-label="group.label">
+            <h3 class="eyebrow mb-1">{{ group.label }}</h3>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="item in group.rows"
+                :key="item.id"
+                class="chip"
+                :class="{ 'chip-chosen': isChosen(item) }"
+                type="button"
+                :aria-pressed="isChosen(item)"
+                @click="choose(item)"
+              >{{ isChosen(item) ? '−' : '+' }} {{ localName(item) }}</button>
+            </div>
+          </section>
         </div>
 
-        <dish_package v-if="dishBestPost" :dataDish = "dishBestPost" />
-
-        <!-- <div class="screen_view screen_view_block view_center_vertical" style="background-color: gray;">
-    
-        </div> -->
+        <div class="mt-5">
+          <div class="flex items-center justify-between gap-2">
+            <h2 class="eyebrow">{{ t('home.find') }}</h2>
+            <button v-if="chosen.length" class="btn btn-quiet text-xs" type="button" @click="clear">
+              {{ t('home.clear') }}
+            </button>
+          </div>
+          <div v-if="chosen.length" class="flex flex-wrap gap-2 mt-2">
+            <span v-for="item in chosen" :key="item.id" class="chip">
+              {{ localName(item) }}
+              <button class="chip-remove" type="button" :aria-label="t('common.delete') + ' ' + localName(item)" @click="remove(item)">×</button>
+            </span>
+          </div>
+          <p v-else class="mt-2 text-sm" style="color: var(--board-dim)">{{ t('home.chosenEmpty') }}</p>
+          <p v-if="needIngredient" class="mt-2 text-sm" role="alert" style="color: var(--board-danger)">{{ t('home.needOne') }}</p>
+          <button class="btn btn-primary mt-3" type="button" @click="findDishes">
+            {{ t('home.find') }}
+          </button>
+          <p v-if="chosen.length" class="eyebrow mt-2">{{ t('home.ready', { n: chosen.length }) }}</p>
+        </div>
       </div>
+
+      <aside class="ruled p-4">
+        <h2 class="eyebrow">{{ t('home.dishOfDay') }}</h2>
+        <p v-if="loadingBest" class="state" aria-live="polite">{{ t('common.loading') }}</p>
+        <div v-else-if="bestPost">
+          <p class="board-title mt-2" style="font-size: 20px">
+            {{ locale === 'vi' && bestPost.name_vi ? bestPost.name_vi : bestPost.name }}
+          </p>
+          <p class="board-sub text-sm">
+            {{ locale === 'vi' && bestPost.short_detail_vi ? bestPost.short_detail_vi : bestPost.short_detail }}
+          </p>
+          <router-link
+            v-if="bestPost._id"
+            class="btn mt-3"
+            :to="{ path: '/dish_detail', query: { dish_post_id: bestPost._id } }"
+          >{{ t('common.open') }}</router-link>
+        </div>
+        <p v-else class="state">{{ t('common.emptyTitle') }}</p>
+
+        <h2 class="eyebrow mt-5">{{ t('home.howTitle') }}</h2>
+        <ol class="mt-2 text-sm grid gap-1" style="color: var(--board-dim)">
+          <li>1. {{ t('home.how1') }}</li>
+          <li>2. {{ t('home.how2') }}</li>
+          <li>3. {{ t('home.how3') }}</li>
+        </ol>
+      </aside>
     </div>
-    
-    
-  </main>
+  </section>
 </template>

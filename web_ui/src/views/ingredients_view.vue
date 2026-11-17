@@ -1,92 +1,106 @@
 <script>
-  import preview_group from '../components/preview/preview_group.vue'
-  import ingredient_profile_generate from '../components/ingredient_profile_generate.vue'
+import { api } from '../api'
+import { useI18n } from '../i18n'
+import { useAuthStore } from '../assets/store/auth_store'
+import serverInfo from '../assets/js/server_info.js'
 
-  import ingredientServerAction from '../assets/js/ingredient_server_action.js'
-  import { useAuthStore } from '../assets/store/auth_store.js'
+const TYPES = ['Food', 'Spice', 'Fruit', 'Other']
 
-  export default{
-    components : {
-      preview_group,
-      ingredient_profile_generate
+export default {
+  data() {
+    return { items: [], q: '', loading: true, failed: false, searchTimer: null }
+  },
+  beforeUnmount() {
+    clearTimeout(this.searchTimer)
+  },
+  computed: {
+    t() { return useI18n().t },
+    locale() { return useI18n().locale.value },
+    auth() { return useAuthStore() },
+    groups() {
+      return TYPES.map(type => ({
+        type,
+        label: this.t('ingredients.' + type.toLowerCase()),
+        rows: this.items.filter(item => (item.type || 'Other') === type)
+      })).filter(group => group.rows.length > 0)
+    }
+  },
+  watch: {
+    q() {
+      clearTimeout(this.searchTimer)
+      this.searchTimer = setTimeout(() => this.search(), 250)
+    }
+  },
+  mounted() { this.search() },
+  methods: {
+    localName(item) {
+      return (this.locale === 'vi' && item.name_vi) ? item.name_vi : item.name
     },
-    data() {
-      return {
-        foodPreview : [],
-        spicePreview : [],
-        fruitPreview : [],
-        isGenerateIngredient : false
+    image(path) { return path ? serverInfo.getFullPath(path) : '' },
+    async search() {
+      this.loading = true
+      this.failed = false
+      try {
+        if (this.q.trim()) {
+          const rows = await api.get(`/api/ingredient/search/keyword/${encodeURIComponent(this.q.trim())}`)
+          this.items = Array.isArray(rows) ? rows : []
+        } else {
+          const payload = await api.get('/api/ingredient/selection/')
+          this.items = payload && Array.isArray(payload.data) ? payload.data : []
+        }
+      } catch (error) {
+        this.items = []
+        this.failed = true
+      } finally {
+        this.loading = false
       }
-    },
-    methods : {
-      refeshPage : function(){
-        this.$router.go(0);
-      },
-      moveToIngredientDetail : function(_id){
-        this.$router.push({ path: '/ingredient_detail', query: { ingredient_id: _id }})
-      },
-      openIngredientGenerateBox : function(){
-        if (!useAuthStore().isLogin) { 
-          useAuthStore().errorMessage = "You must login to create new ingredient profile.";
-          useAuthStore().jumpPage = '/ingredients'
-          this.$router.push({ path: '/signin' });
-          return;
-        }
-        this.isGenerateIngredient = true;
-      },
-      closeIngredientGenerateBox : function(){
-        this.isGenerateIngredient = false;
-      },
-    },
-    mounted : function(){
-      //Search ingredients from server
-      ingredientServerAction.searchIngredientSelection((_response) => {
-        if(_response.isSuccess){
-          this.foodPreview = _response.data.filter(item => item.type == "Food");
-          this.spicePreview = _response.data.filter(item => item.type == "Spice");
-          this.fruitPreview = _response.data.filter(item => item.type == "Fruit");
-        } else{
-          console.error("Error: " + _response.message);
-        }
-      });
     }
   }
-  
+}
 </script>
 
 <template>
-  <main>
-    <div class="screen_view">
+  <section class="board py-6">
+    <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <div class="menu_title view_space">
-          <span>
-            <span class="small_font_size">
-              Group :
-            </span>
-            <select id="cars" class="small_font_size">
-              <option value="type" class="small_font_size">Type</option>
-              <option value="nation" class="small_font_size">Nation</option>
-            </select>
-          </span>
-          <span>
-            <span class="small_font_size">
-              Sort :
-            </span>
-            <select id="cars" class="small_font_size">
-              <option value="popularity" class="small_font_size">Popularity</option>
-              <option value="favorite" class="small_font_size">Favorite</option>
-              <option value="persional" class="small_font_size">Persional</option>
-            </select>
-          </span>
-        </div>
-        <preview_group title="Foods" :datas = "foodPreview" :onClick = "moveToIngredientDetail" />
-        <preview_group title="Spice" :datas = "spicePreview" :onClick = "moveToIngredientDetail" />
-        <preview_group title="Fruit" :datas = "fruitPreview" :onClick = "moveToIngredientDetail" />
+        <h1 class="board-title">{{ t('ingredients.title') }}</h1>
+        <p class="board-sub">{{ t('ingredients.subtitle') }}</p>
       </div>
+      <router-link v-if="auth.isLogin" class="btn" to="/ingredient_edit">{{ t('edit.createIngredientTitle') }}</router-link>
     </div>
-  </main>
-  <div class="floating_button" v-on:click="openIngredientGenerateBox">
-    <img const src="../assets/icons/plus.png" />
-  </div>
-  <ingredient_profile_generate v-if="isGenerateIngredient" :onRefesh = "refeshPage" :onCancel = "closeIngredientGenerateBox" />
+
+    <label class="sr-only" for="ingredient-filter">{{ t('ingredients.title') }}</label>
+    <input id="ingredient-filter" v-model="q" class="input mt-4" type="search" :placeholder="t('home.pickerPlaceholder')" />
+
+    <p v-if="loading" class="state">{{ t('common.loading') }}</p>
+    <div v-else-if="failed" class="state">
+      <p>{{ t('common.errorTitle') }}</p>
+      <button class="btn mt-3" type="button" @click="search">{{ t('common.retry') }}</button>
+    </div>
+    <p v-else-if="groups.length === 0" class="state">
+      {{ q.trim() ? t('ingredients.empty', { q: q }) : t('common.emptyTitle') }}
+    </p>
+
+    <div v-else class="mt-6 grid gap-6">
+      <section v-for="group in groups" :key="group.type">
+        <h2 class="eyebrow">{{ group.label }}</h2>
+        <ul class="ruled mt-2">
+          <li v-for="item in group.rows" :key="item.id" class="row-line">
+            <router-link
+              class="flex items-center gap-3 sm:gap-4 p-2"
+              :to="{ path: '/ingredient_detail', query: { ingredient_id: item.id } }"
+            >
+              <img v-if="item.profile_image" class="w-11 h-11 sm:w-12 sm:h-12 shrink-0 object-cover rounded" :src="image(item.profile_image)" alt="" />
+              <span class="flex-1 min-w-0">
+                <span class="block font-bold truncate">{{ localName(item) }}</span>
+                <span class="block text-xs sm:text-sm truncate" style="color: var(--board-dim)">
+                  {{ locale === 'vi' && item.short_detail_vi ? item.short_detail_vi : item.short_detail }}
+                </span>
+              </span>
+            </router-link>
+          </li>
+        </ul>
+      </section>
+    </div>
+  </section>
 </template>

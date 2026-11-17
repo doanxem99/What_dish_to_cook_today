@@ -1,255 +1,284 @@
 <script>
-  import display_block from '../components/display_block/display_block.vue'
-  import block_import_box from '../components/block_import_box.vue'
-  import sample_preview_box from '../components/sample_preview_box.vue'
-  import edit_box from '../components/edit_box/edit_box.vue'
-  import ingredient_available_editable from '../components/ingredient_available_editable.vue'
+import { api } from '../api'
+import { useI18n } from '../i18n'
+import { useAuthStore } from '../assets/store/auth_store'
+import ingredientPickerEdit from '../components/ingredient_picker_edit.vue'
+import blocksEditor from '../components/blocks_editor.vue'
 
-  import enums from '../assets/js/enums.js'
-  import profileEnum from '../assets/js/profile_enum.js'
-  import dishServerAction from '../assets/js/dish_server_action.js'
-
-  export default{
-    components : {
-      display_block,
-      block_import_box,
-      sample_preview_box,
-      edit_box,
-      ingredient_available_editable
-    },
-    data() {
-      return {
-        dishPostData : null,
-        dishPreviewData : null,
-        editType : enums.EditType.None,
-        dataEditing : null,
-        enums,
+export default {
+  components: { ingredientPickerEdit, blocksEditor },
+  data() {
+    return {
+      dishId: null,
+      loading: true,
+      saving: false,
+      error: '',
+      autoTranslate: false,
+      dragging: false,
+      model: {
+        name: '',
+        name_vi: '',
+        short_detail: '',
+        short_detail_vi: '',
+        profile_image: '',
+        images: [],
+        ingredients: [],
+        blocks: []
+      }
+    }
+  },
+  computed: {
+    t() { return useI18n().t },
+    auth() { return useAuthStore() },
+    creating() { return !this.dishId }
+  },
+  mounted() {
+    this.dishId = this.$route.query.dish_id || null
+    if (this.dishId) {
+      this.load()
+    } else {
+      this.loading = false
+    }
+  },
+  methods: {
+    async load() {
+      this.loading = true
+      try {
+        const dishResponse = await api.get(`/api/dish/profile/get_dish/${this.dishId}`)
+        const dish = dishResponse && dishResponse.data ? dishResponse.data : null
+        if (dish) {
+          this.model.name = dish.name || ''
+          this.model.name_vi = dish.name_vi || ''
+        }
+        if (dish && dish.best_post_id) {
+          const postResponse = await api.get(`/api/dish/profile/get_dish_post/${dish.best_post_id}`)
+          const post = postResponse && postResponse.data ? postResponse.data : null
+          if (post) {
+            this.model.name = post.name || this.model.name
+            this.model.name_vi = post.name_vi || this.model.name_vi
+            this.model.short_detail = post.short_detail || ''
+            this.model.short_detail_vi = post.short_detail_vi || ''
+            this.model.profile_image = post.profile_image || ''
+            this.model.images = Array.isArray(post.images) ? post.images : []
+            this.model.blocks = Array.isArray(post.display_blocks) ? post.display_blocks : []
+            const ids = (post.ingredients || []).join('-')
+            if (ids) {
+              const rows = await api.get(`/api/ingredient/search/ids/${ids}`)
+              this.model.ingredients = Array.isArray(rows) ? rows.map(row => ({ id: row.id, name: row.name, name_vi: row.name_vi || null })) : []
+            }
+          }
+        }
+      } catch (error) {
+        this.error = this.t('common.errorBody')
+      } finally {
+        this.loading = false
       }
     },
-    methods : {
-      editDishType : function(){
-        this.editType = enums.EditType.Type;
-        this.dataEditing = this.dishPostData.data.type;
-      },
-      editDishShortDetail : function(){
-        this.editType = enums.EditType.ShortDetail;
-        this.dataEditing = this.dishPostData.data.short_detail;
-      },
-      editDishBlock : function(_item, _index){
-        this.editType = enums.EditType.Block;
-        this.dataEditing = _item;
-      },
-      moveUpBlock : function(_item, _index){
-        if(_index > 0){
-          let val = this.dishPostData.data.display_blocks[_index];
-          this.dishPostData.data.display_blocks[_index] = this.dishPostData.data.display_blocks[_index - 1];
-          this.dishPostData.data.display_blocks[_index - 1] = val;
-        }
-      },
-      moveDownBlock : function(_item, _index){
-        if(_index < this.dishPostData.data.display_blocks.length - 1){
-          let val = this.dishPostData.data.display_blocks[_index];
-          this.dishPostData.data.display_blocks[_index] = this.dishPostData.data.display_blocks[_index + 1];
-          this.dishPostData.data.display_blocks[_index + 1] = val;
-        }
-      },
-      boxEdit_OnEdited : function(_value){
-        if(this.editType == enums.EditType.Type){
-          this.dishPostData.data.type = _value;
-        }
-        else if(this.editType == enums.EditType.ShortDetail){
-          this.dishPostData.data.short_detail = _value;
-          this.dishPreviewData.short_detail = _value;
-        }
-        else if(this.editType == enums.EditType.Block){
-          if(this.dataEditing.type == 'text'){
-            this.dataEditing.text = _value.text;
-            this.dataEditing.font_size = _value.font_size;
-            this.dataEditing.color = _value.color;
-          }
-          else if(this.dataEditing.type == 'image'){
-            this.dataEditing.src = _value.src;
-            this.dataEditing.text = _value.text;
-            this.dataEditing.font_size = _value.font_size;
-            this.dataEditing.color = _value.color;
-          }
-        }
-      },
-      boxEdit_OnClose : function(){
-        this.editType = enums.EditType.None;
-        this.dataEditing = null;
-      },
-      addBlock : function(_item, _index){
-        let newItem = JSON.parse(JSON.stringify(_item));
-        this.dishPostData.data.display_blocks.splice(_index + 1, 0, newItem);
-      },
-      removeBlock : function(_item, _index){
-        this.dishPostData.data.display_blocks.splice(_index, 1);
-      },
-      importBlock : function(_data){
-        this.dishPostData.data.display_blocks.push(_data);
-      },
-      onChangeBackgroundImage : function(_data){
-        this.dishPostData.data.profile_image = _data;
-        this.dishPreviewData.profile_image = _data;
-      },
-      onSave : function(){
-        //First, we save data
-        //Then, we move back to dish_detail
-        dishServerAction.createDishPostProfile(this.dishPostData, (_response)=>{
-            if(_response.status == profileEnum.ProfileStatus_PostCreate.CreatingSuccess ||
-              _response.status == profileEnum.ProfileStatus_PostCreate.EditingSuccess){
-                //We move to dish_detail
-                this.$router.push({ path: '/dish_detail', query: { dish_id: this.$route.query.dish_id }});
-            }
-            else{
-                console.log("Error : " + _response.detail);
-                //this.status = _response.detail;
-            }
-        });
-      },
-      onCancel : function(){
-        //We move to dish_detail
-        this.$router.push({ path: '/dish_detail', query: { dish_id: this.$route.query.dish_id }});
-      },
-      changeIngredientsUsing : function(_ingredients){
-          this.dishPostData.data.ingredients = [];
-          _ingredients.forEach(item => {
-              this.dishPostData.data.ingredients.push(item.id);
-          });
-      },
+    async upload(event) {
+      const file = event.target.files && event.target.files[0]
+      if (!file) return
+      await this.uploadOne(file, path => { this.model.profile_image = path })
+      if (event.target) event.target.value = ''
     },
-    mounted : function(){
-      let dishId = this.$route.query.dish_id;
-      //Search dishes from server
-      dishServerAction.getDishProfile(dishId, (_response) => {
-        if(_response.status == profileEnum.ProfileStatus_Detail.Success){
-          //Save data
-          this.dishPostData = {
-            "dish_id" : _response.data._id,
-            "dish_name" : _response.data.name,
-            "data" : null
+    async uploadOne(file, apply) {
+      const form = new FormData()
+      form.append('file', file)
+      try {
+        const response = await fetch('/api/gallery_upload/temporary', {
+          method: 'POST',
+          credentials: 'include',
+          body: form
+        })
+        const data = await response.json()
+        if (data && data.isSuccess) {
+          apply(data.path)
+        } else {
+          this.error = (data && data.status) || this.t('common.errorBody')
+        }
+      } catch (error) {
+        this.error = this.t('common.errorBody')
+      }
+    },
+    onDropCover(event) {
+      this.dragging = false
+      const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]
+      if (file) this.uploadOne(file, path => { this.model.profile_image = path })
+    },
+    async addExtraImages(event) {
+      const files = [...(event.target.files || [])]
+      for (const file of files) {
+        await this.uploadOne(file, path => { this.model.images.push(path) })
+      }
+      if (event.target) event.target.value = ''
+    },
+    async addExtraDrop(event) {
+      this.dragging = false
+      const files = [...((event.dataTransfer && event.dataTransfer.files) || [])]
+      for (const file of files) {
+        await this.uploadOne(file, path => { this.model.images.push(path) })
+      }
+    },
+    removeExtra(index) {
+      this.model.images.splice(index, 1)
+    },
+    imageSrc(path) {
+      return path && path.startsWith('public/') ? '/' + path : path
+    },
+    async translateField(field) {
+      if (!this.autoTranslate) return
+      const sourceValue = this.model[field]
+      if (!sourceValue || !sourceValue.trim()) return
+      const viField = field === 'name' ? 'name_vi' : 'short_detail_vi'
+      if (this.model[viField] && this.model[viField].trim()) return
+      try {
+        const response = await api.post('/api/translate', { text: sourceValue, source: 'en', target: 'vi' })
+        this.model[viField] = response.text
+      } catch (error) {
+        this.error = this.t('edit.translateFailed')
+      }
+    },
+    async save() {
+      this.error = ''
+      if (!this.model.name.trim() && !this.model.name_vi.trim()) {
+        this.error = this.t('auth.invalid')
+        return
+      }
+      this.saving = true
+      try {
+        const payload = {
+          name: this.model.name.trim(),
+          name_vi: this.model.name_vi.trim(),
+          short_detail: this.model.short_detail,
+          short_detail_vi: this.model.short_detail_vi,
+          profile_image: this.model.profile_image,
+          images: this.model.images,
+          ingredients: this.model.ingredients.map(item => item.id),
+          display_blocks: this.model.blocks
+        }
+        let response
+        if (this.creating) {
+          response = await api.post('/api/dish/profile/create_dish', payload)
+          if (response && response.status === 0 && response.dish_id) {
+            this.$router.push({ path: '/dish_detail', query: { dish_id: response.dish_id } })
+            return
           }
-          //Load best dish post id
-          let bestPostId = _response.data.best_post_id;
-          dishServerAction.getDishPostProfile(bestPostId, (_response) => {
-            if(_response.status == profileEnum.ProfileStatus_PostDetail.Success){
-              //Save data
-              this.dishPostData.data = {
-                "id" : _response.data._id,
-                "user_id" : _response.data.user_id,
-                "is_best_post" : _response.data.is_best_post,
-                "date_time" : (new Date(_response.data.date_time)).toDateString(),
-                "points" : _response.data.points,
-                "ingredients" : _response.data.ingredients || [],
-                // "type" : _response.data.type,
-                "short_detail" : _response.data.short_detail,
-                "profile_image" : _response.data.profile_image,
-                "display_blocks" : _response.data.display_blocks,
-              }
-              this.dishPreviewData = {
-                "name" : this.dishPostData.dish_name,
-                "short_detail" : _response.data.short_detail,
-                "profile_image" : _response.data.profile_image
-              }
-            }
-            else{
-              console.log("Best dish post detail error : " + _response.detail);
-            }
-          });
+        } else {
+          response = await api.post('/api/dish/profile/create_dish_post', { dish_id: this.dishId, data: payload })
+          if (response && (response.status === 0 || response.status === 1)) {
+            this.$router.push({ path: '/dish_detail', query: { dish_id: this.dishId } })
+            return
+          }
         }
-        else{
-          console.log("Dish detail error : " + _response.detail);
-        }
-      });
+        this.error = (response && response.detail) || this.t('common.errorBody')
+      } catch (error) {
+        this.error = error.message || this.t('common.errorBody')
+      } finally {
+        this.saving = false
+      }
+    },
+    cancel() {
+      if (this.dishId) {
+        this.$router.push({ path: '/dish_detail', query: { dish_id: this.dishId } })
+      } else {
+        this.$router.push('/dishes')
+      }
     }
   }
+}
 </script>
 
 <template>
-    <main>
-        <div class="screen_view" v-if="dishPostData != null">
-          <!-- <div class="header_space"></div> -->
-          <div class="menu_title view_space" v-if="dishPostData.data != null">
-              <span>
-                  <span style="vertical-align: top" class="small_font_size">
-                      Author : 
-                  </span>
-                  <span class="small_font_size link_hover">
-                    {{dishPostData.data.user_id}}
-                  </span>
-                  <span style="vertical-align: top" class="small_font_size">
-                      |
-                  </span>
-                  <span style="vertical-align: top" class="small_font_size">
-                      Date : {{dishPostData.data.date_time}}
-                  </span>
-              </span>
-          </div>
-            
-          <div class="view_space" style="text-align: center;">
-            <div>
-              <p class="large_font_size view_space">{{dishPostData.dish_name}}</p>
-            </div>
-            <div v-if="dishPostData.data">
-              <div class="editable_item">
-                <p style = "font-weight: bold;" class="medium_font_size view_space">{{dishPostData.data.type}}</p>
-                <div class="editable_group">
-                  <img class="editable_item_button" const src="../assets/icons/edit_square.png" v-on:click="editDishType()"/>
-                </div>
-              </div>
-              <div class="editable_item">
-                <p class="medium_font_size view_space">{{dishPostData.data.short_detail}}</p>
-                <div class="editable_group">
-                  <img class="editable_item_button" const src="../assets/icons/edit_square.png" v-on:click="editDishShortDetail()"/>
-                </div>
-              </div>
-              
-              <!-- Ingredients required section -->
-              <div class="view_space">
-                <p class="medium_font_size">Required Ingredients:</p>
-                <ingredient_available_editable 
-                  :ingredientsId="dishPostData.data.ingredients"
-                  :onChanged="changeIngredientsUsing" 
-                />
-              </div>
-              
-              <display_block :datas="dishPostData.data.display_blocks" :isEditable="true" 
-                :onMoveUp="moveUpBlock" :onMoveDown="moveDownBlock" :onEdit="editDishBlock" 
-                :onAdd="addBlock" :onRemove="removeBlock"/>
-            </div>
-          </div>
-          <div class="view_space">
-            <div class="splitter"></div>
-          </div>
-          <block_import_box :onImportBlock="importBlock" />
-          <div class="view_space" style="text-align: center;">
-            <p class="small_font_size splitter_info">Preview item</p>
-          </div>
-          <sample_preview_box v-if="dishPreviewData" :onChangeBackgroundImage="onChangeBackgroundImage" :preview_data="dishPreviewData" />
-          <div class="view_space" style="text-align: center;">
-            <p class="small_font_size splitter_info">Finished</p>
-          </div>
-          <div class="view_space" style="text-align: center;">
-            <input class="action_button small_font_size" type="button" value="Save" v-on:click="onSave"/>
-          </div>
-          <div class="view_space" style="text-align: center;">
-            <input class="action_button small_font_size" type="button" value="Cancel" v-on:click="onCancel"/>
+  <section class="board board-narrow py-6">
+    <p v-if="!auth.isLogin" class="state">
+      {{ t('edit.signInFirst') }}
+      <router-link class="link" to="/signin">{{ t('nav.signIn') }}</router-link>
+    </p>
+
+    <template v-else>
+      <h1 class="board-title">{{ creating ? t('edit.createTitle') : t('edit.titleEditDish') }}</h1>
+      <p v-if="loading" class="state" aria-live="polite">{{ t('common.loading') }}</p>
+
+      <form v-else class="grid gap-4 mt-4" @submit.prevent="save">
+        <div class="ruled p-3">
+          <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" v-model="autoTranslate" />
+            <span>{{ t('edit.autoTranslate') }}</span>
+          </label>
+        </div>
+
+        <div class="grid gap-3 sm:grid-cols-2">
+          <label class="field">
+            <span class="eyebrow">{{ t('edit.nameEn') }}</span>
+            <input v-model="model.name" class="input" @blur="translateField('name')" />
+          </label>
+          <label class="field">
+            <span class="eyebrow">{{ t('edit.nameVi') }}</span>
+            <input v-model="model.name_vi" class="input" />
+          </label>
+          <label class="field">
+            <span class="eyebrow">{{ t('edit.shortEn') }}</span>
+            <input v-model="model.short_detail" class="input" @blur="translateField('short_detail')" />
+          </label>
+          <label class="field">
+            <span class="eyebrow">{{ t('edit.shortVi') }}</span>
+            <input v-model="model.short_detail_vi" class="input" />
+          </label>
+        </div>
+
+        <div>
+          <h2 class="eyebrow mb-2">{{ t('edit.ingredients') }}</h2>
+          <ingredientPickerEdit v-model="model.ingredients" />
+        </div>
+
+        <div>
+          <h2 class="eyebrow mb-2">{{ t('edit.image') }}</h2>
+          <label
+            class="dropzone"
+            :class="{ dragging }"
+            @dragover.prevent="dragging = true"
+            @dragleave.prevent="dragging = false"
+            @drop.prevent="onDropCover"
+          >
+            <input class="sr-only" type="file" accept="image/png,image/jpeg" @change="upload" />
+            <img v-if="model.profile_image" class="w-16 h-16 object-cover rounded" :src="imageSrc(model.profile_image)" alt="" />
+            <span class="text-sm" style="color: var(--board-dim)">{{ t('edit.dropCover') }}</span>
+          </label>
+        </div>
+
+        <div>
+          <h2 class="eyebrow mb-2">{{ t('edit.extraImages') }}</h2>
+          <label
+            class="dropzone"
+            :class="{ dragging }"
+            @dragover.prevent="dragging = true"
+            @dragleave.prevent="dragging = false"
+            @drop.prevent="addExtraDrop"
+          >
+            <input class="sr-only" type="file" accept="image/png,image/jpeg" multiple @change="addExtraImages" />
+            <span class="text-sm" style="color: var(--board-dim)">{{ t('edit.dropCover') }}</span>
+          </label>
+          <div v-if="model.images.length" class="flex flex-wrap gap-2 mt-2">
+            <span v-for="(path, index) in model.images" :key="path + index" class="extra-thumb">
+              <img :src="imageSrc(path)" alt="" />
+              <button class="chip-remove" type="button" :aria-label="t('common.delete')" @click="removeExtra(index)">×</button>
+            </span>
           </div>
         </div>
-    </main>
-    <edit_box v-if="editType != enums.EditType.None" :editType="editType" :dataEditing="dataEditing" 
-      :onEdited="boxEdit_OnEdited" :onClose="boxEdit_OnClose"/>
-</template>
 
-<style>
-  .main_info{
-    display: block;
-    width: 100%;
-    text-align: center;
-  }
-  .detail_info{
-    display: block;
-    width: 100%;
-  }
-</style>
+        <div>
+          <h2 class="eyebrow mb-2">{{ t('edit.blocks') }}</h2>
+          <blocksEditor v-model="model.blocks" :auto-translate="autoTranslate" />
+        </div>
+
+        <p v-if="error" class="text-sm" role="alert" style="color: var(--board-danger)">{{ error }}</p>
+
+        <div class="flex gap-2">
+          <button class="btn btn-primary" type="submit" :disabled="saving">
+            {{ creating ? t('edit.createAction') : t('edit.save') }}
+          </button>
+          <button class="btn" type="button" @click="cancel">{{ t('common.cancel') }}</button>
+        </div>
+      </form>
+    </template>
+  </section>
+</template>

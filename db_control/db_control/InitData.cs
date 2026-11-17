@@ -72,7 +72,7 @@ namespace db_control
                 CreateDefaultIngredientPostItem("Egg", adminId, "Food"),
                 CreateDefaultIngredientPostItem("Salt", adminId, "Spice"),
                 CreateDefaultIngredientPostItem("Honey", adminId, "Spice"),
-                CreateDefaultIngredientPostItem("Orangle", adminId, "Fruit"),
+                CreateDefaultIngredientPostItem("Orange", adminId, "Fruit"),
                 CreateDefaultIngredientPostItem("Pork", adminId, "Food"),
                 CreateDefaultIngredientPostItem("Chicken", adminId, "Food"),
                 CreateDefaultIngredientPostItem("Potato", adminId, "Food"),
@@ -95,7 +95,7 @@ namespace db_control
                 CreateDefaultIngredientItem("Egg", "Trứng", adminId, _mongoDatabase),
                 CreateDefaultIngredientItem("Salt", "Muối", adminId, _mongoDatabase),
                 CreateDefaultIngredientItem("Honey", "Mật ong", adminId, _mongoDatabase),
-                CreateDefaultIngredientItem("Orangle", "Cam", adminId, _mongoDatabase),
+                CreateDefaultIngredientItem("Orange", "Cam", adminId, _mongoDatabase),
                 CreateDefaultIngredientItem("Pork", "Thịt heo", adminId, _mongoDatabase),
                 CreateDefaultIngredientItem("Chicken", "Thịt gà", adminId, _mongoDatabase),
                 CreateDefaultIngredientItem("Potato", "Khoai tây", adminId, _mongoDatabase),
@@ -108,7 +108,7 @@ namespace db_control
             UpdateIdIngredientPostItem("Egg", _mongoDatabase);
             UpdateIdIngredientPostItem("Salt", _mongoDatabase);
             UpdateIdIngredientPostItem("Honey", _mongoDatabase);
-            UpdateIdIngredientPostItem("Orangle", _mongoDatabase);
+            UpdateIdIngredientPostItem("Orange", _mongoDatabase);
             UpdateIdIngredientPostItem("Pork", _mongoDatabase);
             UpdateIdIngredientPostItem("Chicken", _mongoDatabase);
             UpdateIdIngredientPostItem("Potato", _mongoDatabase);

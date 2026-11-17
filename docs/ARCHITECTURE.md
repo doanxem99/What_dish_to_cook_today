@@ -36,6 +36,8 @@ README mentioned MySQL.
    into their final folder and rewrites the paths inside the JSON payload.
    `resolveInside(root, relativePath)` is the guard that keeps request-driven paths inside the
    repository; every move path goes through it.
+6. `server/routes/api/translate.js` — optional proxy to a LibreTranslate-compatible service
+   (`TRANSLATE_URL`); answers 503 when none is configured.
 6. `server/config/debug/app_debug.js` — appends to `server/config/debug/data/data_debug.txt`.
 7. `server/config/template/*.js` — JSON templates for the editor (dish, ingredient, image block).
 

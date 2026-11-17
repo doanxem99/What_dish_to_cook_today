@@ -15,7 +15,7 @@ const findIngredientsByKeyword = async function(_keyword)
     const ingredients = await database.collections.Ingredient.find(
         { $or: [ { name: nameFilter }, { name_vi: nameFilter } ], best_post_id: { $exists: true, $ne: "" } },
         'name name_vi best_post_id'
-    ).limit(10);
+    ).limit(30);
 
     return ingredients.map(ingredient => ({
         "id" : ingredient._id,
@@ -32,7 +32,7 @@ const findIngredientsByIds = async function(_ids)
     const ingredients = await database.collections.Ingredient.find(
         {_id : { $in : _ids.split('-') }},
         'name name_vi best_post_id'
-    ).limit(10);
+    ).limit(30);
 
     return ingredients.map(ingredient => ({
         "id" : ingredient._id,

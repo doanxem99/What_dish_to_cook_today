@@ -20,6 +20,21 @@ can be picked up without re-reading the codebase.
 5. **Views count every read.** `getDishPostDetail` increments `views` even when the page is the
    editor loading the same post, so editing inflates views.
 
+## Vue UI gaps (plan 2, current state)
+
+- **The C# seed tools still hold the small original catalog.** The local demo now seeds 30 ingredients and 13 dishes from `server/scripts/seed-catalog.mjs`; `db_control --init_data` and the worker reseed still create their older short lists. Unify the seeds when the worker is touched next.
+
+- **Editor screens are still on the old styling and have no Vietnamese fields.**
+  `dish_edit_view.vue`, `ingredient_edit_view.vue`, the generate dialogs and `edit_box` predate the
+  new system; they cannot set `name_vi`/`short_detail_vi`, so a dish created there falls back to
+  English. Next increment of plan 2. Entry links now exist from dish and ingredient detail.
+- **The display face is not self-hosted.** `theme.css` asks for `Be Vietnam Pro` and falls back to
+  the system sans; the woff2 needs adding before the typography matches the direction.
+- **No "used in" list on ingredient detail.** It needs an endpoint that answers which dishes include
+  the ingredient; deferred rather than faked.
+- **Votes are not reflected on the board.** `get_best_dish_post` and selection previews rank by
+  `points`, but the UI shows the count only on detail.
+
 ## Risks
 
 6. **No rate limit or lockout on signin.**
@@ -60,3 +75,7 @@ can be picked up without re-reading the codebase.
     `JWT_SECRET = 'what-dish-to-cook-today'`. Anyone with a clone can forge tokens if a
     deployment reuses that value. Generate a fresh random secret; never restore the old one.
     History is not rewritten here.
+
+## Responsive layout
+
+18. **No automated guard for layout.** The 320-1440 px pass was verified with a temporary probe harness that measured header height, overflow and tap targets, then was deleted. Any CSS change can regress it silently; repeat the probe or add a Playwright-style check before touching theme.css media queries.

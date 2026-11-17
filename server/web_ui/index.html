@@ -3,10 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" href="/assets/logo-CxkfQjXq.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>What dish to cook today!</title>
-    <script type="module" crossorigin src="/assets/index-BUWY4lSq.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-Ccak8kwy.css">
+    <script>
+      //Apply the saved theme before first paint so there is no flash
+      try {
+        var saved = localStorage.getItem('theme');
+        if (!saved) {
+          saved = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = saved;
+      } catch (error) {
+        document.documentElement.dataset.theme = 'dark';
+      }
+    </script>
+    <script type="module" crossorigin src="/assets/index-CYhoHry0.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DiJrb3Dm.css">
   </head>
   <body>
     <div id="app"></div>

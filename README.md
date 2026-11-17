@@ -30,7 +30,20 @@ npm start                   # http://localhost:3000
 ```
 
 Environment variables (all optional except the secret): `JWT_SECRET`, `MONGODB_URI`,
-`CORS_ORIGINS`, `DATABASE_WORKER_EXE`, `TRUST_PROXY=1` behind a reverse proxy.
+`CORS_ORIGINS`, `TRANSLATE_URL`, `DATABASE_WORKER_EXE`, `TRUST_PROXY=1` behind a reverse proxy.
+
+Optional translation for the editor: run a LibreTranslate-compatible service and point
+`TRANSLATE_URL` at it. For example:
+
+```bash
+docker run -d --name libretranslate -p 5000:5000 \
+  -e LT_LOAD_ONLY=en,vi -e LT_UPDATE_MODELS=false \
+  libretranslate/libretranslate:latest
+# server/.env: TRANSLATE_URL = http://localhost:5000/translate
+```
+
+Without it the editor's auto-translate toggle reports that translation is unavailable and you
+enter both languages yourself.
 
 ## Run the Vue client
 

@@ -1,0 +1,680 @@
+:root {
+    --board-bg: #14171c;
+    --board-raised: #1b2027;
+    --board-line: #3a434f;
+    --board-line-strong: #5b6470;
+    --board-ink: #f2f0ea;
+    --board-dim: #a7b0bb;
+    --board-red: #a85634;
+    --board-danger: #e0785a;
+    --board-amber: #d99a4e;
+    --board-green: #6fae86;
+    --radius: 6px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+}
+
+[data-theme="light"] {
+    --board-bg: #f6f4ef;
+    --board-raised: #ffffff;
+    --board-line: #c3bcae;
+    --board-line-strong: #8a8578;
+    --board-ink: #1d2127;
+    --board-dim: #5b6470;
+    --board-red: #96482b;
+    --board-danger: #8f2f18;
+    --board-amber: #8a5a12;
+    --board-green: #2f6b45;
+}
+
+body {
+    margin: 0;
+    background: var(--board-bg);
+    color: var(--board-ink);
+    font-family: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+}
+
+a {
+    color: var(--board-ink);
+}
+
+.board {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding-left: max(var(--space-4), env(safe-area-inset-left, 0px));
+    padding-right: max(var(--space-4), env(safe-area-inset-right, 0px));
+}
+
+/*Air between the header and the page title*/
+main {
+    padding-top: var(--space-4);
+}
+
+.ruled {
+    border: 1px solid var(--board-line);
+    border-radius: var(--radius);
+    background: var(--board-raised);
+}
+
+.row-line {
+    border-bottom: 1px solid var(--board-line);
+}
+
+.eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-size: 11px;
+    color: var(--board-dim);
+}
+
+.board-title {
+    font-size: clamp(22px, 3vw, 30px);
+    line-height: 1.1;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.board-sub {
+    color: var(--board-dim);
+    margin-top: var(--space-2);
+}
+
+.match-number {
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.row-match {
+    min-width: 44px;
+}
+
+.lamp {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--board-dim);
+}
+
+.lamp.ok { background: var(--board-green); }
+.lamp.partial { background: var(--board-amber); }
+.lamp.missing { background: var(--board-red); }
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: 6px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--board-line);
+    background: transparent;
+    color: var(--board-ink);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.btn:focus-visible {
+    outline: 2px solid var(--board-amber);
+    outline-offset: 2px;
+}
+
+.btn-primary {
+    background: var(--board-red);
+    border-color: var(--board-red);
+    color: #fff;
+    font-weight: 700;
+}
+
+.btn-quiet {
+    color: var(--board-dim);
+}
+
+.btn[disabled] {
+    opacity: 0.8;
+    cursor: not-allowed;
+    border-color: var(--board-line-strong);
+}
+
+/*Active language: a marker, never the primary action's fill*/
+.btn.is-active {
+    border-color: var(--board-amber);
+    color: var(--board-amber);
+    font-weight: 700;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.input,
+.textarea {
+    background: var(--board-bg);
+    border: 1px solid var(--board-line-strong);
+    border-radius: var(--radius);
+    color: var(--board-ink);
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 13px;
+    width: 100%;
+}
+
+.input:focus-visible,
+.textarea:focus-visible {
+    outline: 2px solid var(--board-amber);
+    outline-offset: 1px;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--board-line);
+    border-radius: 999px;
+    padding: 3px 9px;
+    color: var(--board-ink);
+    background: var(--board-raised);
+    font-size: 13px;
+}
+
+.chip:focus-visible {
+    outline: 2px solid var(--board-amber);
+    outline-offset: 2px;
+}
+
+.chip-chosen {
+    border-color: var(--board-amber);
+    color: var(--board-amber);
+}
+
+.chip-remove {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    padding: 0 2px;
+    font: inherit;
+    line-height: 1;
+}
+
+.chip-remove:focus-visible {
+    outline: 2px solid var(--board-amber);
+    outline-offset: 2px;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 50;
+}
+
+.skip-link:focus {
+    left: var(--space-4);
+    top: var(--space-2);
+    background: var(--board-ink);
+    color: var(--board-bg);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius);
+}
+
+a.router-link-active {
+    color: var(--board-amber);
+    text-decoration-thickness: 2px;
+}
+
+.link {
+    color: var(--board-amber);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.state {
+    padding: var(--space-5);
+    text-align: center;
+    color: var(--board-dim);
+}
+
+/*Square icon control for row actions such as move and remove*/
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 24px;
+    border: 1px solid var(--board-line);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--board-dim);
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.icon-btn:hover:not([disabled]) {
+    color: var(--board-ink);
+    border-color: var(--board-line-strong);
+}
+
+.icon-btn:focus-visible {
+    outline: 2px solid var(--board-amber);
+    outline-offset: 1px;
+}
+
+.icon-btn[disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/*Editor helpers*/
+.dropzone {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border: 1px dashed var(--board-line-strong);
+    border-radius: var(--radius);
+    cursor: pointer;
+}
+
+.dropzone.dragging {
+    border-color: var(--board-amber);
+    background: var(--board-raised);
+}
+
+.extra-thumb {
+    position: relative;
+    display: inline-flex;
+}
+
+.extra-thumb img {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.extra-thumb .chip-remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+}
+
+.block-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+.input.tiny {
+    width: auto;
+    padding: 3px 6px;
+    font-size: 12px;
+}
+
+.icon-btn.is-active {
+    border-color: var(--board-amber);
+    color: var(--board-amber);
+}
+
+.view-switch {
+    display: inline-flex;
+    gap: 4px;
+}
+
+/*Footer: the shared .board rule zeroes vertical padding, so footer spacing is scoped here.*/
+.site-footer .footer-cols {
+    padding-top: 28px;
+    padding-bottom: 28px;
+}
+
+.site-footer .footer-tagline {
+    margin-top: 8px;
+    max-width: 34ch;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.site-footer nav h2,
+.site-footer .footer-cols > div > h2 {
+    margin: 0 0 10px;
+}
+
+.site-footer ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.site-footer .footer-bottom {
+    border-top: 1px solid var(--board-line);
+}
+
+.site-footer .footer-bottom-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 14px;
+    padding-bottom: 14px;
+    font-size: 12px;
+    color: var(--board-dim);
+}
+header,
+main,
+footer,
+nav,
+section,
+article,
+aside,
+form,
+ul,
+li,
+h1,
+h2,
+h3,
+p {
+    position: static;
+}
+
+main {
+    position: static;
+    max-width: none;
+    margin: 0;
+    width: 100%;
+}
+
+/*Header: one grid, mobile-first; controls are dense but never under 30px*/
+.site-header .btn {
+    padding: 0 10px;
+    height: 30px;
+    font-size: 13px;
+    line-height: 1;
+}
+
+.site-header .icon-only {
+    width: 30px;
+    padding: 0;
+}
+
+.site-header .brand {
+    grid-area: brand;
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+.header-bar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+        "brand tools"
+        "search search"
+        "nav nav";
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 6px;
+    padding-top: max(8px, env(safe-area-inset-top, 0px));
+    padding-bottom: 8px;
+}
+
+.header-search {
+    grid-area: search;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+}
+
+.header-tools {
+    grid-area: tools;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.header-nav {
+    grid-area: nav;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.header-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.header-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    white-space: nowrap;
+    outline-offset: -2px;
+}
+
+.account-name,
+.account-signout {
+    display: none;
+}
+
+.site-header .search-input {
+    height: 34px;
+    min-height: 34px;
+    padding: 4px 34px 4px 10px;
+}
+
+.site-header .btn,
+.site-header .account-link {
+    height: 34px;
+    min-height: 34px;
+}
+
+.site-header .icon-only,
+.site-header .account-link {
+    width: 34px;
+    padding: 0;
+    justify-content: center;
+}
+
+.site-header .search-go {
+    height: 30px;
+}
+
+.site-header nav a.router-link-active {
+    border-bottom: 2px solid var(--board-amber);
+    padding-bottom: 2px;
+}
+
+@media (max-width: 399px) {
+    .site-header .board {
+        padding-left: max(12px, env(safe-area-inset-left, 0px));
+        padding-right: max(12px, env(safe-area-inset-right, 0px));
+    }
+    .site-header .brand {
+        font-size: 12px;
+    }
+    .site-header .btn {
+        padding: 0 6px;
+    }
+    .site-header .icon-only,
+    .site-header .account-link {
+        width: 30px;
+    }
+}
+
+@media (min-width: 640px) {
+    .header-bar {
+        grid-template-columns: auto minmax(160px, 1fr) auto;
+        grid-template-areas:
+            "brand search tools"
+            "nav nav nav";
+        column-gap: 16px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+    .site-header .brand {
+        font-size: 16px;
+    }
+    .header-nav {
+        gap: 16px;
+    }
+    .header-search {
+        max-width: 360px;
+        justify-self: start;
+    }
+    .site-header .search-input {
+        height: 30px;
+        min-height: 30px;
+    }
+    .site-header .btn,
+    .site-header .account-link,
+    .site-header .icon-only {
+        height: 30px;
+        min-height: 30px;
+    }
+    .site-header .account-link {
+        width: 30px;
+        padding: 0;
+    }
+}
+
+@media (min-width: 1024px) {
+    .site-header .account-link {
+        width: auto;
+        padding: 0 10px;
+    }
+    .account-name,
+    .account-signout {
+        display: inline;
+    }
+}
+
+/*Search: one field with the action inside it, right aligned*/
+.search-wrap {
+    position: relative;
+    display: block;
+}
+
+.search-input {
+    padding-right: 34px;
+}
+
+.search-go {
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--board-dim);
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.search-go:hover,
+.search-go:focus-visible {
+    color: var(--board-ink);
+}
+
+.search-go:focus-visible {
+    outline: 2px solid var(--board-amber);
+    outline-offset: 1px;
+}
+
+.site-header a.link {
+    padding: 4px 2px;
+}
+
+/*Width variants: Tailwind max-w-* utilities lose to the unlayered .board rule above*/
+.board-narrow {
+    max-width: 768px;
+}
+
+.board-form {
+    max-width: 512px;
+}
+
+.measure {
+    max-width: 62ch;
+}
+
+main {
+    padding-bottom: var(--space-2);
+}
+
+.site-footer .footer-bottom-row {
+    padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
+}
+
+/*Phones: denser rows still need 30px touch targets*/
+@media (max-width: 639px) {
+    .row-match {
+        font-size: 16px;
+        min-width: 34px;
+    }
+    .header-nav {
+        gap: 8px;
+    }
+    .header-nav a {
+        font-size: 12px;
+    }
+    .icon-btn {
+        width: 30px;
+        height: 30px;
+    }
+    .chip {
+        min-height: 30px;
+        padding: 4px 10px;
+    }
+    .input,
+    .textarea {
+        min-height: 34px;
+    }
+    .btn {
+        min-height: 32px;
+    }
+}

@@ -5,17 +5,20 @@ const database = require('../../config/database/connection');
 //The seed tools author their posts as this user; anything else is a user contribution
 const SEED_ADMIN_USERNAME = 'moonshine@gmail.com';
 
-const toPreviews = async function(_dishPosts) {
+const toPreviews = async function(_dishPosts, _selectedIds = []) {
+    const selected = new Set(_selectedIds.map(String));
     const dishes = await database.collections.Dish.find(
         { _id: { $in: _dishPosts.map(post => post.dish_id) } },
         "name name_vi"
     );
     const dishById = new Map(dishes.map(dish => [dish._id.toString(), dish]));
 
-    return _dishPosts
+    const previews = _dishPosts
         .filter(post => dishById.has(post.dish_id.toString()))
         .map(post => {
             const dish = dishById.get(post.dish_id.toString());
+            const ingredientIds = (post.ingredients || []).map(String);
+            const matchedIds = ingredientIds.filter(id => selected.has(id));
             return {
                 "id": dish._id,
                 "name": dish.name,
@@ -23,8 +26,36 @@ const toPreviews = async function(_dishPosts) {
                 "short_detail": post.short_detail,
                 "short_detail_vi": post.short_detail_vi || null,
                 "profile_image": post.profile_image,
+                //How much of the dish the cook already has; the board ranks on this
+                "match_count": matchedIds.length,
+                "total_ingredients": ingredientIds.length,
+                "matched_ids": matchedIds,
+                "missing_ids": ingredientIds.filter(id => !selected.has(id)),
             };
         });
+
+    //Name every ingredient so a compact row can list them, and so the row can say what is missing
+    const allIds = [...new Set(previews.flatMap(preview => [...(preview.matched_ids || []), ...(preview.missing_ids || [])]))];
+    if (allIds.length > 0) {
+        const rows = await database.collections.Ingredient.find(
+            { _id: { $in: allIds } },
+            "name name_vi"
+        );
+        const byId = new Map(rows.map(row => [row._id.toString(), row]));
+        for (const preview of previews) {
+            const allIdsForRow = [...(preview.matched_ids || []), ...(preview.missing_ids || [])];
+            preview.ingredients_detail = allIdsForRow
+                .map(id => byId.get(String(id)))
+                .filter(Boolean)
+                .map(row => ({ id: row._id, name: row.name, name_vi: row.name_vi || null }));
+            preview.missing = (preview.missing_ids || [])
+                .map(id => byId.get(String(id)))
+                .filter(Boolean)
+                .map(row => ({ id: row._id, name: row.name, name_vi: row.name_vi || null }));
+        }
+    }
+
+    return previews;
 }
 
 const findDishSelectionByIds = async function(_ingredientIds){
@@ -36,10 +67,10 @@ const findDishSelectionByIds = async function(_ingredientIds){
     }
     const dishPosts = await database.collections.DishPost.find(
         filter,
-        "dish_id short_detail short_detail_vi profile_image"
-    ).limit(10);
+        "dish_id ingredients short_detail short_detail_vi profile_image"
+    ).limit(24);
 
-    return toPreviews(dishPosts);
+    return toPreviews(dishPosts, _ingredientIds);
 }
 
 const findDishSelection = async function(){
@@ -57,7 +88,7 @@ const findHomemadeDishSelection = async function(){
     const dishPosts = await database.collections.DishPost.find(
         { is_best_post: true, user_id: { $exists: true, $nin: ['unknow', seedAdminId] } },
         "dish_id user_id short_detail short_detail_vi profile_image"
-    ).limit(10);
+    ).limit(24);
 
     //Belt and braces: a legacy ObjectId-typed user id slips past the string filter
     return toPreviews(dishPosts.filter(post =>

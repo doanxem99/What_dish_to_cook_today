@@ -52,6 +52,7 @@ const createIngredientPost = async function(_postData)
     let user_id = _postData.data.user_id
     let type = _postData.data.type;
     let short_detail = _postData.data.short_detail;
+    let short_detail_vi = _postData.data.short_detail_vi || "";
     let profile_image = _postData.data.profile_image;
     let display_blocks = _postData.data.display_blocks;
     let unique_id = ingredient_id + "_" + user_id;
@@ -74,6 +75,7 @@ const createIngredientPost = async function(_postData)
         'points' : 0,
         'type' : type,
         'short_detail' : short_detail,
+        'short_detail_vi' : short_detail_vi,
         'profile_image' : profile_image,
         'display_blocks' : display_blocks
     };
@@ -144,15 +146,17 @@ const createIngredient = async function(_postData){
     //Begin letter is upcase and other is lower case
     //*Then, try to create Ingredient with this name
     //If aready exist, we return status existed
-    let ingredient_name = _postData.name;
+    let ingredient_name = (typeof _postData.name === 'string' ? _postData.name.trim() : '') ||
+        (typeof _postData.name_vi === 'string' ? _postData.name_vi.trim() : '');
     let user_id = _postData.userid;
     let type = _postData.type;
     let short_detail = _postData.short_detail;
     let profile_image = _postData.profile_image;
     appDebug.writeLine(appDebug.DebugType.Comment, "Create ingredient : " + ingredient_name);
-    if (/^[A-Za-z _]+$/.test(ingredient_name)){
+    if (/^[\p{L} _]+$/u.test(ingredient_name)){
         let ingredientData = {
             'name' : ingredient_name, 
+            'name_vi' : _postData.name_vi || "",
             'best_post_id' : "",
             'is_need_update' : false
         };
@@ -170,6 +174,7 @@ const createIngredient = async function(_postData){
                     'user_id' : user_id,
                     'type' : type,
                     'short_detail' : short_detail,
+                    'short_detail_vi' : _postData.short_detail_vi || "",
                     'profile_image' : profile_image,
                     'display_blocks' : []
                 }
