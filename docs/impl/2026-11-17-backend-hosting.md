@@ -80,5 +80,20 @@ dotnet build both projects                             -> Build succeeded
 - Ledgered minor (review 6): homemade has no ordering beyond `limit(10)`; admin-missing test does not assert the query was skipped; `server.close()` not awaited in the tests.
 - Next: Task 7 (hosting) — biggest step, touches `server/app.js`, Vite output, both builds, and commits `server/web_ui`.
 
+- Task 7: complete. 4 hosting tests RED then GREEN; review found two Important (fallback answered missing assets with 200 HTML; `/web` stranded old links) and one structural (Flutter fallback unnecessary). Fixed: HTML-only fallback with an extension guard, `/web` → 301 `/flutter/`. Re-graded the fallback removal request: `main.dart` calls `setPathUrlStrategy()`, so the Flutter shell must be served for HTML deep links; kept a guarded fallback with a test. Rebuilt Vue into `server/web_ui` and Flutter with `--base-href /flutter/`; live check: `/` Vue, `/flutter/` assets, `/api/missing` 404 text, missing asset 404, `/web` 301. Suite 32/32, then 33/33. Commits `32c6507`, `39abca2`.
+- Task 8: complete. Bilingual `name_vi` for all seeded ingredients, `name_vi`/`short_detail_vi` for the seeded dish and first block `text_vi`; both seeds drop `vote` (and later `comment`) on reseed. Both `dotnet build` succeed. Commit `95e91db`.
+- Ruling: seed body copy is partially translated — names, short details and the first paragraph carry Vietnamese; the remaining blocks fall back to English. Cost if wrong: a mixed-language sample detail page until plan 3 or the owner supplies the rest.
+- Ruling: a `Get-Content`/`Set-Content` round trip in Task 8 mangled Vietnamese text in `ResetData.cs`; the file was restored from git and every later edit used the edit tool. Cost if wrong: none, the corrupted version never left the working tree; recorded so the next session avoids the same command.
+- Task 9: complete. API, data model, architecture, known issues and README/AGENTS updated for the new endpoints and hosting. Suite 33/33; Vue build, Flutter tests 4/4, both .NET builds green. Commit `4e3c36d`.
+- Final whole-branch review (fresh subagent, `ac4fe1e..4e3c36d`): no Critical; three Important — comment counter had no floor, reseed left comments pointing at dead posts, four docs still described the old hosting/data model. All three fixed with a RED→GREEN counter test, two one-line drops, and doc corrections; suite 33/33, both .NET builds green. Commit `c1fec78`.
+- Ledgered minors (final review): `/mine` omits `short_detail_vi`; `/web/<suffix>` redirects to `/flutter/` and drops the suffix; hosting tests cover the factory but not `app.js` mount order; a missing `server/web_ui` answers 500 with no hint.
+
+## Final state
+
+- Branch `feat/backend-foundations`, cut from `chore/repo-hygiene`; not pushed. PR base decision is deferred until PR #1 merges.
+- Suites: server 33/33, Flutter 4/4, Vue build green, both .NET builds green.
+- Delivered: bilingual fields and search, `/auth/me` + `created_at`, comments, votes, my-posts, homemade, Vue at `/` and Flutter at `/flutter`, bilingual seeds, docs.
+- Next: plan 2 (Vue UI, direction round first).
+
 
 
