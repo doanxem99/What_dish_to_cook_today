@@ -5,7 +5,8 @@ const database = require('../../config/database/connection');
 //The seed tools author their posts as this user; anything else is a user contribution
 const SEED_ADMIN_USERNAME = 'moonshine@gmail.com';
 
-const toPreviews = async function(_dishPosts) {
+const toPreviews = async function(_dishPosts, _selectedIds = []) {
+    const selected = new Set(_selectedIds.map(String));
     const dishes = await database.collections.Dish.find(
         { _id: { $in: _dishPosts.map(post => post.dish_id) } },
         "name name_vi"
@@ -16,6 +17,8 @@ const toPreviews = async function(_dishPosts) {
         .filter(post => dishById.has(post.dish_id.toString()))
         .map(post => {
             const dish = dishById.get(post.dish_id.toString());
+            const ingredientIds = (post.ingredients || []).map(String);
+            const matchedIds = ingredientIds.filter(id => selected.has(id));
             return {
                 "id": dish._id,
                 "name": dish.name,
@@ -23,6 +26,10 @@ const toPreviews = async function(_dishPosts) {
                 "short_detail": post.short_detail,
                 "short_detail_vi": post.short_detail_vi || null,
                 "profile_image": post.profile_image,
+                //How much of the dish the cook already has; the board ranks on this
+                "match_count": matchedIds.length,
+                "total_ingredients": ingredientIds.length,
+                "matched_ids": matchedIds,
             };
         });
 }
@@ -36,10 +43,10 @@ const findDishSelectionByIds = async function(_ingredientIds){
     }
     const dishPosts = await database.collections.DishPost.find(
         filter,
-        "dish_id short_detail short_detail_vi profile_image"
+        "dish_id ingredients short_detail short_detail_vi profile_image"
     ).limit(10);
 
-    return toPreviews(dishPosts);
+    return toPreviews(dishPosts, _ingredientIds);
 }
 
 const findDishSelection = async function(){
