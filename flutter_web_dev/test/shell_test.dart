@@ -1,0 +1,50 @@
+//The shell must fit a 320 px phone and a desktop without overflowing.
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:what_dish_to_cook_today/app.dart';
+import 'package:what_dish_to_cook_today/i18n/i18n.dart';
+
+Widget buildApp() {
+  return BoardApp(catalogues: {
+    'en': I18n(const {
+      'nav.dishes': 'Dishes',
+      'nav.homemade': 'Homemade',
+      'nav.ingredients': 'Ingredients',
+      'nav.about': 'About',
+      'nav.searchPlaceholder': 'Search dishes',
+      'common.search': 'Search',
+      'theme.label': 'Theme',
+      'footer.browse': 'Browse',
+      'footer.rights': '© {year}',
+    }),
+    'vi': I18n(const {}),
+  });
+}
+
+void main() {
+  testWidgets('phone width shows brand and all four links', (tester) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    await tester.pumpWidget(buildApp());
+    await tester.pump();
+
+    expect(find.text('What dish to cook today?'), findsWidgets);
+    expect(find.text('Dishes'), findsWidgets);
+    expect(find.text('Homemade'), findsWidgets);
+    expect(find.text('Ingredients'), findsWidgets);
+    expect(find.text('About'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('desktop width keeps the same links and the search field', (tester) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    await tester.pumpWidget(buildApp());
+    await tester.pump();
+
+    expect(find.text('What dish to cook today?'), findsWidgets);
+    expect(find.text('Dishes'), findsWidgets);
+    expect(find.text('Home'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+}

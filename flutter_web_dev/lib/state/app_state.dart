@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 
+import '../api/api_client.dart';
 import '../i18n/i18n.dart';
+import '../storages/app_storage.dart';
 
 ///A chosen ingredient; the API model converts into this so the state layer
 ///does not depend on the network models.
@@ -19,11 +21,16 @@ class AppState extends ChangeNotifier {
     Map<String, I18n>? catalogues,
     String locale = 'en',
     bool isLight = false,
+    ApiClient? api,
   })  : catalogues = catalogues ?? <String, I18n>{},
+        _api = api,
         _locale = locale,
         _isLight = isLight;
 
   final Map<String, I18n> catalogues;
+  ApiClient? _api;
+
+  ApiClient get api => _api ??= ApiClient(AppStorage.serverUrl);
   final List<BasketItem> _basket = <BasketItem>[];
 
   String _locale;
@@ -42,6 +49,11 @@ class AppState extends ChangeNotifier {
       return;
     }
     _locale = value;
+    notifyListeners();
+  }
+
+  void applyCatalogues(Map<String, I18n> loaded) {
+    catalogues.addAll(loaded);
     notifyListeners();
   }
 
