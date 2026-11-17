@@ -82,5 +82,5 @@ can be picked up without re-reading the codebase.
 
 ## Flutter client
 
-19. **Flutter has no editors yet.** Phases 1 and 2 cover browsing plus sign-in, sign-up, profile, comments and votes. Dish and ingredient editors, uploads and translation remain Vue-only (Phase 3).
+19. **Flutter editors are new and lightly exercised.** Phase 3 adds dish and ingredient create/edit, uploads, drag-and-drop, blocks and the translation toggle. The file picker and drag-and-drop were not exercised in a real browser; only unit and widget tests cover the upload path.
 20. **Flutter layout is untested in a real browser.** The build is served at /flutter/ and all widget tests pass, but no browser render was captured for this pass. Check /flutter/ at 320 px and 1440 px before claiming parity.

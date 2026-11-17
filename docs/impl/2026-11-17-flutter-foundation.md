@@ -85,6 +85,15 @@ Rulings in Phase 2:
 - `flutter_localizations` was not added; English uses `MaterialLocalizations`, Vietnamese uses day/month/year order.
 - Auth failures show `auth.failed` from the catalogue in every locale instead of the server's English sentence.
 
+## Phase 3 — editors
+
+- New dependencies: file_picker and desktop_drop; multipart uploads and translation through EditorApi.
+- Shared widgets: EditorImageField (pick or drop, 5 MB and PNG/JPEG checks before reading), BlocksEditor (text/image blocks, both languages, formatting, reorder, delete, Vue JSON shape), translation on blur with the overwrite guard.
+- Screens: dish editor (create dish or post an edit, ingredient picker, cover and extra images, blocks) and ingredient editor (type, images, blocks). Both require a session and return to the page after sign-in.
+- Routes `/dish-edit` and `/ingredient-edit`; New dish and New ingredient entries for signed-in users.
+- Review fixes: image blocks serialise src and image-only keys, stable block ids, controllers isolated per field, add-image appends against the current list, server projections for ingredient name_vi/type/short_detail_vi, create forwards images and blocks, save responses checked before navigation, 401s return to sign-in with a next route.
+- Deferred: block translation errors are silent (the English text stays usable), and upload progress is a busy label rather than a bar.
+
 Whole-branch review fixes:
 
 - Boot route now comes from `Uri.base` with the `/flutter` prefix stripped, so `/flutter/profile` reloads as the profile instead of silently becoming home.
