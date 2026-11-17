@@ -22,31 +22,32 @@ class EditorApi {
 
     final request = http.MultipartRequest('POST', client.uriFor('/api/gallery_upload/temporary'));
     request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
-    final response = await client.send(request);
-    final raw = await response.stream.toBytes();
-    String body;
+    http.StreamedResponse response;
     try {
-      body = utf8.decode(raw, allowMalformed: true);
-    } catch (_) {
-      body = '';
+      response = await client.send(request);
+    } on http.ClientException catch (error) {
+      throw EditorException('upload', serverMessage: error.message);
     }
+
+    final raw = await response.stream.toBytes();
+    final body = utf8.decode(raw, allowMalformed: true);
     dynamic decoded;
     try {
       decoded = json.decode(body);
     } catch (_) {
       decoded = null;
     }
-    final serverMessage = decoded is Map ? (decoded['status'] ?? decoded['message'])?.toString() : null;
+    final message = _serverMessage(decoded);
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw EditorException('upload', statusCode: response.statusCode, serverMessage: serverMessage);
+      throw EditorException('upload', statusCode: response.statusCode, serverMessage: message);
     }
     if (decoded is Map && decoded['isSuccess'] == false) {
-      throw EditorException('upload', statusCode: response.statusCode, serverMessage: serverMessage);
+      throw EditorException('upload', statusCode: response.statusCode, serverMessage: message);
     }
     final path = decoded is Map ? decoded['path'] : null;
     if (path is! String || path.isEmpty) {
-      throw EditorException('upload', statusCode: response.statusCode, serverMessage: serverMessage);
+      throw EditorException('upload', serverMessage: message);
     }
     return path;
   }
@@ -61,12 +62,22 @@ class EditorApi {
       });
     } on ApiException catch (error) {
       throw EditorException('translate', statusCode: error.statusCode, serverMessage: error.message);
+    } on http.ClientException catch (error) {
+      throw EditorException('translate', serverMessage: error.message);
     }
     final value = payload is Map ? payload['text'] : null;
     if (value is! String || value.isEmpty) {
       throw EditorException('translate');
     }
     return value;
+  }
+
+  String? _serverMessage(dynamic decoded) {
+    if (decoded is! Map) {
+      return null;
+    }
+    final value = decoded['status'] ?? decoded['message'] ?? decoded['detail'];
+    return value?.toString();
   }
 }
 
@@ -80,5 +91,5 @@ class EditorException implements Exception {
   bool get isUnauthorised => statusCode == 401;
 
   @override
-  String toString() => kind;
+  String toString() => serverMessage == null ? kind : '$kind: $serverMessage';
 }
