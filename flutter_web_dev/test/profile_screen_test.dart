@@ -1,0 +1,180 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:what_dish_to_cook_today/api/api_client.dart';
+import 'package:what_dish_to_cook_today/i18n/i18n.dart';
+import 'package:what_dish_to_cook_today/screens/profile_screen.dart';
+import 'package:what_dish_to_cook_today/state/app_state.dart';
+import 'package:what_dish_to_cook_today/theme/app_theme.dart';
+import 'package:what_dish_to_cook_today/theme/tokens.dart';
+import 'package:what_dish_to_cook_today/widgets/board_card.dart';
+
+const _catalogue = {
+  'profile.title': 'Profile',
+  'profile.joined': 'Joined {date}',
+  'profile.myDishes': 'My dishes',
+  'profile.myIngredients': 'My ingredients',
+  'profile.noPosts': 'You have not written anything yet.',
+  'profile.best': 'Best',
+  'nav.signOut': 'Sign out',
+  'nav.signIn': 'Sign in',
+  'nav.signUp': 'Sign up',
+  'nav.dishes': 'Dishes',
+  'nav.homemade': 'Homemade',
+  'nav.ingredients': 'Ingredients',
+  'nav.about': 'About',
+  'nav.searchPlaceholder': 'Search',
+  'common.loading': 'Loading',
+  'common.errorBody': 'Something went wrong.',
+  'common.retry': 'Retry',
+  'footer.browse': 'Browse',
+  'footer.rights': '{year}',
+};
+
+http.Response _ok(Object body) {
+  return http.Response(json.encode(body), 200,
+      headers: {'content-type': 'application/json; charset=utf-8'});
+}
+
+ApiClient _api({List<String>? calls, bool failMine = false, int failMineTimes = 0, bool noJoined = false, Future<http.Response>? delayedMe}) {
+  var mineFailures = 0;
+  return ApiClient('http://test', client: MockClient((request) async {
+    calls?.add('${request.method} ${request.url.path}');
+    final path = request.url.path;
+    if (path == '/api/auth/me') {
+      if (delayedMe != null) {
+        return delayedMe;
+      }
+      return _ok({
+        'user': noJoined
+            ? {'id': 'u1', 'username': 'demo', 'email': 'demo@example.com'}
+            : {'id': 'u1', 'username': 'demo', 'email': 'demo@example.com', 'created_at': '2024-05-01T00:00:00.000Z'}
+      });
+    }
+    if (failMine || mineFailures < failMineTimes) {
+      mineFailures += 1;
+      return http.Response(json.encode({'message': 'boom'}), 500,
+          headers: {'content-type': 'application/json; charset=utf-8'});
+    }
+    if (path == '/api/dish/profile/mine') {
+      return _ok({
+        'isSuccess': true,
+        'data': [
+          {'id': 'd1', 'name': 'Beef noodle soup', 'name_vi': 'Phở bò', 'is_best_post': true}
+        ]
+      });
+    }
+    if (path == '/api/ingredient/profile/mine') {
+      return _ok({
+        'isSuccess': true,
+        'data': [
+          {'id': 'i1', 'name': 'Ginger', 'name_vi': 'Gừng', 'is_best_post': false}
+        ]
+      });
+    }
+    return _ok({'isSuccess': true, 'data': []});
+  }));
+}
+
+Future<void> _pumpProfile(WidgetTester tester, ApiClient api, {bool warm = true}) async {
+  final state = AppState(
+    catalogues: {'en': I18n(_catalogue), 'vi': I18n(const {})},
+    api: api,
+  );
+  if (warm) {
+    await state.refreshAccount();
+  }
+
+  await tester.pumpWidget(AppScope(
+    state: state,
+    child: MaterialApp(
+      theme: boardTheme(BoardTokens.dark),
+      initialRoute: '/profile',
+      onGenerateRoute: (settings) => MaterialPageRoute(
+        builder: (_) {
+          if (settings.name == '/') {
+            return const Scaffold(body: Text('home-route'));
+          }
+          if (settings.name == '/profile') {
+            return const ProfileScreen();
+          }
+          return const Scaffold(body: Text('signin-route'));
+        },
+      ),
+    ),
+  ));
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  testWidgets('profile lists the account, dishes and ingredients, then signs out', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    final calls = <String>[];
+    await _pumpProfile(tester, _api(calls: calls));
+
+    expect(find.text('demo'), findsWidgets);
+    expect(find.text('Joined May 1, 2024'), findsOneWidget);
+    expect(find.text('Beef noodle soup'), findsOneWidget);
+    expect(find.text('Best'), findsOneWidget);
+    expect(find.text('Ginger'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(BoardButton, 'Sign out'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('home-route'), findsOneWidget);
+    expect(calls, contains('POST /api/auth/signout'));
+  });
+
+  testWidgets('a failed list load shows the error and a retry', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    await _pumpProfile(tester, _api(failMine: true));
+
+    expect(find.text('Something went wrong.'), findsOneWidget);
+    expect(find.widgetWithText(BoardButton, 'Retry'), findsOneWidget);
+    expect(find.text('You have not written anything yet.'), findsNothing);
+  });
+
+  testWidgets('a missing joined date hides the line', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    await _pumpProfile(tester, _api(noJoined: true));
+
+    expect(find.textContaining('Joined'), findsNothing);
+    expect(find.text('Beef noodle soup'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('a slow /auth/me still shows the profile instead of bouncing to sign-in', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    final completer = Completer<http.Response>();
+    await _pumpProfile(tester, _api(delayedMe: completer.future), warm: false);
+
+    completer.complete(_ok({
+      'user': {'id': 'u1', 'username': 'demo'}
+    }));
+    await tester.pumpAndSettle();
+
+    expect(find.text('signin-route'), findsNothing);
+    expect(find.text('demo'), findsWidgets);
+    expect(find.text('Beef noodle soup'), findsOneWidget);
+  });
+
+  testWidgets('retry recovers the lists after a failure', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    await _pumpProfile(tester, _api(failMineTimes: 2));
+
+    expect(find.text('Something went wrong.'), findsOneWidget);
+    await tester.tap(find.widgetWithText(BoardButton, 'Retry'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Beef noodle soup'), findsOneWidget);
+    expect(find.text('Something went wrong.'), findsNothing);
+  });
+}

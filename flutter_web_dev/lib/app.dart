@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
@@ -10,6 +11,9 @@ import 'screens/home_screen.dart';
 import 'screens/homemade_screen.dart';
 import 'screens/ingredient_detail_screen.dart';
 import 'screens/ingredients_screen.dart';
+import 'screens/profile_screen.dart';
+import 'screens/signin_screen.dart';
+import 'screens/signup_screen.dart';
 import 'state/app_state.dart';
 import 'storages/app_storage.dart';
 import 'theme/app_theme.dart';
@@ -35,6 +39,7 @@ class _BoardAppState extends State<BoardApp> {
   void initState() {
     super.initState();
     _state = AppState(catalogues: widget.catalogues, api: widget.api);
+    _state.refreshAccount();
     if (widget.catalogues == null) {
       _loading = true;
       _loadCatalogues();
@@ -92,12 +97,28 @@ class _BoardAppState extends State<BoardApp> {
             debugShowCheckedModeBanner: false,
             theme: theme,
             scrollBehavior: const _BoardScrollBehavior(),
-            initialRoute: '/',
+            initialRoute: _initialRoute(),
             onGenerateRoute: _generateRoute,
           );
         },
       ),
     );
+  }
+
+  String _initialRoute() {
+    if (!kIsWeb) {
+      return '/';
+    }
+    var path = Uri.base.path;
+    const base = '/flutter';
+    if (path == base || path.startsWith('$base/')) {
+      path = path.substring(base.length);
+    }
+    if (path.isEmpty) {
+      path = '/';
+    }
+    final query = Uri.base.query;
+    return query.isEmpty ? path : '$path?$query';
   }
 
   Route<dynamic> _generateRoute(RouteSettings settings) {
@@ -143,6 +164,15 @@ class _BoardAppState extends State<BoardApp> {
         break;
       case '/about':
         page = const AboutScreen();
+        break;
+      case '/signin':
+        page = const SignInScreen();
+        break;
+      case '/signup':
+        page = const SignUpScreen();
+        break;
+      case '/profile':
+        page = const ProfileScreen();
         break;
       default:
         page = const HomeScreen();

@@ -88,6 +88,8 @@ class _NavBarState extends State<NavBar> {
                   const _LanguageButton(code: 'vi', label: 'VI'),
                   const SizedBox(width: 4),
                   _ThemeButton(),
+                  const SizedBox(width: 4),
+                  _AccountEntry(showName: constraints.maxWidth >= 1024, onProfile: widget.active == '/profile'),
                 ],
               );
 
@@ -233,6 +235,114 @@ class _ThemeButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+///Guest sees a sign-in icon (plus Sign up on wide screens); a session shows
+///the profile entry and Sign out.
+class _AccountEntry extends StatelessWidget {
+  const _AccountEntry({required this.showName, required this.onProfile});
+
+  final bool showName;
+  final bool onProfile;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppScope.of(context);
+    final tokens = BoardTokens.of(state.isLight);
+    void go(String path) => Navigator.pushNamed(context, path);
+
+    if (!state.isSignedIn) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Tooltip(
+            message: state.t('nav.signIn'),
+            child: InkWell(
+              onTap: () {
+              if (ModalRoute.of(context)?.settings.name == '/signin') {
+                return;
+              }
+              go('/signin');
+            },
+              child: Container(
+                height: 26,
+                padding: EdgeInsets.symmetric(horizontal: showName ? 8 : 0),
+                width: showName ? null : 30,
+                decoration: BoxDecoration(border: Border.all(color: tokens.line), borderRadius: BorderRadius.circular(BoardTokens.radius)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.person_outline, size: 14, color: tokens.ink),
+                    if (showName) ...[
+                      const SizedBox(width: 6),
+                      Text(state.t('nav.signIn'), style: TextStyle(fontSize: 13, color: tokens.ink)),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (showName) ...[
+            const SizedBox(width: 10),
+            InkWell(
+              onTap: () => go('/signup'),
+              child: Text(state.t('nav.signUp'), style: TextStyle(fontSize: 13, color: tokens.ink)),
+            ),
+          ],
+        ],
+      );
+    }
+
+    final username = state.account?.username ?? state.t('nav.profile');
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Tooltip(
+          message: username,
+          child: InkWell(
+            key: const ValueKey('account-entry'),
+            onTap: () => go('/profile'),
+            child: Container(
+              height: 26,
+              padding: EdgeInsets.symmetric(horizontal: showName ? 8 : 0),
+              width: showName ? null : 30,
+              decoration: BoxDecoration(border: Border.all(color: tokens.line), borderRadius: BorderRadius.circular(BoardTokens.radius)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.person_outline, size: 14, color: tokens.ink),
+                  if (showName) ...[
+                    const SizedBox(width: 6),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 180),
+                      child: Text(
+                        username,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, color: tokens.ink),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (showName) ...[
+          const SizedBox(width: 10),
+          InkWell(
+            onTap: () async {
+              await state.signOut();
+              if (context.mounted && onProfile) {
+                Navigator.pushReplacementNamed(context, '/');
+              }
+            },
+            child: Text(state.t('nav.signOut'), style: TextStyle(fontSize: 13, color: tokens.dim)),
+          ),
+        ],
+      ],
     );
   }
 }

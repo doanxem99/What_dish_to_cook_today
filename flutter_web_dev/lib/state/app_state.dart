@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../api/api_client.dart';
+import '../api/models.dart';
 import '../i18n/i18n.dart';
 import '../storages/app_storage.dart';
 
@@ -79,6 +80,75 @@ class AppState extends ChangeNotifier {
 
   void toggleTheme() {
     _isLight = !_isLight;
+    notifyListeners();
+  }
+
+  Account? _account;
+  bool _loadingAccount = false;
+  int _accountRequest = 0;
+
+  Account? get account => _account;
+  bool get isSignedIn => _account != null;
+  bool get loadingAccount => _loadingAccount;
+
+  ///A missing or expired cookie means guest; it must never block browsing.
+  Future<void> refreshAccount() async {
+    final request = ++_accountRequest;
+    _loadingAccount = true;
+    notifyListeners();
+    Account? loaded;
+    try {
+      final payload = await api.getJson('/api/auth/me');
+      final user = payload is Map ? payload['user'] : null;
+      loaded = user is Map ? Account.fromJson(user) : null;
+    } catch (_) {
+      loaded = null;
+    }
+    //A slower request that started before a sign-in must not clear the session.
+    if (request == _accountRequest) {
+      _account = loaded;
+    }
+    _loadingAccount = false;
+    notifyListeners();
+  }
+
+  Future<String?> signIn(String username, String password) async {
+    try {
+      await api.postJson('/api/auth/signin', {'username': username, 'password': password});
+    } on ApiException {
+      //Server messages are English only; the catalogue owns user-facing copy.
+      return t('auth.failed');
+    } catch (_) {
+      return t('auth.failed');
+    }
+    await refreshAccount();
+    return _account == null ? t('auth.failed') : null;
+  }
+
+  Future<String?> signUp(String username, String email, String password) async {
+    try {
+      await api.postJson('/api/auth/signup', {
+        'username': username,
+        'email': email,
+        'password': password,
+      });
+    } on ApiException {
+      //Server messages are English only; the catalogue owns user-facing copy.
+      return t('auth.failed');
+    } catch (_) {
+      return t('auth.failed');
+    }
+    return signIn(username, password);
+  }
+
+  Future<void> signOut() async {
+    try {
+      await api.postJson('/api/auth/signout', const {});
+    } catch (_) {
+      //Even if the server is unreachable, drop the local session.
+    }
+    _accountRequest += 1;
+    _account = null;
     notifyListeners();
   }
 

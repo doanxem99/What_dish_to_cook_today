@@ -176,6 +176,7 @@ class DishPost {
     this.image = '',
     this.extraImages = const [],
     this.blocks = const [],
+    this.points = 0,
     this.ingredientIds = const [],
   });
 
@@ -188,6 +189,7 @@ class DishPost {
   final String image;
   final List<String> extraImages;
   final List<DisplayBlock> blocks;
+  final int points;
   final List<String> ingredientIds;
 
   factory DishPost.fromJson(dynamic json, {String fallbackName = ''}) {
@@ -206,6 +208,7 @@ class DishPost {
       image: _text(json['profile_image']),
       extraImages: images is List ? images.map(_text).where((item) => item.isNotEmpty).toList() : [],
       blocks: DisplayBlock.listFromJson(json['display_blocks']),
+      points: _number(json['points']),
       ingredientIds: ingredientIds is List
           ? ingredientIds.map(_ingredientId).where((item) => item.isNotEmpty).toList()
           : [],
@@ -246,4 +249,25 @@ class DishSummary {
   }
 
   String label(String locale) => I18n.label(nameVi, name, locale);
+}
+
+class Account {
+  const Account({required this.id, required this.username, this.email = '', this.createdAt = ''});
+
+  final String id;
+  final String username;
+  final String email;
+  final String createdAt;
+
+  factory Account.fromJson(dynamic json) {
+    if (json is! Map) {
+      return const Account(id: '', username: '');
+    }
+    return Account(
+      id: _text(json['id'] ?? json['_id']),
+      username: _text(json['username']),
+      email: _text(json['email']),
+      createdAt: _text(json['created_at']),
+    );
+  }
 }
