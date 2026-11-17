@@ -92,3 +92,9 @@ Five findings from the independent review, all fixed and re-verified:
 - Touch targets are 30–34 px, not the 44 px accessibility guideline, to honour the owner's compact-density requirement.
 - At 320 px the brand drops to 12 px so brand plus four controls fit one line.
 - Tailwind `max-w-*` utilities are ignored on `.board` sections because unlayered CSS wins; the new `.board-*` classes replace them.
+
+## Header and grid refinements
+
+- Sign in / Sign up in the header: the text container used display: inline, which drops the 30 px height and vertical centring once the flex parent blockifies it. Now inline-flex with centring; both entries measure 83x30 and 66x30 at 1024 px and up.
+- Search field moved next to the language and theme buttons: desktop grid keeps the brand left with a 24 px margin, the search right-aligned against the tool group (16 px gap) and up to 360 px wide. Measured title gap 40 px at 640/768, 125 px at 1024, 196 px at 1440.
+- Dishes grid: equal column widths (318 px at 1024 with a 1024 px window), equal card heights, description clamped to two lines with ellipsis and the full text in the native tooltip via 	itle. Long text check: client 32 px, scroll 48 px, clamp 2.

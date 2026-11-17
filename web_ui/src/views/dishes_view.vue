@@ -44,6 +44,9 @@ export default {
       if (!Array.isArray(row.ingredients_detail)) return ''
       return row.ingredients_detail.map(item => this.localName(item)).join(' · ')
     },
+    detail(row) {
+      return (this.locale === 'vi' && row.short_detail_vi) ? row.short_detail_vi : (row.short_detail || '')
+    },
     image(path) { return path ? serverInfo.getFullPath(path) : '' },
     setView(view) {
       this.view = view
@@ -168,15 +171,15 @@ export default {
     </ul>
 
     <ul v-else class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      <li v-for="row in rows" :key="row.id">
-        <router-link class="ruled block overflow-hidden" :to="{ path: '/dish_detail', query: { dish_id: row.id } }">
+      <li v-for="row in rows" :key="row.id" class="flex">
+        <router-link class="ruled flex flex-col w-full overflow-hidden" :to="{ path: '/dish_detail', query: { dish_id: row.id } }">
           <img
             v-if="row.profile_image"
             class="w-full h-36 object-cover"
             :src="image(row.profile_image)"
             alt=""
           />
-          <div class="p-3">
+          <div class="p-3 flex-1">
             <div class="flex items-center gap-2">
               <span class="lamp" :class="lampClass(row)" aria-hidden="true"></span>
               <span class="font-bold">{{ localName(row) }}</span>
@@ -184,8 +187,8 @@ export default {
                 {{ row.match_count }}/{{ row.total_ingredients }}
               </span>
             </div>
-            <p class="text-xs mt-1" style="color: var(--board-dim)">
-              {{ locale === 'vi' && row.short_detail_vi ? row.short_detail_vi : row.short_detail }}
+            <p class="text-xs mt-1 line-clamp-2" :title="detail(row)" style="color: var(--board-dim)">
+              {{ detail(row) }}
             </p>
           </div>
         </router-link>
