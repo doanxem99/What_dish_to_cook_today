@@ -68,6 +68,23 @@ See the plan's per-task Interfaces blocks. Additions decided during implementati
 - No browser tool was available in this session; the Flutter app was not rendered in a real browser. Verification is unit/widget tests plus HTTP checks of the built shell. Layout at 320 and wide desktop is exercised only by widget tests.
 - The service worker and canvaskit are served, but first-load rendering, drag scrolling and deep-link history behaviour are unverified.
 
+## Phase 2 — account
+
+Shipped: credentialed web requests (`BrowserClient` with cookies behind a lib-condition import), `/auth/me` boot check, sign-in, sign-up, sign-out, header account entry, profile with joined date and my lists, comment compose/delete, votes with server counts.
+
+- Tests: 48 total; Phase 2 adds account state, sign-in form, profile guard, profile screen, delayed-session and comment/vote cases.
+- Analyzer: 58, unchanged from the Phase 1 baseline.
+- Build: `flutter build web --base-href /flutter/` green; `/flutter/`, `/flutter/signin`, `/flutter/profile`, `/flutter/dishes` answer 200; Vue and API unchanged.
+
+Rulings in Phase 2:
+
+- No server change to seed `voted` on the dish post. Vue also starts unvoted, so a returning voter's first tap removes the vote in both clients; changing it needs a server field and a Vue change together.
+- The vote control stays visible to guests and routes them to sign-in, matching Vue's disabled button plus sign-in link.
+- Comment length relies on the input's 1000 grapheme cap plus the server's 400, which surfaces as the inline error; no extra code-point count.
+- Sign-out from the header on the profile returns home; the profile's own Sign out also goes home. Session loss elsewhere sends the guest to sign-in with a `next` route back to the page.
+- `flutter_localizations` was not added; English uses `MaterialLocalizations`, Vietnamese uses day/month/year order.
+
+
 ## Final review fixes
 
 Independent review found 1 critical, 11 warnings and 1 nit. Fixed and re-verified:

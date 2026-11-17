@@ -82,5 +82,5 @@ can be picked up without re-reading the codebase.
 
 ## Flutter client
 
-19. **Flutter has read-only parity only.** Phase 1 covers the shell, home picker, dishes list/grid, dish detail, ingredients, homemade and about. Sign-in, profile, comments, votes and both editors are still Vue-only. The Flutter header has no account entry until Phase 2.
+19. **Flutter has no editors yet.** Phases 1 and 2 cover browsing plus sign-in, sign-up, profile, comments and votes. Dish and ingredient editors, uploads and translation remain Vue-only (Phase 3).
 20. **Flutter layout is untested in a real browser.** The build is served at /flutter/ and all widget tests pass, but no browser render was captured for this pass. Check /flutter/ at 320 px and 1440 px before claiming parity.
