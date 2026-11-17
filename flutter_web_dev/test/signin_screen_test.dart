@@ -78,4 +78,51 @@ void main() {
 
     expect(find.text('User/email or password is not correct!'), findsOneWidget);
   });
+
+  testWidgets('a sign-in that started at /profile returns there', (tester) async {
+    final api = ApiClient('http://test', client: MockClient((request) async {
+      if (request.url.path == '/api/auth/me') {
+        return http.Response(
+            json.encode({
+              'user': {'id': 'u1', 'username': 'demo'}
+            }),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'});
+      }
+      return http.Response(json.encode({'message': 'ok'}), 200,
+          headers: {'content-type': 'application/json; charset=utf-8'});
+    }));
+    final state = AppState(
+      catalogues: {'en': I18n(_catalogue), 'vi': I18n(_catalogue)},
+      api: api,
+    );
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+
+    await tester.pumpWidget(AppScope(
+      state: state,
+      child: MaterialApp(
+        theme: boardTheme(BoardTokens.dark),
+        initialRoute: '/signin',
+        onGenerateRoute: (settings) {
+          if (settings.name == '/signin') {
+            return MaterialPageRoute(
+              settings: const RouteSettings(name: '/signin', arguments: {'next': '/profile'}),
+              builder: (_) => const SignInScreen(),
+            );
+          }
+          return MaterialPageRoute(
+            builder: (_) => Scaffold(body: Text('${settings.name}-route')),
+          );
+        },
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('signin-username')), 'demo');
+    await tester.enterText(find.byKey(const ValueKey('signin-password')), 'pw');
+    await tester.tap(find.byKey(const ValueKey('signin-submit')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('/profile-route'), findsOneWidget);
+  });
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../api/api_client.dart';
 import '../i18n/i18n.dart';
 import '../shell/app_shell.dart';
 import '../state/app_state.dart';
@@ -17,7 +18,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Map<String, dynamic>> _dishes = const [];
   List<Map<String, dynamic>> _ingredients = const [];
   bool _loading = true;
+  bool _failed = false;
   bool _started = false;
+  bool _redirecting = false;
 
   @override
   void didChangeDependencies() {
@@ -42,37 +45,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
     if (!state.isSignedIn) {
-      Navigator.pushReplacementNamed(context, '/signin');
+      _redirectToSignIn();
       return;
     }
     await _loadMine(state);
   }
 
+  void _redirectToSignIn() {
+    if (_redirecting) {
+      return;
+    }
+    _redirecting = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      Navigator.pushReplacementNamed(context, '/signin', arguments: {'next': '/profile'});
+    });
+  }
+
   Future<void> _loadMine(AppState state) async {
-    setState(() => _loading = true);
-    try {
-      final dishes = await state.api.getJson('/api/dish/profile/mine');
-      final ingredients = await state.api.getJson('/api/ingredient/profile/mine');
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _dishes = _rows(dishes);
-        _ingredients = _rows(ingredients);
-      });
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _dishes = const [];
-        _ingredients = const [];
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _loading = false);
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
+    var failed = false;
+
+    Future<List<dynamic>> safe(String path) async {
+      try {
+        final payload = await state.api.getJson(path);
+        return payload is List ? payload : const [];
+      } catch (error) {
+        failed = true;
+        if (error is ApiException) {
+          //An expired cookie must send the user to sign-in, not show empty lists.
+          await state.refreshAccount();
+        }
+        return const [];
       }
     }
+
+    final results = await Future.wait([
+      safe('/api/dish/profile/mine'),
+      safe('/api/ingredient/profile/mine'),
+    ]);
+    if (!mounted) {
+      return;
+    }
+    if (!state.isSignedIn) {
+      _redirectToSignIn();
+      return;
+    }
+    setState(() {
+      _dishes = _rows(results[0]);
+      _ingredients = _rows(results[1]);
+      _failed = failed;
+      _loading = false;
+    });
   }
 
   List<Map<String, dynamic>> _rows(dynamic payload) {
@@ -91,11 +120,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (date == null) {
       return '';
     }
-    return '${date.day}/${date.month}/${date.year}';
+    return MaterialLocalizations.of(context).formatShortDate(date.toLocal());
   }
 
   Future<void> _signOut() async {
     final state = AppScope.of(context);
+    //The guest guard would otherwise race this navigation to /signin.
+    _redirecting = true;
     await state.signOut();
     if (!mounted) {
       return;
@@ -107,6 +138,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
     final tokens = BoardTokens.of(state.isLight);
+    if (!state.isSignedIn && _started) {
+      _redirectToSignIn();
+    }
 
     return AppShell(
       active: '/profile',
@@ -120,7 +154,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(state.account?.username ?? state.t('profile.title'), style: Theme.of(context).textTheme.titleLarge),
+                    Text(
+                      state.account?.username ?? state.t('profile.title'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
                     if (_joined(state.account?.createdAt ?? '').isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
@@ -137,6 +176,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           if (_loading)
             Text(state.t('common.loading'), style: TextStyle(fontSize: 13, color: tokens.dim))
+          else if (_failed)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(state.t('common.errorBody'), style: TextStyle(fontSize: 13, color: tokens.dim)),
+                const SizedBox(height: 8),
+                BoardButton(label: state.t('common.retry'), onPressed: () => _loadMine(state)),
+              ],
+            )
           else
             LayoutBuilder(builder: (context, constraints) {
               final wide = constraints.maxWidth >= 1024;

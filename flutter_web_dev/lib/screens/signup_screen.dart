@@ -55,7 +55,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
       });
       return;
     }
-    Navigator.pushReplacementNamed(context, '/');
+    Navigator.pushReplacementNamed(context, _nextRoute());
+  }
+
+  String _nextRoute() {
+    final arguments = ModalRoute.of(context)?.settings.arguments;
+    if (arguments is Map && arguments['next'] is String) {
+      return arguments['next'] as String;
+    }
+    return '/';
   }
 
   @override
@@ -97,7 +105,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     Text(state.t('auth.haveAccount'), style: TextStyle(fontSize: 13, color: tokens.dim)),
                     const SizedBox(width: 6),
                     InkWell(
-                      onTap: () => Navigator.pushReplacementNamed(context, '/signin'),
+                      onTap: () => Navigator.pushReplacementNamed(context, '/signin', arguments: ModalRoute.of(context)?.settings.arguments),
                       child: Text(state.t('nav.signIn'), style: TextStyle(fontSize: 13, color: tokens.amber)),
                     ),
                   ],
