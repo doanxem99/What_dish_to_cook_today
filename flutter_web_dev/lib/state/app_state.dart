@@ -105,10 +105,9 @@ class AppState extends ChangeNotifier {
       loaded = null;
     }
     //A slower request that started before a sign-in must not clear the session.
-    if (request != _accountRequest) {
-      return;
+    if (request == _accountRequest) {
+      _account = loaded;
     }
-    _account = loaded;
     _loadingAccount = false;
     notifyListeners();
   }
@@ -116,8 +115,9 @@ class AppState extends ChangeNotifier {
   Future<String?> signIn(String username, String password) async {
     try {
       await api.postJson('/api/auth/signin', {'username': username, 'password': password});
-    } on ApiException catch (error) {
-      return error.message;
+    } on ApiException {
+      //Server messages are English only; the catalogue owns user-facing copy.
+      return t('auth.failed');
     } catch (_) {
       return t('auth.failed');
     }
@@ -132,8 +132,9 @@ class AppState extends ChangeNotifier {
         'email': email,
         'password': password,
       });
-    } on ApiException catch (error) {
-      return error.message;
+    } on ApiException {
+      //Server messages are English only; the catalogue owns user-facing copy.
+      return t('auth.failed');
     } catch (_) {
       return t('auth.failed');
     }

@@ -260,7 +260,12 @@ class _AccountEntry extends StatelessWidget {
           Tooltip(
             message: state.t('nav.signIn'),
             child: InkWell(
-              onTap: () => go('/signin'),
+              onTap: () {
+              if (ModalRoute.of(context)?.settings.name == '/signin') {
+                return;
+              }
+              go('/signin');
+            },
               child: Container(
                 height: 26,
                 padding: EdgeInsets.symmetric(horizontal: showName ? 8 : 0),
@@ -297,6 +302,7 @@ class _AccountEntry extends StatelessWidget {
         Tooltip(
           message: username,
           child: InkWell(
+            key: const ValueKey('account-entry'),
             onTap: () => go('/profile'),
             child: Container(
               height: 26,

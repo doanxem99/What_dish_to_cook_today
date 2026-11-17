@@ -185,12 +185,16 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
       _commentError = false;
     });
     try {
-      await state.api.postJson('/api/dish/profile/comment/${post.id}', {'body': body});
+      final payload = await state.api.postJson('/api/dish/profile/comment/${post.id}', {'body': body});
       if (!mounted) {
         return;
       }
       _comment.clear();
-      if (!await _reloadComments() && mounted) {
+      final saved = payload is Map ? Map<String, dynamic>.from(payload) : null;
+      if (saved != null && saved['id'] != null && saved['body'] != null) {
+        //The POST answer is the comment itself; no second request can lose it.
+        setState(() => _comments = [..._comments, saved]);
+      } else if (!await _reloadComments() && mounted) {
         setState(() => _commentError = true);
       }
     } catch (error) {
@@ -238,8 +242,17 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
       if (error is ApiException && error.statusCode == 401) {
         await state.refreshAccount();
       }
-      if (mounted) {
-        setState(() => _commentError = true);
+      if (!mounted) {
+        return;
+      }
+      if (error is ApiException && error.statusCode == 404) {
+        //The row is already gone on the server; drop it here too.
+        setState(() => _comments = _comments.where((row) => row['id'] != comment['id']).toList());
+      } else {
+        await _reloadComments();
+        if (mounted) {
+          setState(() => _commentError = true);
+        }
       }
     } finally {
       if (mounted) {

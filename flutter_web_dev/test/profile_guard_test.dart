@@ -15,7 +15,21 @@ import 'package:what_dish_to_cook_today/theme/tokens.dart';
 
 const _catalogue = {
   'profile.title': 'Profile',
+  'home.title': 'What can I cook today?',
+  'home.subtitle': 'Start with what you have.',
+  'home.pickerTitle': 'Your ingredients',
+  'home.find': 'Find dishes',
+  'home.dishOfDay': 'Dish of the day',
+  'home.howTitle': 'How it works',
+  'home.how1': 'Pick',
+  'home.how2': 'Compare',
+  'home.how3': 'Cook',
+  'profile.noPosts': 'Nothing yet.',
+  'profile.myDishes': 'My dishes',
+  'profile.myIngredients': 'My ingredients',
+  'profile.best': 'Best',
   'nav.signIn': 'Sign in',
+  'nav.signOut': 'Sign out',
   'nav.signUp': 'Sign up',
   'nav.dishes': 'Dishes',
   'nav.homemade': 'Homemade',
@@ -92,5 +106,24 @@ void main() {
     expect(find.text('a-very-long-cook-name-for-header-checking'), findsNothing);
     expect(find.byIcon(Icons.person_outline), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+  testWidgets('header sign-out on the profile returns home', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 900);
+    await tester.pumpWidget(BoardApp(
+      catalogues: {'en': I18n(_catalogue), 'vi': I18n(const {})},
+      api: _memberApi(),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('account-entry')));
+    await tester.pumpAndSettle();
+    expect(find.text('a-very-long-cook-name-for-header-checking'), findsWidgets);
+
+    await tester.tap(find.text('Sign out').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('What can I cook today?'), findsOneWidget);
+    expect(find.text('signin-route'), findsNothing);
   });
 }

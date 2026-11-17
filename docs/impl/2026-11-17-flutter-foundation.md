@@ -83,6 +83,17 @@ Rulings in Phase 2:
 - Comment length relies on the input's 1000 grapheme cap plus the server's 400, which surfaces as the inline error; no extra code-point count.
 - Sign-out from the header on the profile returns home; the profile's own Sign out also goes home. Session loss elsewhere sends the guest to sign-in with a `next` route back to the page.
 - `flutter_localizations` was not added; English uses `MaterialLocalizations`, Vietnamese uses day/month/year order.
+- Auth failures show `auth.failed` from the catalogue in every locale instead of the server's English sentence.
+
+Whole-branch review fixes:
+
+- Boot route now comes from `Uri.base` with the `/flutter` prefix stripped, so `/flutter/profile` reloads as the profile instead of silently becoming home.
+- The profile guard only redirects while its route is current, so header sign-out lands on home; a widget test pins this.
+- A posted comment is appended from the POST answer, so a failed list refresh cannot lose it or prompt a duplicate.
+- A failed delete reloads the list; a 404 drops the row locally.
+- Guest header sign-in does not stack a second `/signin`.
+- A stale `/auth/me` answer no longer leaves the loading flag stuck.
+
 
 
 ## Final review fixes

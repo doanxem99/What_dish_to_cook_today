@@ -17,6 +17,7 @@ const _catalogue = {
   'auth.password': 'Password',
   'auth.submitSignIn': 'Sign in',
   'auth.invalid': 'Check the fields and try again.',
+  'auth.failed': 'Sign in failed. Check your username and password.',
   'auth.needAccount': 'New here?',
   'nav.signUp': 'Sign up',
   'nav.signIn': 'Sign in',
@@ -76,7 +77,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('signin-submit')));
     await tester.pumpAndSettle();
 
-    expect(find.text('User/email or password is not correct!'), findsOneWidget);
+    expect(find.text('Sign in failed. Check your username and password.'), findsOneWidget);
   });
 
   testWidgets('a sign-in that started at /profile returns there', (tester) async {

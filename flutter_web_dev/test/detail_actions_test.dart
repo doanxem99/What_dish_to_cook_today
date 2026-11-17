@@ -89,7 +89,10 @@ ApiClient _api({List<String>? calls, bool signedIn = false, bool withComment = f
       comments = [
         {'id': 'c1', 'username': 'demo', 'body': 'Lovely broth', 'is_mine': true}
       ];
-      return _ok({'status': 0, 'data': {'id': 'c1'}});
+      return _ok({
+        'status': 0,
+        'data': {'id': 'c1', 'username': 'demo', 'body': 'Lovely broth', 'is_mine': true}
+      });
     }
     if (path.startsWith('/api/dish/profile/vote/')) {
       voted = !voted;

@@ -63,6 +63,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) {
         return;
       }
+      //A sign-out navigates home; this screen is no longer current.
+      final route = ModalRoute.of(context);
+      if (route != null && !route.isCurrent) {
+        return;
+      }
       Navigator.pushReplacementNamed(context, '/signin', arguments: {'next': '/profile'});
     });
   }
@@ -151,7 +156,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
     final tokens = BoardTokens.of(state.isLight);
-    if (_checked && !state.isSignedIn && !_signingOut) {
+    final current = ModalRoute.of(context)?.isCurrent ?? true;
+    if (_checked && current && !state.isSignedIn && !_signingOut) {
       _redirectToSignIn();
     }
 

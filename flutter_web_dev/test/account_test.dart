@@ -48,7 +48,7 @@ void main() {
     final state = AppState(api: api);
     final error = await state.signIn('demo', 'wrong');
 
-    expect(error, 'User/email or password is not correct!');
+    expect(error, 'auth.failed');
     expect(state.isSignedIn, isFalse);
   });
 

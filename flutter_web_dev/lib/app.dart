@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
@@ -96,12 +97,28 @@ class _BoardAppState extends State<BoardApp> {
             debugShowCheckedModeBanner: false,
             theme: theme,
             scrollBehavior: const _BoardScrollBehavior(),
-            initialRoute: '/',
+            initialRoute: _initialRoute(),
             onGenerateRoute: _generateRoute,
           );
         },
       ),
     );
+  }
+
+  String _initialRoute() {
+    if (!kIsWeb) {
+      return '/';
+    }
+    var path = Uri.base.path;
+    const base = '/flutter';
+    if (path == base || path.startsWith('$base/')) {
+      path = path.substring(base.length);
+    }
+    if (path.isEmpty) {
+      path = '/';
+    }
+    final query = Uri.base.query;
+    return query.isEmpty ? path : '$path?$query';
   }
 
   Route<dynamic> _generateRoute(RouteSettings settings) {
