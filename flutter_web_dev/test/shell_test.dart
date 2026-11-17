@@ -1,3 +1,4 @@
+import 'dart:async';
 //The shell must fit a 320 px phone and a desktop without overflowing.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,7 +34,7 @@ Widget buildApp() {
 
 void main() {
   testWidgets('phone width shows brand and all four links', (tester) async {
-    tester.view.physicalSize = const Size(360, 640);
+    tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
     await tester.pumpWidget(buildApp());
     await tester.pump();
@@ -56,5 +57,22 @@ void main() {
     expect(find.text('Dishes'), findsWidgets);
     expect(find.text('Home'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+  testWidgets('waits for catalogues before the first screen', (tester) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    final completer = Completer<Map<String, I18n>>();
+    await tester.pumpWidget(BoardApp(catalogueLoader: () => completer.future));
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    completer.complete({
+      'en': I18n(const {'nav.dishes': 'Dishes'}),
+      'vi': I18n(const {}),
+    });
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('Dishes'), findsWidgets);
   });
 }

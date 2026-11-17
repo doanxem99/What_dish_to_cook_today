@@ -40,6 +40,8 @@ class _NavBarState extends State<NavBar> {
     if (path == widget.active) {
       return;
     }
+    //Vue's router pushes a new history entry per tap; Flutter matches so the
+    //browser back button walks the same trail.
     Navigator.pushNamed(context, path);
   }
 

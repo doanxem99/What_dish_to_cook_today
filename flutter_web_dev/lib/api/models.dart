@@ -206,8 +206,18 @@ class DishPost {
       image: _text(json['profile_image']),
       extraImages: images is List ? images.map(_text).where((item) => item.isNotEmpty).toList() : [],
       blocks: DisplayBlock.listFromJson(json['display_blocks']),
-      ingredientIds: ingredientIds is List ? ingredientIds.map(_text).where((item) => item.isNotEmpty).toList() : [],
+      ingredientIds: ingredientIds is List
+          ? ingredientIds.map(_ingredientId).where((item) => item.isNotEmpty).toList()
+          : [],
     );
+  }
+
+  ///The best-post answer sends ingredient objects, older answers send bare ids.
+  static String _ingredientId(dynamic value) {
+    if (value is Map) {
+      return _text(value['ingredient_id'] ?? value['id'] ?? value['_id']);
+    }
+    return _text(value);
   }
 
   String label(String locale) => I18n.label(nameVi, name, locale);

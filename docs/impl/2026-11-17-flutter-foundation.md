@@ -68,6 +68,24 @@ See the plan's per-task Interfaces blocks. Additions decided during implementati
 - No browser tool was available in this session; the Flutter app was not rendered in a real browser. Verification is unit/widget tests plus HTTP checks of the built shell. Layout at 320 and wide desktop is exercised only by widget tests.
 - The service worker and canvaskit are served, but first-load rendering, drag scrolling and deep-link history behaviour are unverified.
 
+## Final review fixes
+
+Independent review found 1 critical, 11 warnings and 1 nit. Fixed and re-verified:
+
+1. **Critical — stuck spinner in release:** the initial route was generated while the catalogues were loading and never regenerated. `build()` now returns a keyed loading `MaterialApp`, and the ready tree gets a fresh navigator after the catalogues land. New test `waits for catalogues before the first screen` pumps a deferred loader, sees the spinner, completes it, then sees the shell. The red state for that test was a compile error (no injectable loader), not a runtime failure — recorded.
+2. Catalogue failure fallback: `AppState.i18n` falls back to the other non-empty locale instead of returning an empty map and raw keys.
+3. Dish post ingredient ids: object entries from the best-post answer now read `ingredient_id`/`id`; test added.
+4. Detail: `mounted` guard before the empty-post `setState`, and an empty parsed post id is treated as not found. New test drives the `dishId` path with a null best post.
+5. Grid card width floored so rounding cannot wrap the last card; description test now asserts `maxLines: 2` and ellipsis.
+6. Match counter is intrinsic width with a 34 px minimum, one line and ellipsis.
+7. Tests: shell phone case now 320 px; loading branch covered.
+
+Rejected or deferred:
+
+- **Ruling:** nav taps keep `pushNamed` instead of the reviewer's `pushReplacementNamed`. Vue's router pushes one history entry per tap; replacing would remove browser-back out of a page the user arrived at through the nav. Cost if wrong: the back button needs one press per nav tap, same as Vue today.
+- **Deferred minor:** the footer prints `MIT` as a literal instead of the unused `footer.license` key and link. Not reachable without `url_launcher`, which this phase forbids.
+
+
 ## Accepted risks
 
 - No new dependencies; drag-and-drop and file upload wait for Phase 3.

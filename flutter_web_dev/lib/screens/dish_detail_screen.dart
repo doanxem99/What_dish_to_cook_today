@@ -51,6 +51,9 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
         }
       }
       if (postId.isEmpty) {
+        if (!mounted) {
+          return;
+        }
         setState(() {
           _post = null;
           _loading = false;
@@ -59,6 +62,16 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
       }
       final payload = await state.api.getJson('/api/dish/profile/get_dish_post/$postId');
       final post = DishPost.fromJson(payload, fallbackName: fallbackName);
+      if (post.id.isEmpty) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _post = null;
+          _loading = false;
+        });
+        return;
+      }
       var ingredients = <IngredientRef>[];
       if (post.ingredientIds.isNotEmpty) {
         final rows = await state.api.getJson('/api/ingredient/search/ids/${post.ingredientIds.join('-')}');

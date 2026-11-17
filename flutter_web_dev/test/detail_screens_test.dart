@@ -39,10 +39,17 @@ ApiClient _api({bool emptyHomemade = false}) {
     http.Response ok(Object body) => http.Response(json.encode(body), 200,
         headers: {'content-type': 'application/json; charset=utf-8'});
 
+    if (path.startsWith('/api/dish/profile/get_dish/')) {
+      return ok({
+        'status': 0,
+        'data': {'best_post_id': null, 'name': 'Stale dish'}
+      });
+    }
     if (path.startsWith('/api/dish/profile/get_dish_post/')) {
       return ok({
         'status': 0,
         'data': {
+          '_id': 'p1',
           'dish_id': 'd1',
           'name': 'Beef noodle soup',
           'short_detail': 'Broth',
@@ -98,6 +105,15 @@ void main() {
 
     expect(find.text('Nấu xương'), findsOneWidget);
     expect(find.text('Simmer the bones'), findsNothing);
+  });
+
+  testWidgets('dish id without a best post shows not found', (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    await tester.pumpWidget(_wrap(_state(_api()), const DishDetailScreen(dishId: 'd-stale')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dish not found'), findsOneWidget);
   });
 
   testWidgets('homemade row without a photo shows the placeholder', (tester) async {

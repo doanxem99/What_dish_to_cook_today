@@ -50,7 +50,17 @@ class AppState extends ChangeNotifier {
   }
   List<BasketItem> get basket => List.unmodifiable(_basket);
 
-  I18n get i18n => catalogues[_locale] ?? catalogues['en'] ?? I18n(const {});
+  I18n get i18n {
+    final current = catalogues[_locale];
+    if (current != null && current.messages.isNotEmpty) {
+      return current;
+    }
+    final other = catalogues[_locale == 'vi' ? 'en' : 'vi'];
+    if (other != null && other.messages.isNotEmpty) {
+      return other;
+    }
+    return I18n(const {});
+  }
 
   String t(String key, [Map<String, String>? params]) => i18n.t(key, params);
 

@@ -137,7 +137,7 @@ class _DishesScreenState extends State<DishesScreen> {
               final wide = constraints.maxWidth >= 640;
               if (state.view == 'grid') {
                 final columns = constraints.maxWidth >= 1024 ? 3 : (wide ? 2 : 1);
-                final cardWidth = (constraints.maxWidth - (columns - 1) * 12) / columns;
+                final cardWidth = ((constraints.maxWidth - (columns - 1) * 12) / columns).floorToDouble();
                 return Wrap(
                   spacing: 12,
                   runSpacing: 12,
@@ -199,10 +199,12 @@ class _DishesScreenState extends State<DishesScreen> {
             children: [
               MatchLamp(kind: _lamp(row)),
               const SizedBox(width: 8),
-              SizedBox(
-                width: 34,
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 34),
                 child: Text(
                   row.totalIngredients == 0 ? '' : '${row.matchCount}/${row.totalIngredients}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: tokens.ink),
                 ),
               ),

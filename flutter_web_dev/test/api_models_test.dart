@@ -82,4 +82,15 @@ void main() {
     expect(client.imageUrl('public/gallery/a.png'), 'http://localhost:3000/public/gallery/a.png');
     expect(client.imageUrl(''), '');
   });
+
+  test('dish post reads ingredient objects from the best-post answer', () {
+    final post = DishPost.fromJson({
+      'ingredients': [
+        {'ingredient_id': 'i1', 'name': 'Beef'},
+        'i2'
+      ]
+    });
+
+    expect(post.ingredientIds, ['i1', 'i2']);
+  });
 }

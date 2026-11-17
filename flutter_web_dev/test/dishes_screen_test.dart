@@ -110,5 +110,8 @@ void main() {
 
     expect(find.byKey(const ValueKey('card-d1')), findsOneWidget);
     expect(find.text('Long-simmered broth with aromatics and herbs.'), findsOneWidget);
+    final description = tester.widget<Text>(find.text('Long-simmered broth with aromatics and herbs.'));
+    expect(description.maxLines, 2);
+    expect(description.overflow, TextOverflow.ellipsis);
   });
 }

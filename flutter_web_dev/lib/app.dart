@@ -17,10 +17,11 @@ import 'theme/tokens.dart';
 
 ///Loads the shared catalogues once, then renders the board.
 class BoardApp extends StatefulWidget {
-  const BoardApp({super.key, this.catalogues, this.api});
+  const BoardApp({super.key, this.catalogues, this.api, this.catalogueLoader});
 
   final Map<String, I18n>? catalogues;
   final ApiClient? api;
+  final Future<Map<String, I18n>> Function()? catalogueLoader;
 
   @override
   State<BoardApp> createState() => _BoardAppState();
@@ -41,6 +42,17 @@ class _BoardAppState extends State<BoardApp> {
   }
 
   Future<void> _loadCatalogues() async {
+    final loaded = widget.catalogueLoader != null
+        ? await widget.catalogueLoader!()
+        : await _loadFromServer();
+    if (!mounted) {
+      return;
+    }
+    _state.applyCatalogues(loaded);
+    setState(() => _loading = false);
+  }
+
+  Future<Map<String, I18n>> _loadFromServer() async {
     final loaded = <String, I18n>{};
     for (final locale in ['en', 'vi']) {
       try {
@@ -50,40 +62,45 @@ class _BoardAppState extends State<BoardApp> {
         loaded[locale] = I18n(const {});
       }
     }
-    if (!mounted) {
-      return;
-    }
-    _state.applyCatalogues(loaded);
-    setState(() => _loading = false);
+    return loaded;
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = boardTheme(BoardTokens.of(_state.isLight));
     return AppScope(
       state: _state,
       child: ListenableBuilder(
         listenable: _state,
-        builder: (context, _) => MaterialApp(
-          title: 'What dish to cook today?',
-          debugShowCheckedModeBanner: false,
-          theme: boardTheme(BoardTokens.of(_state.isLight)),
-          scrollBehavior: const _BoardScrollBehavior(),
-          initialRoute: '/',
-          onGenerateRoute: _generateRoute,
-        ),
+        builder: (context, _) {
+          if (_loading) {
+            //A separate key gives the ready tree its own Navigator, so the
+            //initial route is generated after the catalogues exist.
+            return MaterialApp(
+              key: const ValueKey('loading'),
+              debugShowCheckedModeBanner: false,
+              theme: theme,
+              home: Scaffold(
+                backgroundColor: BoardTokens.of(_state.isLight).bg,
+                body: const Center(child: CircularProgressIndicator()),
+              ),
+            );
+          }
+          return MaterialApp(
+            key: const ValueKey('ready'),
+            title: 'What dish to cook today?',
+            debugShowCheckedModeBanner: false,
+            theme: theme,
+            scrollBehavior: const _BoardScrollBehavior(),
+            initialRoute: '/',
+            onGenerateRoute: _generateRoute,
+          );
+        },
       ),
     );
   }
 
   Route<dynamic> _generateRoute(RouteSettings settings) {
-    if (_loading) {
-      //Catalogues arrive in one request each; the shell waits for them so the
-      //first paint never shows raw keys.
-      return MaterialPageRoute(
-        builder: (_) => const Scaffold(body: Center(child: CircularProgressIndicator())),
-        settings: settings,
-      );
-    }
     final uri = Uri.parse(settings.name ?? '/');
     final arguments = settings.arguments is Map
         ? Map<String, dynamic>.from(settings.arguments as Map)
