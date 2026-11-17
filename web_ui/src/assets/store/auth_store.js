@@ -56,11 +56,16 @@ export const useAuthStore = defineStore("auth", {
                 return false;
             }
         },
-        signOut() {
-            authAction.signout();
-            this.user = null;
-            this.isLogin = false;
-            Cookie.remove('user');
+        async signOut() {
+            try {
+                await authAction.signout()
+            } catch (error) {
+                //Clear local state even when the request fails
+            } finally {
+                this.user = null;
+                this.isLogin = false;
+                Cookie.remove('user');
+            }
         },
     }
 });

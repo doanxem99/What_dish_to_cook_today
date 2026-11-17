@@ -35,8 +35,7 @@ const router = createRouter({
     },
     {
       path: '/dish_selection',
-      name: 'dish_selection',
-      component: () => import('../views/dish_selection_view.vue')
+      redirect: '/'
     },
     {
       path: '/dish_detail',
@@ -49,7 +48,7 @@ const router = createRouter({
       component: () => import('../views/dish_edit_view.vue')
     },
     {
-      path: '/homemade_dishes',
+      path: '/homemade',
       name: 'homemade_dishes',
       component: () => import('../views/homemade_dishes_view.vue')
     },

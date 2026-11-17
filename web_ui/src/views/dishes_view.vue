@@ -1,89 +1,97 @@
 <script>
-  import { faPlus } from '@fortawesome/free-solid-svg-icons'
-  import preview_group from '../components/preview/preview_group.vue'
-  import dish_profile_generate from '../components/dish_profile_generate.vue'
+import { api } from '../api'
+import { useI18n } from '../i18n'
+import serverInfo from '../assets/js/server_info.js'
 
-  import dishServerAction from '../assets/js/dish_server_action.js'
-  import { useAuthStore } from '../assets/store/auth_store.js'
-  
-  export default{
-    components : {
-      preview_group,
-      dish_profile_generate,
+export default {
+  data() {
+    return { rows: [], loading: true, failed: false }
+  },
+  computed: {
+    t() { return useI18n().t },
+    locale() { return useI18n().locale.value },
+    query() { return this.$route.query.q || '' },
+    ingredientIds() { return this.$route.query.ingredients || '' },
+    heading() {
+      if (this.query) return this.t('dishes.resultsFor', { q: this.query })
+      if (this.ingredientIds) return this.t('home.find')
+      return this.t('dishes.title')
+    }
+  },
+  watch: {
+    '$route.query'() { this.load() }
+  },
+  mounted() { this.load() },
+  methods: {
+    localName(item) {
+      return (this.locale === 'vi' && item.name_vi) ? item.name_vi : item.name
     },
-    data() {
-      return {
-        dishsPreview : [],
-        isGenerateDish : false,
-        faPlus
+    image(path) {
+      return path ? serverInfo.getFullPath(path) : ''
+    },
+    async load() {
+      this.loading = true
+      this.failed = false
+      try {
+        let payload
+        if (this.ingredientIds) {
+          payload = await api.get(`/api/dish/selection/ingredients/${this.ingredientIds}`)
+          this.rows = payload && Array.isArray(payload.data) ? payload.data : []
+        } else if (this.query) {
+          payload = await api.get(`/api/dish/search/keyword/${encodeURIComponent(this.query)}`)
+          this.rows = Array.isArray(payload) ? payload : []
+        } else {
+          payload = await api.get('/api/dish/selection/')
+          this.rows = payload && Array.isArray(payload.data) ? payload.data : []
+        }
+      } catch (error) {
+        this.rows = []
+        this.failed = true
+      } finally {
+        this.loading = false
       }
-    },
-    methods : {
-      refeshPage : function(){
-        this.$router.go(0);
-      },
-      moveToDishDetail : function(_id){
-        this.$router.push({ path: '/dish_detail', query: { dish_id: _id }})
-      },
-      openDishGenerateBox : function(){
-        // Only login user can create dish
-        if(!useAuthStore().isLogin){
-          useAuthStore().errorMessage = "You must login to create new dish profile.";
-          useAuthStore().jumpPage = '/dishes';
-          this.$router.push({ path: '/signin' });
-          return;
-        }
-        this.isGenerateDish = true;
-      },
-      closeDishGenerateBox : function(){
-        this.isGenerateDish = false;
-      },
-    },
-    mounted : function(){
-      //Search dishs from server
-      dishServerAction.searchDishSelection("", (_response) => {
-        if(_response.isSuccess){
-          this.dishsPreview = _response.data;
-        }
-      });
     }
   }
+}
 </script>
 
 <template>
-  <main>
-    <div class="screen_view">
-      <div>
-        <div class="menu_title view_space">
-          <span>
-            <span class="small_font_size">
-              Group :
-            </span>
-            <select id="cars" class="small_font_size">
-              <option value="type" class="small_font_size">Type</option>
-              <option value="nation" class="small_font_size">Nation</option>
-            </select>
-          </span>
-          <span>
-            <span class="small_font_size">
-              Sort :
-            </span>
-            <select id="cars" class="small_font_size">
-              <option value="popularity" class="small_font_size">Popularity</option>
-              <option value="favorite" class="small_font_size">Favorite</option>
-              <option value="persional" class="small_font_size">Persional</option>
-            </select>
-          </span>
-        </div>
-        <preview_group title="National dishes" :datas = dishsPreview :onClick = "moveToDishDetail" />
-        <preview_group title="Foreign dishes" :datas = dishsPreview :onClick = "moveToDishDetail" />
-      </div>
+  <section class="board py-8">
+    <h1 class="board-title">{{ heading }}</h1>
+    <p class="board-sub">{{ t('dishes.subtitle') }}</p>
+
+    <p v-if="loading" class="state">{{ t('common.loading') }}</p>
+    <div v-else-if="failed" class="state">
+      <p>{{ t('common.errorTitle') }}</p>
+      <p class="text-sm">{{ t('common.errorBody') }}</p>
+      <button class="btn mt-3" type="button" @click="load">{{ t('common.retry') }}</button>
     </div>
-  </main>
-  <div class="floating_button" v-on:click="openDishGenerateBox">
-    <div class="w-full h-full flex justify-center items-center">
-      <font-awesome-icon bound size="2x" :icon="faPlus"/>
+    <div v-else-if="rows.length === 0" class="state">
+      <p>{{ query ? t('dishes.noMatches', { q: query }) : t('dishes.emptyCatalog') }}</p>
     </div>
-  </div>
-  <dish_profile_generate v-if="isGenerateDish" :onRefesh = "refeshPage" :onCancel = "closeDishGenerateBox" />
+
+    <ul v-else class="mt-4 ruled">
+      <li v-for="row in rows" :key="row.id" class="row-line">
+        <router-link
+          class="flex items-center gap-4 p-3"
+          :to="{ path: '/dish_detail', query: { dish_id: row.id } }"
+        >
+          <span class="lamp" :class="ingredientIds ? 'ok' : 'partial'" aria-hidden="true"></span>
+          <img
+            v-if="row.profile_image"
+            class="w-16 h-16 object-cover rounded"
+            :src="image(row.profile_image)"
+            alt=""
+          />
+          <span class="flex-1">
+            <span class="block font-bold text-lg">{{ localName(row) }}</span>
+            <span class="block text-sm" style="color: var(--board-dim)">
+              {{ locale === 'vi' && row.short_detail_vi ? row.short_detail_vi : row.short_detail }}
+            </span>
+          </span>
+          <span class="eyebrow">{{ t('common.edit') === 'Edit' ? 'OPEN' : 'MỞ' }}</span>
+        </router-link>
+      </li>
+    </ul>
+  </section>
 </template>
