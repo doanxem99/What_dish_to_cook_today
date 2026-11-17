@@ -26,7 +26,9 @@ require.cache[connectionPath] = {
                     captured.filter = filter;
                     return {
                         limit: async () => [
-                            { dish_id: 'd1', short_detail: 'Weeknight dinner', short_detail_vi: 'Bữa tối', profile_image: 'a.png' }
+                            { dish_id: 'd1', user_id: 'u9', short_detail: 'Weeknight dinner', short_detail_vi: 'Bữa tối', profile_image: 'a.png' },
+                            //A legacy post without an author must not appear as homemade
+                            { dish_id: 'd1', short_detail: 'No author', short_detail_vi: null, profile_image: 'b.png' }
                         ]
                     };
                 }
@@ -53,11 +55,13 @@ test('homemade lists best posts that are not from the seed admin', async () => {
 
         assert.strictEqual(response.status, 200);
         assert.strictEqual(body.isSuccess, true);
+        assert.strictEqual(body.data.length, 1);
         assert.strictEqual(body.data[0].id, 'd1');
         assert.strictEqual(body.data[0].name_vi, 'Cơm tô');
         assert.deepStrictEqual(captured.adminLookup, { username: 'moonshine@gmail.com' });
         assert.strictEqual(captured.filter.is_best_post, true);
-        assert.deepStrictEqual(captured.filter.user_id, { $nin: ['unknow', '507f1f77bcf86cd799439011'] });
+        assert.strictEqual(captured.filter.user_id.$exists, true);
+        assert.deepStrictEqual(captured.filter.user_id.$nin, ['unknow', '507f1f77bcf86cd799439011']);
     } finally {
         server.close();
     }

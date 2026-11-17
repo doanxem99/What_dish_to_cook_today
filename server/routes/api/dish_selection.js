@@ -53,12 +53,18 @@ const findHomemadeDishSelection = async function(){
         return [];
     }
 
+    const seedAdminId = seedAdmin._id.toString();
     const dishPosts = await database.collections.DishPost.find(
-        { is_best_post: true, user_id: { $nin: ['unknow', seedAdmin._id.toString()] } },
-        "dish_id short_detail short_detail_vi profile_image"
+        { is_best_post: true, user_id: { $exists: true, $nin: ['unknow', seedAdminId] } },
+        "dish_id user_id short_detail short_detail_vi profile_image"
     ).limit(10);
 
-    return toPreviews(dishPosts);
+    //Belt and braces: a legacy ObjectId-typed user id slips past the string filter
+    return toPreviews(dishPosts.filter(post =>
+        post.user_id != null &&
+        String(post.user_id) !== 'unknow' &&
+        String(post.user_id) !== seedAdminId
+    ));
 }
 
 router.get('/', async function(req, res){
