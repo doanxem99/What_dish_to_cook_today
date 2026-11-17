@@ -33,6 +33,9 @@ export default {
           source: fromKey === 'text' ? 'en' : 'vi',
           target: fromKey === 'text' ? 'vi' : 'en'
         })
+        //The block can be edited, reordered or removed while the request runs
+        const current = this.modelValue[index]
+        if (!current || current[fromKey] !== source || (current[toKey] && current[toKey].trim())) return
         const blocks = this.copy()
         blocks[index][toKey] = response.text
         this.emit(blocks)

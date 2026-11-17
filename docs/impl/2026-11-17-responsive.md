@@ -68,11 +68,23 @@ Screenshots could not be captured because the desktop window was not visible to 
 ## Rulings
 
 - Ledger workspace kept in `C:\Windows\Temp\opencode\responsive-ledger` instead of a git-ignored repo path, so the working tree stays clean.
-- Nav gap reduced to 12 px below 640 px: at 320 px the four links then fit without scrolling, so the keyboard-focus scroll check passes by not needing a scroll. Cost if wrong: 320 px still tight in another language.
+- Nav gap 8 px and 12 px link text below 640 px: Vietnamese labels (`Món ăn`, `Món nhà làm`, `Nguyên liệu`, `Giới thiệu`) measure 322 px at 13 px/10 px gap, over the 296 px available at 320 px. At 12 px/8 px they fit, so the nav no longer scrolls in either language. Cost if wrong: nav type is 12 px on phones only.
 - Brand link given `min-height: 30px`; its text is 13 px but the tap area meets the touch floor.
 - The header nav keeps `aria-label="Main"` in English, matching the existing footer `aria-label="Browse"`; no new bilingual keys were opened for landmark labels.
 - The inline "Sign up" sentence link stays 19 px tall; it sits inside prose where a larger box would break the line. Cost if wrong: a harder tap on one secondary link.
 - View-switch icon buttons stay 26×24 from 640 px up; the 30×30 floor applies to touch widths only.
+- Desktop keeps the 44 px match-count column (`.row-match` base rule); the phone override is 34 px.
+
+## Final review fixes
+
+Five findings from the independent review, all fixed and re-verified:
+
+1. Vietnamese nav overflow at 320 px: re-measured in `vi`, nav now fits (322 px → under 296 px with 12 px text and 8 px gap); keyboard focus on the last link stays inside the nav.
+2. Safe-area side insets: `.board` and the sub-400 header padding use `max(padding, env(safe-area-inset-left/right, 0px))` for landscape notch clearance.
+3. Focus ring clipping in the scroll container: `outline-offset: -2px` on nav links.
+4. Desktop match column: `.row-match { min-width: 44px }` restored at base, 34 px on phones.
+5. Block translation race: after the awaited request the editor re-checks that the block still exists, the source is unchanged and the target is still empty. Proven RED→GREEN in the live editor: with the guard disabled, typed Vietnamese was overwritten by `Đánh chín đậu phộng cho đến khi có mùi thơm.`; with the guard in place the typed text survives, and the normal empty-target path still translates.
+
 
 ## Accepted risks and limits
 
