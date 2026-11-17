@@ -1,7 +1,19 @@
 //Local demo stack: in-memory MongoDB, seeded catalog, then the real server.
 //For UI verification only. Never used in production.
 import { MongoMemoryServer } from 'mongodb-memory-server'
-import { INGREDIENTS, DISHES } from './seed-catalog.mjs'
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { INGREDIENTS } from './seed-catalog.mjs'
+import { DISHES } from './seed-dishes.mjs'
+
+const here = path.dirname(fileURLToPath(import.meta.url))
+let images = {}
+try {
+    images = JSON.parse(await fs.readFile(path.join(here, 'seed-images.json'), 'utf8'))
+} catch (error) {
+    images = {}
+}
 
 const mongod = await MongoMemoryServer.create({
     instance: { port: 27017, dbName: 'what_dish_to_cook_today' }
@@ -78,10 +90,8 @@ for (const dish of DISHES) {
         ingredients: dish.ingredients.map(name => ingredientIds[name]).filter(Boolean),
         short_detail: dish.detail,
         short_detail_vi: dish.detailVi,
-        profile_image: '',
-        display_blocks: [
-            { type: 'text', text: dish.block, text_vi: dish.blockVi, font_size: 14, color: 'black' }
-        ]
+        profile_image: images[dish.name] ? images[dish.name].file : '',
+        display_blocks: dish.steps.map(([text, textVi]) => ({ type: 'text', text, text_vi: textVi, font_size: 14, color: 'black' }))
     })
     dishDoc.best_post_id = post._id.toString()
     await dishDoc.save()

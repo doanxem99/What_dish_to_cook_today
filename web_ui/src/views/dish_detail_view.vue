@@ -197,6 +197,12 @@ export default {
             >{{ t('common.edit') }}</router-link>
           </div>
         </div>
+        <img
+          v-if="post.profile_image"
+          class="mt-4 w-full max-h-64 object-cover rounded"
+          :src="image(post.profile_image)"
+          alt=""
+        />
       </header>
 
       <section v-if="ingredients.length" class="ruled p-4 mt-4">

@@ -42,6 +42,7 @@ export const INGREDIENTS = [
     ['Rice flour', 'Bột gạo', 'Food', 'Batter base for bánh xèo', 'Nền bột cho bánh xèo']
 ]
 
+//Dish entries below are the original short set; the demo now reads DISHES from seed-dishes.mjs.
 export const DISHES = [
     {
         name: 'Beef noodle soup', nameVi: 'Phở bò',
