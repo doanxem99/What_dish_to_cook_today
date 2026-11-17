@@ -23,6 +23,25 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
   bool _loading = true;
   bool _failed = false;
   bool _started = false;
+  int _points = 0;
+  bool _voted = false;
+  bool _voteBusy = false;
+  bool _commentBusy = false;
+  bool _commentError = false;
+  late final TextEditingController _comment;
+
+  @override
+  void initState() {
+    super.initState();
+    _comment = TextEditingController();
+    _comment.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _comment.dispose();
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
@@ -91,6 +110,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
       }
       setState(() {
         _post = post;
+        _points = post.points;
         _ingredients = ingredients;
         _comments = comments;
       });
@@ -129,6 +149,111 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
         return TextAlign.right;
       default:
         return TextAlign.left;
+    }
+  }
+
+  Future<void> _reloadComments() async {
+    final state = AppScope.of(context);
+    final post = _post;
+    if (post == null) {
+      return;
+    }
+    try {
+      final rows = await state.api.getJson('/api/dish/profile/comments/${post.id}');
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _comments = rows is List ? rows.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList() : const [];
+      });
+    } catch (_) {
+      //The list keeps its last good state; the compose box reports its own errors.
+    }
+  }
+
+  Future<void> _submitComment() async {
+    final state = AppScope.of(context);
+    final post = _post;
+    final body = _comment.text.trim();
+    if (post == null || body.isEmpty || _commentBusy || body.length > 1000) {
+      return;
+    }
+    setState(() {
+      _commentBusy = true;
+      _commentError = false;
+    });
+    try {
+      await state.api.postJson('/api/dish/profile/comment/${post.id}', {'body': body});
+      _comment.clear();
+      await _reloadComments();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _commentError = true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _commentBusy = false);
+      }
+    }
+  }
+
+  Future<void> _deleteComment(Map<String, dynamic> comment) async {
+    final state = AppScope.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: Text(state.t('dish.commentDeleteConfirm')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: Text(state.t('common.cancel'))),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: Text(state.t('common.delete'))),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    try {
+      await state.api.deleteJson('/api/dish/profile/comment/${comment['id']}');
+      await _reloadComments();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _commentError = true);
+      }
+    }
+  }
+
+  Future<void> _vote() async {
+    final state = AppScope.of(context);
+    final post = _post;
+    if (post == null) {
+      return;
+    }
+    if (!state.isSignedIn) {
+      Navigator.pushReplacementNamed(context, '/signin');
+      return;
+    }
+    if (_voteBusy) {
+      return;
+    }
+    setState(() => _voteBusy = true);
+    try {
+      final payload = await state.api.postJson('/api/dish/profile/vote/${post.id}', const {});
+      if (!mounted) {
+        return;
+      }
+      final data = payload is Map ? payload : const {};
+      setState(() {
+        _voted = data['voted'] == true;
+        if (data['points'] is num) {
+          _points = (data['points'] as num).toInt();
+        }
+      });
+    } catch (_) {
+      //The count stays as it was; the button can be pressed again.
+    } finally {
+      if (mounted) {
+        setState(() => _voteBusy = false);
+      }
     }
   }
 
@@ -175,6 +300,21 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                 const SizedBox(height: 6),
                 Text(post.detail(state.locale), style: TextStyle(fontSize: 14, color: tokens.dim)),
               ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Text('$_points', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: tokens.ink)),
+                  const SizedBox(width: 8),
+                  Text(state.t('dish.vote').toUpperCase(), style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: tokens.dim)),
+                  const Spacer(),
+                  BoardButton(
+                    key: const ValueKey('vote-button'),
+                    label: _voted ? state.t('dish.voted') : state.t('dish.vote'),
+                    primary: _voted,
+                    onPressed: _voteBusy ? null : _vote,
+                  ),
+                ],
+              ),
               if (post.image.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 BoardImage(
@@ -263,29 +403,70 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
             ],
           ),
         ),
-        if (_comments.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          BoardCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(state.t('dish.commentsTitle').toUpperCase(), style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: tokens.dim)),
-                const SizedBox(height: 8),
+        const SizedBox(height: 16),
+        BoardCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(state.t('dish.commentsTitle').toUpperCase(), style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: tokens.dim)),
+              const SizedBox(height: 8),
+              if (state.isSignedIn) ...[
+                TextField(
+                  key: const ValueKey('comment-body'),
+                  controller: _comment,
+                  maxLines: 3,
+                  maxLength: 1000,
+                  style: TextStyle(fontSize: 13, color: tokens.ink),
+                  decoration: InputDecoration(hintText: state.t('dish.commentPlaceholder')),
+                ),
+                if (_commentError)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text(state.t('common.errorBody'), style: TextStyle(fontSize: 13, color: tokens.danger)),
+                  ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: BoardButton(
+                    key: const ValueKey('comment-submit'),
+                    label: _commentBusy ? state.t('common.loading') : state.t('dish.commentSubmit'),
+                    primary: true,
+                    onPressed: (_commentBusy || _comment.text.trim().isEmpty) ? null : _submitComment,
+                  ),
+                ),
+              ] else
+                InkWell(
+                  onTap: () => Navigator.pushReplacementNamed(context, '/signin'),
+                  child: Text(state.t('dish.commentSignIn'), style: TextStyle(fontSize: 13, color: tokens.amber)),
+                ),
+              const SizedBox(height: 10),
+              if (_comments.isEmpty)
+                Text(state.t('dish.commentEmpty'), style: TextStyle(fontSize: 13, color: tokens.dim))
+              else
                 for (final comment in _comments)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${comment['username'] ?? ''}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: tokens.ink)),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text('${comment['username'] ?? ''}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: tokens.ink)),
+                            ),
+                            if (comment['is_mine'] == true)
+                              InkWell(
+                                onTap: () => _deleteComment(comment),
+                                child: Text(state.t('common.delete'), style: TextStyle(fontSize: 12, color: tokens.dim)),
+                              ),
+                          ],
+                        ),
                         Text('${comment['body'] ?? ''}', style: TextStyle(fontSize: 13, color: tokens.ink)),
                       ],
                     ),
                   ),
-              ],
-            ),
+            ],
           ),
-        ],
+        ),
       ],
     );
   }

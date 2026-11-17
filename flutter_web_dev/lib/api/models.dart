@@ -176,6 +176,7 @@ class DishPost {
     this.image = '',
     this.extraImages = const [],
     this.blocks = const [],
+    this.points = 0,
     this.ingredientIds = const [],
   });
 
@@ -188,6 +189,7 @@ class DishPost {
   final String image;
   final List<String> extraImages;
   final List<DisplayBlock> blocks;
+  final int points;
   final List<String> ingredientIds;
 
   factory DishPost.fromJson(dynamic json, {String fallbackName = ''}) {
@@ -206,6 +208,7 @@ class DishPost {
       image: _text(json['profile_image']),
       extraImages: images is List ? images.map(_text).where((item) => item.isNotEmpty).toList() : [],
       blocks: DisplayBlock.listFromJson(json['display_blocks']),
+      points: _number(json['points']),
       ingredientIds: ingredientIds is List
           ? ingredientIds.map(_ingredientId).where((item) => item.isNotEmpty).toList()
           : [],
