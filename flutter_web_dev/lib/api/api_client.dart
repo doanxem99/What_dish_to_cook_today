@@ -18,6 +18,10 @@ class ApiClient {
     return Uri.parse('$_base$cleanPath');
   }
 
+  Uri uriFor(String path) => _uri(path);
+
+  Future<http.StreamedResponse> send(http.BaseRequest request) => _client.send(request);
+
   Future<dynamic> getJson(String path) async {
     final response = await _client.get(_uri(path));
     return _payload(response, path);
