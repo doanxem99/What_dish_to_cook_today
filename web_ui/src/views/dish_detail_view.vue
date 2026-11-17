@@ -2,6 +2,7 @@
 import { api } from '../api'
 import { useI18n } from '../i18n'
 import { useAuthStore } from '../assets/store/auth_store'
+import { usePantryStore } from '../assets/store/pantry_store'
 import serverInfo from '../assets/js/server_info.js'
 
 export default {
@@ -10,12 +11,14 @@ export default {
       post: null,
       dish: null,
       comments: [],
+      ingredients: [],
       commentBody: '',
       loading: true,
-      failed: false,
+      pageError: false,
+      commentError: false,
+      voteError: false,
       votePoints: 0,
       voted: false,
-      voteFailed: false,
       ownPostId: null
     }
   },
@@ -23,6 +26,7 @@ export default {
     t() { return useI18n().t },
     locale() { return useI18n().locale.value },
     auth() { return useAuthStore() },
+    pantry() { return usePantryStore() },
     title() {
       if (!this.post) return ''
       const name = this.locale === 'vi' && this.post.name_vi ? this.post.name_vi : this.post.name
@@ -31,6 +35,9 @@ export default {
     shortDetail() {
       if (!this.post) return ''
       return this.locale === 'vi' && this.post.short_detail_vi ? this.post.short_detail_vi : this.post.short_detail
+    },
+    dishId() {
+      return this.post && this.post.dish_id ? this.post.dish_id : (this.dish ? this.dish._id : null)
     }
   },
   mounted() { this.load() },
@@ -39,9 +46,15 @@ export default {
     blockText(block) {
       return this.locale === 'vi' && block.text_vi ? block.text_vi : block.text
     },
+    ingredientName(item) {
+      return this.locale === 'vi' && item.name_vi ? item.name_vi : item.name
+    },
+    isChosen(item) {
+      return this.pantry.items.some(entry => entry.id === item.id)
+    },
     async load() {
       this.loading = true
-      this.failed = false
+      this.pageError = false
       try {
         let post = null
         if (this.$route.query.dish_id) {
@@ -58,11 +71,10 @@ export default {
         this.post = post
         this.votePoints = post && post.points ? post.points : 0
         if (post) {
-          await this.loadComments()
-          await this.loadOwnPost()
+          await Promise.all([this.loadComments(), this.loadIngredients(), this.loadOwnPost()])
         }
       } catch (error) {
-        this.failed = true
+        this.pageError = true
       } finally {
         this.loading = false
       }
@@ -73,6 +85,19 @@ export default {
         this.comments = response && Array.isArray(response.data) ? response.data : []
       } catch (error) {
         this.comments = []
+      }
+    },
+    async loadIngredients() {
+      const ids = (this.post.ingredients || []).join('-')
+      if (!ids) {
+        this.ingredients = []
+        return
+      }
+      try {
+        const rows = await api.get(`/api/ingredient/search/ids/${ids}`)
+        this.ingredients = Array.isArray(rows) ? rows : []
+      } catch (error) {
+        this.ingredients = []
       }
     },
     async loadOwnPost() {
@@ -89,33 +114,36 @@ export default {
     async submitComment() {
       const body = this.commentBody.trim()
       if (!body || !this.post) return
+      this.commentError = false
       try {
         await api.post(`/api/dish/profile/comment/${this.post._id}`, { body })
         this.commentBody = ''
         await this.loadComments()
       } catch (error) {
-        this.failed = true
+        //Keep the typed body; only the comment area reports the failure
+        this.commentError = true
       }
     },
     async deleteComment(comment) {
       if (!window.confirm(this.t('dish.commentDeleteConfirm'))) return
+      this.commentError = false
       try {
         await api.del(`/api/dish/profile/comment/${comment.id}`)
         await this.loadComments()
       } catch (error) {
-        this.failed = true
+        this.commentError = true
       }
     },
     async toggleVote() {
       if (!this.auth.isLogin || !this.post) return
-      this.voteFailed = false
+      this.voteError = false
       try {
         const response = await api.post(`/api/dish/profile/vote/${this.post._id}`)
         const data = response && response.data ? response.data : {}
         this.voted = !!data.voted
         this.votePoints = typeof data.points === 'number' ? data.points : this.votePoints
       } catch (error) {
-        this.voteFailed = true
+        this.voteError = true
       }
     }
   }
@@ -124,8 +152,8 @@ export default {
 
 <template>
   <section class="board py-8">
-    <p v-if="loading" class="state">{{ t('common.loading') }}</p>
-    <div v-else-if="failed" class="state">
+    <p v-if="loading" class="state" aria-live="polite">{{ t('common.loading') }}</p>
+    <div v-else-if="pageError" class="state" role="alert">
       <p>{{ t('common.errorTitle') }}</p>
       <button class="btn mt-3" type="button" @click="load">{{ t('common.retry') }}</button>
     </div>
@@ -158,13 +186,30 @@ export default {
               :disabled="!auth.isLogin"
               @click="toggleVote"
             >{{ voted ? t('dish.voted') : t('dish.vote') }}</button>
-            <p v-if="voteFailed" class="text-xs mt-2" style="color: var(--board-red)">{{ t('common.errorBody') }}</p>
+            <p v-if="voteError" class="text-xs mt-2" role="alert" style="color: var(--board-red)">{{ t('common.errorBody') }}</p>
             <p v-if="!auth.isLogin" class="text-xs mt-2" style="color: var(--board-dim)">
               <router-link class="link" to="/signin">{{ t('nav.signIn') }}</router-link>
             </p>
+            <router-link
+              v-if="auth.isLogin && dishId"
+              class="link text-xs mt-3 block"
+              :to="{ path: '/dish_edit', query: { dish_id: dishId } }"
+            >{{ t('common.edit') }}</router-link>
           </div>
         </div>
       </header>
+
+      <section v-if="ingredients.length" class="ruled p-5 mt-4">
+        <h2 class="eyebrow">{{ t('dish.ingredients') }}</h2>
+        <div class="flex flex-wrap gap-2 mt-3">
+          <span
+            v-for="item in ingredients"
+            :key="item.id"
+            class="chip"
+            :class="{ 'chip-chosen': isChosen(item) }"
+          >{{ ingredientName(item) }}</span>
+        </div>
+      </section>
 
       <div class="grid gap-6 mt-6 lg:grid-cols-3">
         <article class="lg:col-span-2 ruled p-5">
@@ -192,6 +237,9 @@ export default {
               <span class="text-sm">{{ t('dish.commentPlaceholder') }}</span>
               <textarea v-model="commentBody" class="textarea" rows="3" maxlength="1000"></textarea>
             </label>
+            <p v-if="commentError" class="text-sm mt-2" role="alert" style="color: var(--board-red)">
+              {{ t('common.errorBody') }}
+            </p>
             <button class="btn btn-primary mt-2" type="submit" :disabled="!commentBody.trim()">
               {{ t('dish.commentSubmit') }}
             </button>

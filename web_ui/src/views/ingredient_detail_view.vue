@@ -1,6 +1,7 @@
 <script>
 import { api } from '../api'
 import { useI18n } from '../i18n'
+import { useAuthStore } from '../assets/store/auth_store'
 import serverInfo from '../assets/js/server_info.js'
 
 export default {
@@ -10,6 +11,7 @@ export default {
   computed: {
     t() { return useI18n().t },
     locale() { return useI18n().locale.value },
+    auth() { return useAuthStore() },
     title() {
       if (!this.ingredient) return ''
       return this.locale === 'vi' && this.ingredient.name_vi ? this.ingredient.name_vi : this.ingredient.name
@@ -43,15 +45,22 @@ export default {
 
 <template>
   <section class="board py-8">
-    <p v-if="loading" class="state">{{ t('common.loading') }}</p>
-    <div v-else-if="failed" class="state">
+    <p v-if="loading" class="state" aria-live="polite">{{ t('common.loading') }}</p>
+    <div v-else-if="failed" class="state" role="alert">
       <p>{{ t('common.errorTitle') }}</p>
       <button class="btn mt-3" type="button" @click="load">{{ t('common.retry') }}</button>
     </div>
     <p v-else-if="!ingredient" class="state">{{ t('common.emptyTitle') }}</p>
 
     <template v-else>
-      <h1 class="board-title">{{ title }}</h1>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h1 class="board-title">{{ title }}</h1>
+        <router-link
+          v-if="auth.isLogin"
+          class="btn"
+          :to="{ path: '/ingredient_edit', query: { ingredient_id: ingredient._id } }"
+        >{{ t('common.edit') }}</router-link>
+      </div>
       <p v-if="post" class="board-sub">
         {{ locale === 'vi' && post.short_detail_vi ? post.short_detail_vi : post.short_detail }}
       </p>

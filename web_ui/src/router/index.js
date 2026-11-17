@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../assets/store/auth_store'
+import { t } from '../i18n'
 import homeView from '../views/home_view.vue'
 
 const router = createRouter({
@@ -76,6 +77,26 @@ const router = createRouter({
       }
     }
   ]
+})
+
+const titleKeys = {
+  home: 'nav.home',
+  dishes: 'nav.dishes',
+  dish_detail: 'nav.dishes',
+  dish_edit: 'common.edit',
+  ingredients: 'nav.ingredients',
+  ingredient_detail: 'nav.ingredients',
+  ingredient_edit: 'common.edit',
+  homemade_dishes: 'nav.homemade',
+  about: 'nav.about',
+  signin: 'nav.signIn',
+  signup: 'nav.signUp',
+  profile: 'nav.profile'
+}
+
+router.afterEach((to) => {
+  const key = titleKeys[to.name]
+  document.title = key ? `${t(key)} · ${t('common.appName')}` : t('common.appName')
 })
 
 router.beforeEach((to, from, next) => {

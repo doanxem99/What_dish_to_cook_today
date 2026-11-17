@@ -7,7 +7,10 @@ const TYPES = ['Food', 'Spice', 'Fruit', 'Other']
 
 export default {
   data() {
-    return { items: [], q: '', loading: true, failed: false }
+    return { items: [], q: '', loading: true, failed: false, searchTimer: null }
+  },
+  beforeUnmount() {
+    clearTimeout(this.searchTimer)
   },
   computed: {
     t() { return useI18n().t },
@@ -21,7 +24,10 @@ export default {
     }
   },
   watch: {
-    q() { this.search() }
+    q() {
+      clearTimeout(this.searchTimer)
+      this.searchTimer = setTimeout(() => this.search(), 250)
+    }
   },
   mounted() { this.search() },
   methods: {
@@ -56,7 +62,8 @@ export default {
     <h1 class="board-title">{{ t('ingredients.title') }}</h1>
     <p class="board-sub">{{ t('ingredients.subtitle') }}</p>
 
-    <input v-model="q" class="input mt-4" type="search" :placeholder="t('home.pickerPlaceholder')" />
+    <label class="sr-only" for="ingredient-filter">{{ t('ingredients.title') }}</label>
+    <input id="ingredient-filter" v-model="q" class="input mt-4" type="search" :placeholder="t('home.pickerPlaceholder')" />
 
     <p v-if="loading" class="state">{{ t('common.loading') }}</p>
     <div v-else-if="failed" class="state">

@@ -1,26 +1,32 @@
 <script>
 import { api } from '../api'
 import { useI18n } from '../i18n'
+import { usePantryStore } from '../assets/store/pantry_store'
 
 export default {
   data() {
     return {
       q: '',
       found: [],
-      chosen: [],
       bestPost: null,
       loadingBest: true,
       searchError: false,
-      needIngredient: false
+      needIngredient: false,
+      searchTimer: null
     }
   },
   computed: {
     t() { return useI18n().t },
-    locale() { return useI18n().locale.value }
+    locale() { return useI18n().locale.value },
+    pantry() { return usePantryStore() },
+    chosen() { return this.pantry.items }
   },
   mounted() {
     this.loadBest()
     this.search()
+  },
+  beforeUnmount() {
+    clearTimeout(this.searchTimer)
   },
   methods: {
     localName(item) {
@@ -37,6 +43,10 @@ export default {
         this.loadingBest = false
       }
     },
+    queueSearch() {
+      clearTimeout(this.searchTimer)
+      this.searchTimer = setTimeout(() => this.search(), 250)
+    },
     async search() {
       this.searchError = false
       const term = this.q.trim()
@@ -51,24 +61,22 @@ export default {
         this.searchError = true
       }
     },
-    add(item) {
-      if (!this.chosen.find(entry => entry.id === item.id)) {
-        this.chosen.push(item)
-      }
+    choose(item) {
+      this.pantry.toggle(item)
       this.needIngredient = false
     },
     remove(item) {
-      this.chosen = this.chosen.filter(entry => entry.id !== item.id)
+      this.pantry.remove(item.id)
+    },
+    isChosen(item) {
+      return this.pantry.items.some(entry => entry.id === item.id)
     },
     findDishes() {
       if (this.chosen.length === 0) {
         this.needIngredient = true
         return
       }
-      this.$router.push({
-        path: '/dishes',
-        query: { ingredients: this.chosen.map(item => item.id).join('-') }
-      })
+      this.$router.push({ path: '/dishes' })
     }
   }
 }
@@ -83,27 +91,30 @@ export default {
       <div class="lg:col-span-2 ruled p-4">
         <h2 class="eyebrow">{{ t('home.pickerTitle') }}</h2>
 
-        <form class="flex gap-2 mt-3" @submit.prevent="search">
+        <form class="flex gap-2 mt-3" role="search" @submit.prevent="search">
+          <label class="sr-only" for="ingredient-search">{{ t('home.pickerTitle') }}</label>
           <input
+            id="ingredient-search"
             v-model="q"
             class="input"
             type="search"
             :placeholder="t('home.pickerPlaceholder')"
-            :aria-label="t('home.pickerTitle')"
-            @input="search"
+            @input="queueSearch"
           />
         </form>
 
-        <p v-if="searchError" class="state">{{ t('common.errorBody') }}</p>
+        <p v-if="searchError" class="state" role="alert">{{ t('common.errorBody') }}</p>
 
         <div v-else class="flex flex-wrap gap-2 mt-3">
           <button
             v-for="item in found"
             :key="item.id"
             class="chip"
+            :class="{ 'chip-chosen': isChosen(item) }"
             type="button"
-            @click="add(item)"
-          >+ {{ localName(item) }}</button>
+            :aria-pressed="isChosen(item)"
+            @click="choose(item)"
+          >{{ isChosen(item) ? '−' : '+' }} {{ localName(item) }}</button>
         </div>
 
         <div class="mt-6">
@@ -111,11 +122,11 @@ export default {
           <div v-if="chosen.length" class="flex flex-wrap gap-2 mt-3">
             <span v-for="item in chosen" :key="item.id" class="chip">
               {{ localName(item) }}
-              <button class="btn btn-quiet" type="button" :aria-label="t('common.delete')" @click="remove(item)">×</button>
+              <button class="chip-remove" type="button" :aria-label="t('common.delete') + ' ' + localName(item)" @click="remove(item)">×</button>
             </span>
           </div>
           <p v-else class="mt-3 text-sm" style="color: var(--board-dim)">{{ t('home.chosenEmpty') }}</p>
-          <p v-if="needIngredient" class="mt-2 text-sm" style="color: var(--board-red)">{{ t('home.needOne') }}</p>
+          <p v-if="needIngredient" class="mt-2 text-sm" role="alert" style="color: var(--board-red)">{{ t('home.needOne') }}</p>
           <button class="btn btn-primary mt-4" type="button" @click="findDishes">
             {{ t('home.find') }}
           </button>
@@ -124,7 +135,7 @@ export default {
 
       <aside class="ruled p-4">
         <h2 class="eyebrow">{{ t('home.dishOfDay') }}</h2>
-        <p v-if="loadingBest" class="state">{{ t('common.loading') }}</p>
+        <p v-if="loadingBest" class="state" aria-live="polite">{{ t('common.loading') }}</p>
         <div v-else-if="bestPost">
           <p class="board-title mt-2" style="font-size: 22px">
             {{ locale === 'vi' && bestPost.name_vi ? bestPost.name_vi : bestPost.name }}
@@ -136,7 +147,7 @@ export default {
             v-if="bestPost._id"
             class="btn mt-4"
             :to="{ path: '/dish_detail', query: { dish_post_id: bestPost._id } }"
-          >{{ t('common.edit') === 'Edit' ? 'Open' : 'Mở' }}</router-link>
+          >{{ t('common.open') }}</router-link>
         </div>
         <p v-else class="state">{{ t('common.emptyTitle') }}</p>
 

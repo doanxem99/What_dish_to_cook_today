@@ -47,14 +47,16 @@ export default {
         <div class="flex items-center gap-2">
           <button
             class="btn btn-quiet"
-            :class="{ 'btn-primary': locale === 'en' }"
+            :class="{ 'is-active': locale === 'en' }"
             type="button"
+            :aria-pressed="locale === 'en'"
             @click="switchLocale('en')"
           >EN</button>
           <button
             class="btn btn-quiet"
-            :class="{ 'btn-primary': locale === 'vi' }"
+            :class="{ 'is-active': locale === 'vi' }"
             type="button"
+            :aria-pressed="locale === 'vi'"
             @click="switchLocale('vi')"
           >VI</button>
         </div>
