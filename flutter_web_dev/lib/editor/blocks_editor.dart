@@ -152,21 +152,45 @@ class _BlocksEditorState extends State<BlocksEditor> {
     widget.onChanged(next);
   }
 
-  Future<void> _translateField(int index) async {
+  Future<void> _translateField(int index, String fromKey) async {
     final translate = widget.translate;
-    final block = _blocks[index];
-    if (!widget.autoTranslate || translate == null || block.text.trim().isEmpty || block.textVi.trim().isNotEmpty) {
+    if (!widget.autoTranslate || translate == null || index >= _blocks.length) {
       return;
     }
+    final block = _blocks[index];
+    final text = (fromKey == 'text' ? block.text : block.textVi).trim();
+    final existing = (fromKey == 'text' ? block.textVi : block.text).trim();
+    if (text.isEmpty || existing.isNotEmpty) {
+      return;
+    }
+    final id = block.id;
     try {
-      final value = await translate(block.text.trim(), 'en', 'vi');
-      final current = index < _blocks.length ? _blocks[index] : null;
-      if (!mounted || current == null || current.textVi.trim().isNotEmpty) {
+      final value = await translate(text, fromKey == 'text' ? 'en' : 'vi', fromKey == 'text' ? 'vi' : 'en');
+      var currentIndex = -1;
+      for (var i = 0; i < _blocks.length; i++) {
+        if (_blocks[i].id == id) {
+          currentIndex = i;
+          break;
+        }
+      }
+      if (!mounted || currentIndex < 0) {
         return;
       }
-      _update(index, (item) => item.textVi = value);
+      final current = _blocks[currentIndex];
+      final sourceNow = (fromKey == 'text' ? current.text : current.textVi).trim();
+      final targetNow = (fromKey == 'text' ? current.textVi : current.text).trim();
+      if (sourceNow != text || targetNow.isNotEmpty) {
+        return;
+      }
+      _update(currentIndex, (item) {
+        if (fromKey == 'text') {
+          item.textVi = value;
+        } else {
+          item.text = value;
+        }
+      });
     } catch (_) {
-      //The English text stays usable; translation is optional.
+      //The source text stays usable; translation is optional.
     }
   }
 
@@ -309,7 +333,7 @@ class _BlocksEditorState extends State<BlocksEditor> {
             label: state.t('edit.blockTextEn'),
             value: _blocks[index].text,
             onChanged: (value) => _update(index, (block) => block.text = value),
-            onBlur: () => _translateField(index),
+            onBlur: () => _translateField(index, 'text'),
           ),
           const SizedBox(height: 8),
           _BlockTextField(
@@ -318,6 +342,7 @@ class _BlocksEditorState extends State<BlocksEditor> {
             label: state.t('edit.blockTextVi'),
             value: _blocks[index].textVi,
             onChanged: (value) => _update(index, (block) => block.textVi = value),
+            onBlur: () => _translateField(index, 'textVi'),
           ),
         ],
       ),

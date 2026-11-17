@@ -82,6 +82,12 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
         if (postId.isNotEmpty) {
           final post = await state.api.getJson('/api/ingredient/profile/get_ingredient_post/$postId');
           final parsed = DishPost.fromJson(post, fallbackName: _name.text);
+          if (parsed.type.isNotEmpty && _types.contains(parsed.type)) {
+            _type = parsed.type;
+          }
+          if (parsed.nameVi.trim().isNotEmpty) {
+            _nameVi.text = parsed.nameVi;
+          }
           _short.text = parsed.shortDetail;
           _shortVi.text = parsed.shortDetailVi;
           if (parsed.image.isNotEmpty) {
@@ -183,6 +189,34 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
     }
   }
 
+  Future<void> _handleImageError(String kind) async {
+    final state = AppScope.of(context);
+    if (kind == 'auth') {
+      await state.refreshAccount();
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/signin', arguments: {'next': _nextRoute()});
+      }
+      return;
+    }
+    if (mounted) {
+      setState(() => _error = state.t('common.errorBody'));
+    }
+  }
+
+  Future<void> _translateField(TextEditingController from, TextEditingController to) async {
+    if (!_autoTranslate || from.text.trim().isEmpty || to.text.trim().isNotEmpty) {
+      return;
+    }
+    try {
+      final value = await EditorApi(AppScope.of(context).api).translate(from.text.trim(), 'en', 'vi');
+      if (mounted && to.text.trim().isEmpty) {
+        setState(() => to.text = value);
+      }
+    } on EditorException {
+      //Translation is optional; the typed text stays.
+    }
+  }
+
   @override
   void dispose() {
     _name.dispose();
@@ -221,7 +255,14 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
                       Expanded(child: Text(state.t('edit.autoTranslate'), style: TextStyle(fontSize: 13, color: tokens.ink))),
                     ],
                   ),
-                  _field(state, _name, state.t('edit.nameEn'), 'ing-name'),
+                  Focus(
+                    onFocusChange: (hasFocus) {
+                      if (!hasFocus) {
+                        _translateField(_name, _nameVi);
+                      }
+                    },
+                    child: _field(state, _name, state.t('edit.nameEn'), 'ing-name'),
+                  ),
                   const SizedBox(height: 10),
                   _field(state, _nameVi, state.t('edit.nameVi'), 'ing-name-vi'),
                   const SizedBox(height: 10),
@@ -235,7 +276,14 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
                     onChanged: (value) => setState(() => _type = value ?? 'Other'),
                   ),
                   const SizedBox(height: 10),
-                  _field(state, _short, state.t('edit.shortEn'), 'ing-short'),
+                  Focus(
+                    onFocusChange: (hasFocus) {
+                      if (!hasFocus) {
+                        _translateField(_short, _shortVi);
+                      }
+                    },
+                    child: _field(state, _short, state.t('edit.shortEn'), 'ing-short'),
+                  ),
                   const SizedBox(height: 10),
                   _field(state, _shortVi, state.t('edit.shortVi'), 'ing-short-vi'),
                   const SizedBox(height: 14),
@@ -252,12 +300,7 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
                       }
                       setState(() => _image = path);
                     },
-                    onError: (_) {
-                      if (!mounted) {
-                        return;
-                      }
-                      setState(() => _error = state.t('common.errorBody'));
-                    },
+                    onError: _handleImageError,
                   ),
                   const SizedBox(height: 14),
                   Text(state.t('edit.blocks').toUpperCase(), style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: tokens.dim)),

@@ -100,7 +100,7 @@ class _EditorImageFieldState extends State<EditorImageField> {
         widget.onChanged(path);
       }
     } on EditorException catch (error) {
-      widget.onError?.call(error.kind);
+      widget.onError?.call(error.isUnauthorised ? 'auth' : error.kind);
     } catch (_) {
       widget.onError?.call('upload');
     } finally {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../api/api_client.dart';
 import '../api/models.dart';
 import '../editor/blocks_editor.dart';
 import '../editor/editor_api.dart';
@@ -178,6 +179,17 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
         }
         Navigator.pushReplacementNamed(context, '/dish', arguments: {'dish_id': widget.dishId});
       }
+    } on ApiException catch (error) {
+      if (error.statusCode == 401) {
+        await state.refreshAccount();
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/signin', arguments: {'next': _nextRoute()});
+        }
+        return;
+      }
+      if (mounted) {
+        setState(() => _error = error.message);
+      }
     } on EditorException catch (error) {
       if (mounted) {
         setState(() => _error = error.serverMessage ?? state.t('common.errorBody'));
@@ -190,6 +202,20 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
       if (mounted) {
         setState(() => _busy = false);
       }
+    }
+  }
+
+  Future<void> _handleImageError(String kind) async {
+    final state = AppScope.of(context);
+    if (kind == 'auth') {
+      await state.refreshAccount();
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/signin', arguments: {'next': _nextRoute()});
+      }
+      return;
+    }
+    if (mounted) {
+      setState(() => _error = state.t('common.errorBody'));
     }
   }
 
@@ -303,7 +329,7 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
                     value: _cover,
                     pickImage: widget.pickImage,
                     onChanged: (path) => setState(() => _cover = path),
-                    onError: (_) => setState(() => _error = state.t('common.errorBody')),
+                    onError: _handleImageError,
                   ),
                   const SizedBox(height: 14),
                   Text(state.t('edit.extraImages').toUpperCase(), style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: tokens.dim)),
@@ -317,7 +343,7 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
                         setState(() => _images.add(path));
                       }
                     },
-                    onError: (_) => setState(() => _error = state.t('common.errorBody')),
+                    onError: _handleImageError,
                   ),
                   if (_images.isNotEmpty)
                     Wrap(

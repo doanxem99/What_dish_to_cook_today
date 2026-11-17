@@ -188,6 +188,7 @@ class DishPost {
     this.shortDetail = '',
     this.shortDetailVi = '',
     this.image = '',
+    this.type = '',
     this.extraImages = const [],
     this.blocks = const [],
     this.points = 0,
@@ -201,6 +202,7 @@ class DishPost {
   final String shortDetail;
   final String shortDetailVi;
   final String image;
+  final String type;
   final List<String> extraImages;
   final List<DisplayBlock> blocks;
   final int points;
@@ -220,6 +222,7 @@ class DishPost {
       shortDetail: _text(json['short_detail']),
       shortDetailVi: _text(json['short_detail_vi']),
       image: _text(json['profile_image']),
+      type: _text(json['type']),
       extraImages: images is List ? images.map(_text).where((item) => item.isNotEmpty).toList() : [],
       blocks: DisplayBlock.listFromJson(json['display_blocks']),
       points: _number(json['points']),
