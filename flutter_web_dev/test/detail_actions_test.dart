@@ -44,8 +44,12 @@ http.Response _ok(Object body) {
       headers: {'content-type': 'application/json; charset=utf-8'});
 }
 
-ApiClient _api({List<String>? calls, bool signedIn = false}) {
-  var comments = <Map<String, dynamic>>[];
+ApiClient _api({List<String>? calls, bool signedIn = false, bool withComment = false, bool failComment = false}) {
+  var comments = <Map<String, dynamic>>[
+    if (withComment) {'id': 'c1', 'username': 'demo', 'body': 'Lovely broth', 'is_mine': true}
+  ];
+  var votes = 5;
+  var voted = false;
   return ApiClient('http://test', client: MockClient((request) async {
     calls?.add('${request.method} ${request.url.path}');
     final path = request.url.path;
@@ -74,15 +78,25 @@ ApiClient _api({List<String>? calls, bool signedIn = false}) {
       return _ok({'isSuccess': true, 'data': comments});
     }
     if (path.startsWith('/api/dish/profile/comment/')) {
+      if (request.method == 'DELETE') {
+        comments = [];
+        return _ok({'status': 0});
+      }
+      if (failComment) {
+        return http.Response(json.encode({'message': 'boom'}), 500,
+            headers: {'content-type': 'application/json; charset=utf-8'});
+      }
       comments = [
         {'id': 'c1', 'username': 'demo', 'body': 'Lovely broth', 'is_mine': true}
       ];
       return _ok({'status': 0, 'data': {'id': 'c1'}});
     }
     if (path.startsWith('/api/dish/profile/vote/')) {
+      voted = !voted;
+      votes += voted ? 1 : -1;
       return _ok({
         'status': 0,
-        'data': {'voted': true, 'points': 6}
+        'data': {'voted': voted, 'points': votes}
       });
     }
     return _ok({'isSuccess': true, 'data': []});
@@ -96,7 +110,9 @@ Future<void> _pump(WidgetTester tester, AppState state) async {
       theme: boardTheme(BoardTokens.dark),
       initialRoute: '/dish',
       onGenerateRoute: (settings) => MaterialPageRoute(
-        builder: (_) => const DishDetailScreen(postId: 'p1'),
+        builder: (_) => settings.name == '/signin'
+            ? const Scaffold(body: Text('signin-route'))
+            : const DishDetailScreen(postId: 'p1'),
       ),
     ),
   ));
@@ -157,5 +173,71 @@ void main() {
     expect(calls, contains('POST /api/dish/profile/vote/p1'));
     expect(find.text('6'), findsOneWidget);
     expect(find.text('Voted'), findsOneWidget);
+  });
+  testWidgets('an own comment can be deleted after confirming', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    final calls = <String>[];
+    final state = _state(_api(calls: calls, signedIn: true, withComment: true));
+    await state.refreshAccount();
+    await _pump(tester, state);
+
+    expect(find.text('Lovely broth'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('comment-delete-c1')));
+    await tester.tap(find.byKey(const ValueKey('comment-delete-c1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete').last);
+    await tester.pumpAndSettle();
+
+    expect(calls, contains('DELETE /api/dish/profile/comment/c1'));
+    expect(find.text('Lovely broth'), findsNothing);
+  });
+
+  testWidgets('a second vote toggles the vote off', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    final state = _state(_api(signedIn: true));
+    await state.refreshAccount();
+    await _pump(tester, state);
+
+    await tester.tap(find.byKey(const ValueKey('vote-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Voted'), findsOneWidget);
+    expect(find.text('6'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('vote-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Vote'), findsWidgets);
+    expect(find.text('5'), findsOneWidget);
+  });
+
+  testWidgets('a guest vote sends the guest to sign-in', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    final state = _state(_api());
+    await state.refreshAccount();
+    await _pump(tester, state);
+
+    await tester.tap(find.byKey(const ValueKey('vote-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('signin-route'), findsOneWidget);
+  });
+
+  testWidgets('a rejected comment shows the error text and keeps the draft', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    final state = _state(_api(signedIn: true, failComment: true));
+    await state.refreshAccount();
+    await _pump(tester, state);
+
+    await tester.ensureVisible(find.byKey(const ValueKey('comment-body')));
+    await tester.enterText(find.byKey(const ValueKey('comment-body')), 'Lovely broth');
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const ValueKey('comment-submit')));
+    await tester.tap(find.byKey(const ValueKey('comment-submit')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Something went wrong.'), findsOneWidget);
   });
 }

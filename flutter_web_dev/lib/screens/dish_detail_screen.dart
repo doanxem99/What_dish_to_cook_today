@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../api/api_client.dart';
 import '../api/models.dart';
 import '../shell/app_shell.dart';
 import '../state/app_state.dart';
@@ -27,6 +28,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
   bool _voted = false;
   bool _voteBusy = false;
   bool _commentBusy = false;
+  bool _deleteBusy = false;
   bool _commentError = false;
   late final TextEditingController _comment;
 
@@ -34,7 +36,6 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
   void initState() {
     super.initState();
     _comment = TextEditingController();
-    _comment.addListener(() => setState(() {}));
   }
 
   @override
@@ -152,22 +153,23 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
     }
   }
 
-  Future<void> _reloadComments() async {
+  Future<bool> _reloadComments() async {
     final state = AppScope.of(context);
     final post = _post;
     if (post == null) {
-      return;
+      return false;
     }
     try {
       final rows = await state.api.getJson('/api/dish/profile/comments/${post.id}');
       if (!mounted) {
-        return;
+        return false;
       }
       setState(() {
         _comments = rows is List ? rows.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList() : const [];
       });
+      return true;
     } catch (_) {
-      //The list keeps its last good state; the compose box reports its own errors.
+      return false;
     }
   }
 
@@ -175,7 +177,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
     final state = AppScope.of(context);
     final post = _post;
     final body = _comment.text.trim();
-    if (post == null || body.isEmpty || _commentBusy || body.length > 1000) {
+    if (post == null || body.isEmpty || _commentBusy) {
       return;
     }
     setState(() {
@@ -184,9 +186,17 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
     });
     try {
       await state.api.postJson('/api/dish/profile/comment/${post.id}', {'body': body});
+      if (!mounted) {
+        return;
+      }
       _comment.clear();
-      await _reloadComments();
-    } catch (_) {
+      if (!await _reloadComments() && mounted) {
+        setState(() => _commentError = true);
+      }
+    } catch (error) {
+      if (error is ApiException && error.statusCode == 401) {
+        await state.refreshAccount();
+      }
       if (mounted) {
         setState(() => _commentError = true);
       }
@@ -199,6 +209,9 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
 
   Future<void> _deleteComment(Map<String, dynamic> comment) async {
     final state = AppScope.of(context);
+    if (_deleteBusy) {
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -212,14 +225,32 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
     if (confirmed != true || !mounted) {
       return;
     }
+    setState(() {
+      _deleteBusy = true;
+      _commentError = false;
+    });
     try {
       await state.api.deleteJson('/api/dish/profile/comment/${comment['id']}');
-      await _reloadComments();
-    } catch (_) {
+      if (!await _reloadComments() && mounted) {
+        setState(() => _commentError = true);
+      }
+    } catch (error) {
+      if (error is ApiException && error.statusCode == 401) {
+        await state.refreshAccount();
+      }
       if (mounted) {
         setState(() => _commentError = true);
       }
+    } finally {
+      if (mounted) {
+        setState(() => _deleteBusy = false);
+      }
     }
+  }
+
+  String _dishNext() {
+    final post = _post;
+    return post == null ? '/dishes' : '/dish?post_id=${post.id}';
   }
 
   Future<void> _vote() async {
@@ -229,7 +260,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
       return;
     }
     if (!state.isSignedIn) {
-      Navigator.pushReplacementNamed(context, '/signin');
+      Navigator.pushNamed(context, '/signin', arguments: {'next': _dishNext()});
       return;
     }
     if (_voteBusy) {
@@ -248,7 +279,10 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
           _points = (data['points'] as num).toInt();
         }
       });
-    } catch (_) {
+    } catch (error) {
+      if (error is ApiException && error.statusCode == 401) {
+        await state.refreshAccount();
+      }
       //The count stays as it was; the button can be pressed again.
     } finally {
       if (mounted) {
@@ -305,8 +339,15 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                 children: [
                   Text('$_points', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: tokens.ink)),
                   const SizedBox(width: 8),
-                  Text(state.t('dish.vote').toUpperCase(), style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: tokens.dim)),
-                  const Spacer(),
+                  Flexible(
+                    child: Text(
+                      state.t('dish.vote').toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: tokens.dim),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   BoardButton(
                     key: const ValueKey('vote-button'),
                     label: _voted ? state.t('dish.voted') : state.t('dish.vote'),
@@ -414,6 +455,11 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                 TextField(
                   key: const ValueKey('comment-body'),
                   controller: _comment,
+                  onChanged: (_) {
+                    if (_commentError) {
+                      setState(() => _commentError = false);
+                    }
+                  },
                   maxLines: 3,
                   maxLength: 1000,
                   style: TextStyle(fontSize: 13, color: tokens.ink),
@@ -426,16 +472,19 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                   ),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: BoardButton(
-                    key: const ValueKey('comment-submit'),
-                    label: _commentBusy ? state.t('common.loading') : state.t('dish.commentSubmit'),
-                    primary: true,
-                    onPressed: (_commentBusy || _comment.text.trim().isEmpty) ? null : _submitComment,
+                  child: ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _comment,
+                    builder: (context, value, _) => BoardButton(
+                      key: const ValueKey('comment-submit'),
+                      label: _commentBusy ? state.t('common.loading') : state.t('dish.commentSubmit'),
+                      primary: true,
+                      onPressed: (_commentBusy || value.text.trim().isEmpty) ? null : _submitComment,
+                    ),
                   ),
                 ),
               ] else
                 InkWell(
-                  onTap: () => Navigator.pushReplacementNamed(context, '/signin'),
+                  onTap: () => Navigator.pushNamed(context, '/signin', arguments: {'next': _dishNext()}),
                   child: Text(state.t('dish.commentSignIn'), style: TextStyle(fontSize: 13, color: tokens.amber)),
                 ),
               const SizedBox(height: 10),
@@ -455,6 +504,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                             ),
                             if (comment['is_mine'] == true)
                               InkWell(
+                                key: ValueKey('comment-delete-${comment['id']}'),
                                 onTap: () => _deleteComment(comment),
                                 child: Text(state.t('common.delete'), style: TextStyle(fontSize: 12, color: tokens.dim)),
                               ),
