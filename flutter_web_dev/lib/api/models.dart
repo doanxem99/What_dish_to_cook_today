@@ -247,3 +247,24 @@ class DishSummary {
 
   String label(String locale) => I18n.label(nameVi, name, locale);
 }
+
+class Account {
+  const Account({required this.id, required this.username, this.email = '', this.createdAt = ''});
+
+  final String id;
+  final String username;
+  final String email;
+  final String createdAt;
+
+  factory Account.fromJson(dynamic json) {
+    if (json is! Map) {
+      return const Account(id: '', username: '');
+    }
+    return Account(
+      id: _text(json['id'] ?? json['_id']),
+      username: _text(json['username']),
+      email: _text(json['email']),
+      createdAt: _text(json['created_at']),
+    );
+  }
+}

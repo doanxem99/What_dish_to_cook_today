@@ -10,6 +10,9 @@ import 'screens/home_screen.dart';
 import 'screens/homemade_screen.dart';
 import 'screens/ingredient_detail_screen.dart';
 import 'screens/ingredients_screen.dart';
+import 'screens/profile_screen.dart';
+import 'screens/signin_screen.dart';
+import 'screens/signup_screen.dart';
 import 'state/app_state.dart';
 import 'storages/app_storage.dart';
 import 'theme/app_theme.dart';
@@ -35,6 +38,7 @@ class _BoardAppState extends State<BoardApp> {
   void initState() {
     super.initState();
     _state = AppState(catalogues: widget.catalogues, api: widget.api);
+    _state.refreshAccount();
     if (widget.catalogues == null) {
       _loading = true;
       _loadCatalogues();
@@ -143,6 +147,15 @@ class _BoardAppState extends State<BoardApp> {
         break;
       case '/about':
         page = const AboutScreen();
+        break;
+      case '/signin':
+        page = const SignInScreen();
+        break;
+      case '/signup':
+        page = const SignUpScreen();
+        break;
+      case '/profile':
+        page = const ProfileScreen();
         break;
       default:
         page = const HomeScreen();
