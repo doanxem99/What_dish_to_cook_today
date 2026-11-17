@@ -23,9 +23,12 @@ class EditorApi {
     final request = http.MultipartRequest('POST', client.uriFor('/api/gallery_upload/temporary'));
     request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
     final response = await client.send(request);
-    final body = await response.stream.bytesToString();
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw EditorException('upload');
+    final raw = await response.stream.toBytes();
+    String body;
+    try {
+      body = utf8.decode(raw, allowMalformed: true);
+    } catch (_) {
+      body = '';
     }
     dynamic decoded;
     try {
@@ -33,19 +36,32 @@ class EditorApi {
     } catch (_) {
       decoded = null;
     }
+    final serverMessage = decoded is Map ? (decoded['status'] ?? decoded['message'])?.toString() : null;
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw EditorException('upload', statusCode: response.statusCode, serverMessage: serverMessage);
+    }
+    if (decoded is Map && decoded['isSuccess'] == false) {
+      throw EditorException('upload', statusCode: response.statusCode, serverMessage: serverMessage);
+    }
     final path = decoded is Map ? decoded['path'] : null;
     if (path is! String || path.isEmpty) {
-      throw EditorException('upload');
+      throw EditorException('upload', statusCode: response.statusCode, serverMessage: serverMessage);
     }
     return path;
   }
 
   Future<String> translate(String text, String source, String target) async {
-    final payload = await client.postJson('/api/translate', {
-      'text': text,
-      'source': source,
-      'target': target,
-    });
+    dynamic payload;
+    try {
+      payload = await client.postJson('/api/translate', {
+        'text': text,
+        'source': source,
+        'target': target,
+      });
+    } on ApiException catch (error) {
+      throw EditorException('translate', statusCode: error.statusCode, serverMessage: error.message);
+    }
     final value = payload is Map ? payload['text'] : null;
     if (value is! String || value.isEmpty) {
       throw EditorException('translate');
@@ -55,9 +71,13 @@ class EditorApi {
 }
 
 class EditorException implements Exception {
-  EditorException(this.kind);
+  EditorException(this.kind, {this.statusCode, this.serverMessage});
 
   final String kind;
+  final int? statusCode;
+  final String? serverMessage;
+
+  bool get isUnauthorised => statusCode == 401;
 
   @override
   String toString() => kind;
