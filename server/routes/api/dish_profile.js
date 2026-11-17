@@ -418,6 +418,11 @@ router.post('/comment/:dish_post_id', verifyToken, async function(req, res) {
             body: body,
             date_time: new Date()
         });
+        //Keep the visible comment counter on the dish post in step
+        await database.collections.DishPost.updateOne(
+            { _id: req.params.dish_post_id },
+            { $inc: { comments: 1 } }
+        );
         const user = await database.collections.User.findOne({ _id: req.body.userid }, 'username');
         res.status(200).send({
             'status' : profileEnum.ProfileStatus_PostCreate.CreatingSuccess,
@@ -453,6 +458,11 @@ router.delete('/comment/:comment_id', verifyToken, async function(req, res) {
         }
 
         await database.collections.Comment.findByIdAndDelete(req.params.comment_id);
+        //Keep the visible comment counter on the dish post in step
+        await database.collections.DishPost.updateOne(
+            { _id: comment.dish_post_id },
+            { $inc: { comments: -1 } }
+        );
         res.status(200).send({
             'status' : profileEnum.ProfileStatus_PostDetail.Success,
             'status_code': profileEnum.Status_Code_Website.Success,

@@ -11,6 +11,7 @@ process.env.JWT_SECRET = 'test-secret';
 const connectionPath = require.resolve('../config/database/connection');
 const created = [];
 const deleted = [];
+const commentCounts = [];
 let otherComment = { _id: 'c9', user_id: 'u2', body: 'not yours', dish_post_id: 'p1', date_time: new Date() };
 
 require.cache[connectionPath] = {
@@ -25,6 +26,9 @@ require.cache[connectionPath] = {
                 find: async () => [{ _id: 'u1', username: 'ana' }]
             },
             Role: { find: async () => [{ name: 'user' }] },
+            DishPost: {
+                updateOne: async (filter, update) => { commentCounts.push(update); }
+            },
             Comment: {
                 find: () => ({
                     sort: () => ({
@@ -89,6 +93,8 @@ test('POST comment takes the author from the token, not the body', async () => {
     assert.strictEqual(created[0].user_id, 'u1');
     assert.strictEqual(body.data.user_id, 'u1');
     assert.strictEqual(body.data.body, 'Looks good');
+    //dish_post.comments stays the visible counter used by the dish card
+    assert.deepStrictEqual(commentCounts[0], { $inc: { comments: 1 } });
 });
 
 test('GET comments lists newest first and marks the viewer own comment', async () => {
@@ -105,4 +111,14 @@ test('DELETE rejects deleting another user comment', async () => {
 
     assert.strictEqual(status, 403);
     assert.strictEqual(deleted.length, 0);
+});
+
+test('DELETE removes the author comment and decrements the counter', async () => {
+    otherComment = { _id: 'c3', user_id: 'u1', body: 'mine', dish_post_id: 'p1', date_time: new Date() };
+
+    const { status } = await call('DELETE', '/comment/c3', undefined, true);
+
+    assert.strictEqual(status, 200);
+    assert.deepStrictEqual(deleted, ['c3']);
+    assert.deepStrictEqual(commentCounts[commentCounts.length - 1], { $inc: { comments: -1 } });
 });
