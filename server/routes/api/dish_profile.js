@@ -54,8 +54,10 @@ const createDishPost = async function(_postData) {
     let dish_id = _postData.dish_id;
     let user_id = _postData.data.user_id;
     let dish_name = _postData.data.name;
+    let dish_name_vi = _postData.data.name_vi || "";
     let ingredients = _postData.data.ingredients;
     let short_detail = _postData.data.short_detail;
+    let short_detail_vi = _postData.data.short_detail_vi || "";
     let profile_image = _postData.data.profile_image;
     let display_blocks = _postData.data.display_blocks;
     let unique_id = dish_id + "_" + user_id;
@@ -70,6 +72,7 @@ const createDishPost = async function(_postData) {
 
     let dishPostData = {
         'name': dish_name,
+        'name_vi': dish_name_vi,
         'user_id': user_id,
         'dish_id': dish_id,
         'unique_id': unique_id,
@@ -77,6 +80,7 @@ const createDishPost = async function(_postData) {
         'points': 0,
         'ingredients': ingredients,
         'short_detail': short_detail,
+        'short_detail_vi': short_detail_vi,
         'profile_image': profile_image,
         'display_blocks': display_blocks
     };
@@ -165,6 +169,7 @@ const createDish = async function(_postData) {
     
     let dishData = {
         'name': dishName,
+        'name_vi': _postData.name_vi || "",
         'best_post_id': "",
         'is_need_update': false
     };
@@ -180,9 +185,11 @@ const createDish = async function(_postData) {
             'dish_id': dishId,
             'data': {
                 'name': dishName,
+                'name_vi': _postData.name_vi || "",
                 'user_id': user_id,
                 'ingredients': ingredients,
                 'short_detail': short_detail,
+                'short_detail_vi': _postData.short_detail_vi || "",
                 'profile_image': profile_image,
                 'display_blocks': display_blocks
             }

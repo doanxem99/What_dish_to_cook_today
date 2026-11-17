@@ -52,6 +52,7 @@ const createIngredientPost = async function(_postData)
     let user_id = _postData.data.user_id
     let type = _postData.data.type;
     let short_detail = _postData.data.short_detail;
+    let short_detail_vi = _postData.data.short_detail_vi || "";
     let profile_image = _postData.data.profile_image;
     let display_blocks = _postData.data.display_blocks;
     let unique_id = ingredient_id + "_" + user_id;
@@ -74,6 +75,7 @@ const createIngredientPost = async function(_postData)
         'points' : 0,
         'type' : type,
         'short_detail' : short_detail,
+        'short_detail_vi' : short_detail_vi,
         'profile_image' : profile_image,
         'display_blocks' : display_blocks
     };
@@ -153,6 +155,7 @@ const createIngredient = async function(_postData){
     if (/^[A-Za-z _]+$/.test(ingredient_name)){
         let ingredientData = {
             'name' : ingredient_name, 
+            'name_vi' : _postData.name_vi || "",
             'best_post_id' : "",
             'is_need_update' : false
         };
@@ -170,6 +173,7 @@ const createIngredient = async function(_postData){
                     'user_id' : user_id,
                     'type' : type,
                     'short_detail' : short_detail,
+                    'short_detail_vi' : _postData.short_detail_vi || "",
                     'profile_image' : profile_image,
                     'display_blocks' : []
                 }
