@@ -1,10 +1,11 @@
 <script>
 import { useAuthStore } from '../assets/store/auth_store'
 import { useI18n } from '../i18n'
+import { currentTheme, toggleTheme } from '../theme'
 
 export default {
   data() {
-    return { q: '' }
+    return { q: '', theme: currentTheme() }
   },
   computed: {
     t() { return useI18n().t },
@@ -22,6 +23,9 @@ export default {
     async signOut() {
       await this.auth.signOut()
       this.$router.push('/')
+    },
+    switchTheme() {
+      this.theme = toggleTheme()
     }
   }
 }
@@ -59,6 +63,12 @@ export default {
             :aria-pressed="locale === 'vi'"
             @click="switchLocale('vi')"
           >VI</button>
+          <button
+            class="btn btn-quiet"
+            type="button"
+            :aria-pressed="theme === 'light'"
+            @click="switchTheme"
+          >{{ theme === 'light' ? t('theme.dark') : t('theme.light') }}</button>
         </div>
 
         <div class="flex items-center gap-2 text-sm">

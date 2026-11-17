@@ -3,6 +3,7 @@ import appVue from './app.vue'
 import router from './router'
 import { createPinia } from 'pinia'
 import { initI18n } from './i18n'
+import { initTheme } from './theme'
 
 import FontAwesome from './plugins/fontAwesome'
 
@@ -12,6 +13,7 @@ import './assets/css/theme.css'
 
 const pinia = createPinia();
 
+initTheme();
 initI18n().then(() => {
   createApp(appVue)
     .use(router)

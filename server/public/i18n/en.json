@@ -13,6 +13,8 @@
   "common.open": "Open",
   "common.close": "Close",
   "common.skip": "Skip to content",
+  "theme.light": "Light theme",
+  "theme.dark": "Dark theme",
   "common.errorTitle": "Something went wrong",
   "common.errorBody": "The request failed. Check the connection and try again.",
   "common.emptyTitle": "Nothing here yet",

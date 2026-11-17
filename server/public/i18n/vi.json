@@ -13,6 +13,8 @@
   "common.open": "Mở",
   "common.close": "Đóng",
   "common.skip": "Tới nội dung",
+  "theme.light": "Giao diện sáng",
+  "theme.dark": "Giao diện tối",
   "common.errorTitle": "Có lỗi xảy ra",
   "common.errorBody": "Yêu cầu không thành công. Kiểm tra kết nối rồi thử lại.",
   "common.emptyTitle": "Chưa có gì ở đây",
