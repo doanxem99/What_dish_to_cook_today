@@ -510,26 +510,44 @@ router.post('/vote/:dish_post_id', verifyToken, async function(req, res) {
             user_id: req.body.userid,
             dish_post_id: req.params.dish_post_id
         };
-        const existingVote = await database.collections.Vote.findOne(voteFilter);
         let voted;
+        let updated;
 
-        if (existingVote) {
-            await database.collections.Vote.deleteOne({ _id: existingVote._id });
-            voted = false;
-        } else {
-            await database.collections.Vote.create({
-                ...voteFilter,
-                date_time: new Date()
-            });
-            voted = true;
+        try {
+            //Delete first: only the request that really removed a row may decrement
+            const removed = await database.collections.Vote.findOneAndDelete(voteFilter);
+            if (removed) {
+                voted = false;
+                //Floor at zero so a drifted counter can never go negative
+                updated = await database.collections.DishPost.findByIdAndUpdate(
+                    req.params.dish_post_id,
+                    [{ $set: { points: { $max: [0, { $subtract: [{ $ifNull: ["$points", 0] }, 1] }] } } }],
+                    { new: true }
+                );
+            } else {
+                await database.collections.Vote.create({
+                    ...voteFilter,
+                    date_time: new Date()
+                });
+                voted = true;
+                updated = await database.collections.DishPost.findByIdAndUpdate(
+                    req.params.dish_post_id,
+                    { $inc: { points: 1 } },
+                    { new: true }
+                );
+            }
+        } catch (err) {
+            //A concurrent first vote hit the unique index: the vote exists, so report that state
+            if (err && err.code === 11000) {
+                const current = await database.collections.DishPost.findById(req.params.dish_post_id);
+                return res.status(200).send({
+                    'status' : profileEnum.ProfileStatus_PostDetail.Success,
+                    'status_code': profileEnum.Status_Code_Website.Success,
+                    'data' : { 'voted' : true, 'points' : current ? current.points : 0 }
+                });
+            }
+            throw err;
         }
-
-        //points stays the stored counter used by ordering and the C# vote job
-        const updated = await database.collections.DishPost.findByIdAndUpdate(
-            req.params.dish_post_id,
-            { $inc: { points: voted ? 1 : -1 } },
-            { new: true }
-        );
 
         res.status(200).send({
             'status' : profileEnum.ProfileStatus_PostDetail.Success,

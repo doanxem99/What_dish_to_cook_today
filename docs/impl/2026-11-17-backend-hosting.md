@@ -64,3 +64,14 @@ dotnet build both projects                             -> Build succeeded
 - Ruling: per-task review uses a fresh subagent on each task's commit range, only Critical/Important are fixed inline, Minors go to this record. Cost if wrong: a slice reviewer misses cross-task effects; the final branch review covers that.
 
 ## Progress log
+
+- Task 1: complete. Test RED (filter lacked `name_vi`) then GREEN; suite 4/4. Review: no Critical, one Important (assertions read the mock, not the response); fixed by strengthening the test and proving it fails when `name_vi` leaves the projection; suite 5/5. Commit `27e5c0e`, test fix `6c574d6`.
+- Ledgered minor (review 1): `dish_search.js` returns `short_detail` as an omitted key instead of `null` when a post has no short detail; clients treat both as falsy.
+- Task 2: complete. RED (404/HTML), GREEN; suite 7/7. Review: no Critical, no Important; verdict merge. Commit `8f43931`.
+- Ledgered minors (review 2): add a whitelist assertion that `/me` never gains extra keys; drop the dead `.populate('roles')` on the `/me` query; the 404 branch is unreachable but harmless.
+- Task 3: complete. 5 tests RED then GREEN; then 2 more for missing-post 404 and concurrent-delete 404. Review: no Critical, two Important (concurrent delete double-decrement; create for a missing post persisted a comment then 500). Both fixed atomically with tests; suite 14/14. Commits `12d78c9`, `c7c46fc`, `1a62581`.
+- Ledgered minors (review 3): index `comment.dish_post_id` for the list query; filter invalid user ids before the username join; two-element fixture to prove sort order.
+- Task 4: complete. 4 tests RED then GREEN; review found a Critical (concurrent unvote double-decrements `points`, can go negative) and two Important (concurrent first vote answered 500; tests did not assert the counter). Fixed with `findOneAndDelete`, duplicate-key handling, and a floored atomic decrement; tests now assert real counter values and the zero floor; suite 18/18, then 19/19. Commits `753e012`, fixes with this entry.
+- Ledgered minor (review 4): a `CastError` from an invalid id answers 500 instead of 404; `ResetData` drops `dish_post` but not `vote`, so orphan votes accumulate after a reseed (pick up in Task 8).
+
+
