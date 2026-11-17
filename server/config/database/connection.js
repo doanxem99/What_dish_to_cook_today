@@ -49,12 +49,14 @@ const Ingredient = mongoose.model('ingredient', {
         type: String,
         unique: true // `name` must be unique
     },
+    name_vi: String,
     best_post_id : String,
     is_need_update: Boolean
 },'ingredient');
 
 const IngredientPost = mongoose.model('ingredient_post', { 
     name : String,
+    name_vi : String,
     user_id : String,
     ingredient_id : String,
     is_best_post : {
@@ -69,6 +71,7 @@ const IngredientPost = mongoose.model('ingredient_post', {
     points: Number,
     type: String,
     short_detail: String,
+    short_detail_vi: String,
     profile_image : String,
     display_blocks : Array
 },'ingredient_post');
@@ -78,11 +81,13 @@ const Dish = mongoose.model('dish', {
         type: String,
         unique: true // `name` must be unique
     },
+    name_vi: String,
     best_post_id : String,
     is_need_update: Boolean,
 },'dish');
 const DishPost = mongoose.model('dish_post', { 
     name : String,
+    name_vi : String,
     user_id : String,
     dish_id : String,
     is_best_post : {
@@ -100,6 +105,7 @@ const DishPost = mongoose.model('dish_post', {
     ingredients : Array,
     // type: String,
     short_detail: String,
+    short_detail_vi: String,
     profile_image : String,
     display_blocks : Array
 },'dish_post');

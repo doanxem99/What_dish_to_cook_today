@@ -7,24 +7,29 @@ const findIngredientSelection = async function(){
     //Limit 10 item
     const ingredientPosts = await database.collections.IngredientPost.find(
                         {is_best_post : true}, 
-                        "ingredient_id short_detail profile_image type"
+                        "ingredient_id short_detail short_detail_vi profile_image type"
                     ).limit(10);
 
     const ingredients = await database.collections.Ingredient.find(
         { _id: { $in: ingredientPosts.map(post => post.ingredient_id) } },
-        "name"
+        "name name_vi"
     );
-    const ingredientNames = new Map(ingredients.map(ingredient => [ingredient._id.toString(), ingredient.name]));
+    const ingredientNames = new Map(ingredients.map(ingredient => [ingredient._id.toString(), ingredient]));
 
     const dataReturn = ingredientPosts
         .filter(post => ingredientNames.has(post.ingredient_id.toString()))
-        .map(post => ({
-            "id" : post.ingredient_id,
-            "name" : ingredientNames.get(post.ingredient_id.toString()),
-            "type" : post.type,
-            "short_detail" : post.short_detail,
-            "profile_image" : post.profile_image,
-        }));
+        .map(post => {
+            const ingredient = ingredientNames.get(post.ingredient_id.toString());
+            return {
+                "id" : post.ingredient_id,
+                "name" : ingredient.name,
+                "name_vi" : ingredient.name_vi || null,
+                "type" : post.type,
+                "short_detail" : post.short_detail,
+                "short_detail_vi" : post.short_detail_vi || null,
+                "profile_image" : post.profile_image,
+            };
+        });
 
     return {
         statusCode: 200,

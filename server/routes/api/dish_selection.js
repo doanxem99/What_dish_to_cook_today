@@ -11,23 +11,28 @@ const findDishSelectionByIds = async function(_ingredientIds){
     }
     const dishPosts = await database.collections.DishPost.find(
         filter,
-        "dish_id short_detail profile_image"
+        "dish_id short_detail short_detail_vi profile_image"
     ).limit(10);
 
     const dishes = await database.collections.Dish.find(
         { _id: { $in: dishPosts.map(post => post.dish_id) } },
-        "name"
+        "name name_vi"
     );
-    const dishNames = new Map(dishes.map(dish => [dish._id.toString(), dish.name]));
+    const dishNames = new Map(dishes.map(dish => [dish._id.toString(), dish]));
 
     return dishPosts
         .filter(post => dishNames.has(post.dish_id.toString()))
-        .map(post => ({
-            "id": post.dish_id,
-            "name": dishNames.get(post.dish_id.toString()),
-            "short_detail": post.short_detail,
-            "profile_image": post.profile_image,
-        }));
+        .map(post => {
+            const dish = dishNames.get(post.dish_id.toString());
+            return {
+                "id": dish._id,
+                "name": dish.name,
+                "name_vi": dish.name_vi || null,
+                "short_detail": post.short_detail,
+                "short_detail_vi": post.short_detail_vi || null,
+                "profile_image": post.profile_image,
+            };
+        });
 }
 
 const findDishSelection = async function(){

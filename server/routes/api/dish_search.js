@@ -9,24 +9,30 @@ const escapeRegex = function(_text){
 
 const findDishsByKeyword = async function(_keyword)
 {
-    //- Find with keyword
+    //- Find with keyword in English or Vietnamese
     //- Only get result have bestPost
+    const nameFilter = { "$regex": escapeRegex(_keyword), "$options": "i" };
     const dishs = await database.collections.Dish.find(
-        {name : { "$regex": escapeRegex(_keyword), "$options": "i" }, best_post_id: { $exists: true, $ne: "" }},
-        'name best_post_id'
+        { $or: [ { name: nameFilter }, { name_vi: nameFilter } ], best_post_id: { $exists: true, $ne: "" } },
+        'name name_vi best_post_id'
     ).limit(10);
 
     const dishPosts = await database.collections.DishPost.find(
         { _id: { $in: dishs.map(dish => dish.best_post_id) } },
-        'short_detail'
+        'short_detail short_detail_vi'
     );
-    const shortDetails = new Map(dishPosts.map(post => [post._id.toString(), post.short_detail]));
+    const dishPostDetails = new Map(dishPosts.map(post => [post._id.toString(), post]));
 
-    return dishs.map(dish => ({
-        "id" : dish._id,
-        "name" : dish.name,
-        "short_detail" : shortDetails.get(dish.best_post_id.toString()) || null,
-    }));
+    return dishs.map(dish => {
+        const post = dishPostDetails.get(dish.best_post_id.toString());
+        return {
+            "id" : dish._id,
+            "name" : dish.name,
+            "name_vi" : dish.name_vi || null,
+            "short_detail" : post ? post.short_detail : null,
+            "short_detail_vi" : post ? (post.short_detail_vi || null) : null,
+        };
+    });
 }
 
 const sendList = async function(res, _task) {
