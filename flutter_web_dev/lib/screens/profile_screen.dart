@@ -21,10 +21,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
     _started = true;
-    final state = AppScope.of(context);
-    if (!state.isSignedIn) {
-      state.refreshAccount();
-    }
+    //Refreshing during build would notify the scope mid-frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        return;
+      }
+      final state = AppScope.of(context);
+      if (!state.isSignedIn) {
+        await state.refreshAccount();
+      }
+      if (!mounted) {
+        return;
+      }
+      if (!state.isSignedIn) {
+        Navigator.pushReplacementNamed(context, '/signin');
+      }
+    });
   }
 
   @override

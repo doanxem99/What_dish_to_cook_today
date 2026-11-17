@@ -26,6 +26,9 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _submit() async {
+    if (_busy) {
+      return;
+    }
     final state = AppScope.of(context);
     if (_username.text.trim().isEmpty || _password.text.isEmpty) {
       setState(() => _error = state.t('auth.invalid'));
@@ -74,6 +77,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 ],
                 const SizedBox(height: 16),
                 BoardButton(
+                  key: const ValueKey('signin-submit'),
                   label: _busy ? state.t('common.loading') : state.t('auth.submitSignIn'),
                   primary: true,
                   onPressed: _busy ? null : _submit,
@@ -99,6 +103,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
   Widget _field(AppState state, TextEditingController controller, String label, bool secret) {
     return TextField(
+      key: ValueKey(secret ? 'signin-password' : 'signin-username'),
       controller: controller,
       obscureText: secret,
       autofillHints: secret ? const [AutofillHints.password] : const [AutofillHints.username],

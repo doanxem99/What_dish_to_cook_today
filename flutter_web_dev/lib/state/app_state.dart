@@ -51,7 +51,8 @@ class AppState extends ChangeNotifier {
   }
   List<BasketItem> get basket => List.unmodifiable(_basket);
 
-  I18n get i18n {    final current = catalogues[_locale];
+  I18n get i18n {
+    final current = catalogues[_locale];
     if (current != null && current.messages.isNotEmpty) {
       return current;
     }
@@ -84,6 +85,7 @@ class AppState extends ChangeNotifier {
 
   Account? _account;
   bool _loadingAccount = false;
+  int _accountRequest = 0;
 
   Account? get account => _account;
   bool get isSignedIn => _account != null;
@@ -91,18 +93,24 @@ class AppState extends ChangeNotifier {
 
   ///A missing or expired cookie means guest; it must never block browsing.
   Future<void> refreshAccount() async {
+    final request = ++_accountRequest;
     _loadingAccount = true;
     notifyListeners();
+    Account? loaded;
     try {
       final payload = await api.getJson('/api/auth/me');
       final user = payload is Map ? payload['user'] : null;
-      _account = user is Map ? Account.fromJson(user) : null;
+      loaded = user is Map ? Account.fromJson(user) : null;
     } catch (_) {
-      _account = null;
-    } finally {
-      _loadingAccount = false;
-      notifyListeners();
+      loaded = null;
     }
+    //A slower request that started before a sign-in must not clear the session.
+    if (request != _accountRequest) {
+      return;
+    }
+    _account = loaded;
+    _loadingAccount = false;
+    notifyListeners();
   }
 
   Future<String?> signIn(String username, String password) async {
@@ -110,11 +118,11 @@ class AppState extends ChangeNotifier {
       await api.postJson('/api/auth/signin', {'username': username, 'password': password});
     } on ApiException catch (error) {
       return error.message;
-    } catch (error) {
-      return error.toString();
+    } catch (_) {
+      return t('auth.failed');
     }
     await refreshAccount();
-    return _account == null ? 'Sign in failed.' : null;
+    return _account == null ? t('auth.failed') : null;
   }
 
   Future<String?> signUp(String username, String email, String password) async {
@@ -126,8 +134,8 @@ class AppState extends ChangeNotifier {
       });
     } on ApiException catch (error) {
       return error.message;
-    } catch (error) {
-      return error.toString();
+    } catch (_) {
+      return t('auth.failed');
     }
     return signIn(username, password);
   }
@@ -138,11 +146,14 @@ class AppState extends ChangeNotifier {
     } catch (_) {
       //Even if the server is unreachable, drop the local session.
     }
+    _accountRequest += 1;
     _account = null;
     notifyListeners();
   }
 
-  bool isChosen(String id) => _basket.any((item) => item.id == id);  void toggleIngredient(BasketItem item) {
+  bool isChosen(String id) => _basket.any((item) => item.id == id);
+
+  void toggleIngredient(BasketItem item) {
     final index = _basket.indexWhere((entry) => entry.id == item.id);
     if (index >= 0) {
       _basket.removeAt(index);

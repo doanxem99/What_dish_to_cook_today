@@ -30,6 +30,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _submit() async {
+    if (_busy) {
+      return;
+    }
     final state = AppScope.of(context);
     final username = _username.text.trim();
     final email = _email.text.trim();
@@ -71,13 +74,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
               children: [
                 Text(state.t('auth.signUpTitle'), style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 16),
-                _field(state, _username, state.t('auth.username'), false, false),
+                _field(state, _username, state.t('auth.username'), 'username', false, false),
                 const SizedBox(height: 10),
-                _field(state, _email, state.t('auth.email'), false, false),
+                _field(state, _email, state.t('auth.email'), 'email', false, false),
                 const SizedBox(height: 10),
-                _field(state, _password, state.t('auth.password'), true, false),
+                _field(state, _password, state.t('auth.password'), 'password', true, false),
                 const SizedBox(height: 10),
-                _field(state, _confirm, state.t('auth.confirmPassword'), true, true),
+                _field(state, _confirm, state.t('auth.confirmPassword'), 'confirm', true, true),
                 if (_error != null) ...[
                   const SizedBox(height: 10),
                   Text(_error!, style: TextStyle(fontSize: 13, color: tokens.danger)),
@@ -107,8 +110,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Widget _field(AppState state, TextEditingController controller, String label, bool secret, bool last) {
+  Widget _field(AppState state, TextEditingController controller, String label, String name, bool secret, bool last) {
     return TextField(
+      key: ValueKey('signup-$name'),
       controller: controller,
       obscureText: secret,
       style: TextStyle(fontSize: 13, color: BoardTokens.of(state.isLight).ink),

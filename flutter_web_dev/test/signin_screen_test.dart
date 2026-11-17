@@ -53,7 +53,7 @@ void main() {
 
     await tester.pumpWidget(_app(api));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sign in').last);
+    await tester.tap(find.byKey(const ValueKey('signin-submit')));
     await tester.pump();
 
     expect(find.text('Check the fields and try again.'), findsOneWidget);
@@ -71,9 +71,9 @@ void main() {
 
     await tester.pumpWidget(_app(api));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).at(1), 'demo');
-    await tester.enterText(find.byType(TextField).at(2), 'wrong');
-    await tester.tap(find.text('Sign in').last);
+    await tester.enterText(find.byKey(const ValueKey('signin-username')), 'demo');
+    await tester.enterText(find.byKey(const ValueKey('signin-password')), 'wrong');
+    await tester.tap(find.byKey(const ValueKey('signin-submit')));
     await tester.pumpAndSettle();
 
     expect(find.text('User/email or password is not correct!'), findsOneWidget);

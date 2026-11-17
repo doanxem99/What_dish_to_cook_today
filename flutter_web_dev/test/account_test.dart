@@ -1,4 +1,5 @@
 //Account state drives the header, the comment box and the vote button.
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -64,23 +65,67 @@ void main() {
     expect(state.account, isNull);
   });
 
-  test('sign-out clears the account and calls the server once', () async {
-    final calls = <String>[];
+  test('sign-out clears the account even when the server is unreachable', () async {
     final api = ApiClient('http://test', client: MockClient((request) async {
-      calls.add(request.method);
       if (request.url.path == '/api/auth/me') {
         return _ok({'user': {'id': 'u1', 'username': 'demo'}});
       }
-      return _ok({'message': 'Logout successfully!'});
+      throw http.ClientException('offline');
     }));
 
     final state = AppState(api: api);
     await state.refreshAccount();
-    expect(state.isSignedIn, isTrue);
-
     await state.signOut();
 
     expect(state.isSignedIn, isFalse);
-    expect(calls.where((method) => method == 'POST'), hasLength(1));
+  });
+
+  test('sign-up signs the new account in', () async {
+    final calls = <String>[];
+    final api = ApiClient('http://test', client: MockClient((request) async {
+      calls.add(request.url.path);
+      if (request.url.path == '/api/auth/signup') {
+        return _ok({'message': 'User was registered successfully!'});
+      }
+      if (request.url.path == '/api/auth/signin') {
+        return _ok({'message': 'ok'});
+      }
+      return _ok({'user': {'id': 'u2', 'username': 'newbie'}});
+    }));
+
+    final state = AppState(api: api);
+    final error = await state.signUp('newbie', 'new@example.com', 'pw');
+
+    expect(error, isNull);
+    expect(state.account?.username, 'newbie');
+    expect(calls, ['/api/auth/signup', '/api/auth/signin', '/api/auth/me']);
+  });
+
+  test('a stale /auth/me answer cannot clear a fresh session', () async {
+    final firstMe = Completer<http.Response>();
+    var meCalls = 0;
+    final api = ApiClient('http://test', client: MockClient((request) async {
+      if (request.url.path == '/api/auth/signin') {
+        return _ok({'message': 'ok'});
+      }
+      meCalls += 1;
+      if (meCalls == 1) {
+        return firstMe.future;
+      }
+      return _ok({'user': {'id': 'u1', 'username': 'demo'}});
+    }));
+
+    final state = AppState(api: api);
+    final stale = state.refreshAccount();
+    await state.signIn('demo', 'pw');
+    expect(state.isSignedIn, isTrue);
+
+    firstMe.complete(http.Response(
+        json.encode({'message': 'Unauthorized'}), 401,
+        headers: {'content-type': 'application/json; charset=utf-8'}));
+    await stale;
+
+    expect(state.isSignedIn, isTrue);
+    expect(state.account?.username, 'demo');
   });
 }

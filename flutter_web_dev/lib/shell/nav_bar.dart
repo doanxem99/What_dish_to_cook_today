@@ -308,7 +308,15 @@ class _AccountEntry extends StatelessWidget {
                   Icon(Icons.person_outline, size: 14, color: tokens.ink),
                   if (showName) ...[
                     const SizedBox(width: 6),
-                    Text(username, style: TextStyle(fontSize: 13, color: tokens.ink)),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 180),
+                      child: Text(
+                        username,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, color: tokens.ink),
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -318,12 +326,7 @@ class _AccountEntry extends StatelessWidget {
         if (showName) ...[
           const SizedBox(width: 10),
           InkWell(
-            onTap: () async {
-              await state.signOut();
-              if (context.mounted) {
-                Navigator.pushReplacementNamed(context, '/');
-              }
-            },
+            onTap: () => state.signOut(),
             child: Text(state.t('nav.signOut'), style: TextStyle(fontSize: 13, color: tokens.dim)),
           ),
         ],
