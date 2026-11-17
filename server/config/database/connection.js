@@ -125,6 +125,14 @@ const Comment = mongoose.model('comment', {
     date_time : Date,
 },'comment');
 
+const Vote = mongoose.model('vote', {
+    user_id : String,
+    dish_post_id : String,
+    date_time : Date,
+},'vote');
+//One vote per user and post
+Vote.schema.index({ user_id: 1, dish_post_id: 1 }, { unique: true });
+
 module.exports = {
     "mongoose" : mongoose,
     "collections" : {
@@ -135,6 +143,7 @@ module.exports = {
         Dish,
         DishPost,
         DatabaseWorkerJob,
-        Comment
+        Comment,
+        Vote
     }
 };

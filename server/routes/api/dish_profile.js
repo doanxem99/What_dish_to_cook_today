@@ -494,5 +494,60 @@ router.delete('/comment/:comment_id', verifyToken, async function(req, res) {
     }
 });
 
+// One vote per user and dish post; calling again removes it
+router.post('/vote/:dish_post_id', verifyToken, async function(req, res) {
+    try {
+        const dishPost = await database.collections.DishPost.findById(req.params.dish_post_id);
+        if (!dishPost) {
+            return res.status(404).send({
+                'status' : profileEnum.ProfileStatus_PostDetail.Exception,
+                'status_code': profileEnum.Status_Code_Website.NotFound,
+                'detail' : "Dish post not found"
+            });
+        }
+
+        const voteFilter = {
+            user_id: req.body.userid,
+            dish_post_id: req.params.dish_post_id
+        };
+        const existingVote = await database.collections.Vote.findOne(voteFilter);
+        let voted;
+
+        if (existingVote) {
+            await database.collections.Vote.deleteOne({ _id: existingVote._id });
+            voted = false;
+        } else {
+            await database.collections.Vote.create({
+                ...voteFilter,
+                date_time: new Date()
+            });
+            voted = true;
+        }
+
+        //points stays the stored counter used by ordering and the C# vote job
+        const updated = await database.collections.DishPost.findByIdAndUpdate(
+            req.params.dish_post_id,
+            { $inc: { points: voted ? 1 : -1 } },
+            { new: true }
+        );
+
+        res.status(200).send({
+            'status' : profileEnum.ProfileStatus_PostDetail.Success,
+            'status_code': profileEnum.Status_Code_Website.Success,
+            'data' : {
+                'voted' : voted,
+                'points' : updated ? updated.points : 0
+            }
+        });
+    } catch (err) {
+        appDebug.writeLine(appDebug.DebugType.Exception, "Error voting : " + err);
+        res.status(500).send({
+            'status' : profileEnum.ProfileStatus_PostDetail.Exception,
+            'status_code': profileEnum.Status_Code_Website.InternalServerError,
+            'detail' : err.toString()
+        });
+    }
+});
+
 // export this router to use in our index.js
 module.exports = router;
