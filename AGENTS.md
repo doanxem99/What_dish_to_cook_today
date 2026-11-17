@@ -1,6 +1,8 @@
 # Repository guide for AI agents
 
-Read this file first. It tells you where everything is, so you do not need to scan the tree.
+Read [RULES.md](RULES.md) first: it holds the owner's standing instructions, including the rule
+that every document handed over is a clickable link. Then read this file; it tells you where
+everything is, so you do not need to scan the tree.
 Deeper detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/API.md](docs/API.md),
 [docs/DATA_MODEL.md](docs/DATA_MODEL.md), [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md),
 [PRODUCT.md](PRODUCT.md).
