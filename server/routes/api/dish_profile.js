@@ -383,6 +383,34 @@ router.get('/get_best_dish_post', async function(req, res) {
 })
 
 // Comments on a dish post
+router.get('/mine', verifyToken, async function(req, res) {
+    try {
+        const posts = await database.collections.DishPost.find({ user_id: req.body.userid })
+            .sort({ date_time: -1 })
+            .limit(50);
+
+        res.status(200).send({
+            'status' : profileEnum.ProfileStatus_Detail.Success,
+            'status_code': profileEnum.Status_Code_Website.Success,
+            'data' : posts.map(post => ({
+                'id' : post._id,
+                'name' : post.name,
+                'name_vi' : post.name_vi || null,
+                'short_detail' : post.short_detail,
+                'profile_image' : post.profile_image,
+                'is_best_post' : !!post.is_best_post,
+                'date_time' : post.date_time,
+            }))
+        });
+    } catch (err) {
+        appDebug.writeLine(appDebug.DebugType.Exception, "Error listing own dish posts : " + err);
+        res.status(500).send({
+            'status' : profileEnum.ProfileStatus_Detail.Exception,
+            'status_code': profileEnum.Status_Code_Website.InternalServerError,
+            'detail' : err.toString()
+        });
+    }
+});
 router.get('/comments/:dish_post_id', async function(req, res) {
     try {
         const data = await listComments(req.params.dish_post_id, getViewerId(req));

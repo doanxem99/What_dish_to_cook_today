@@ -258,6 +258,35 @@ const getIngredientPostDetail = async function(_ingredientPostId)
     }
 }
 
+router.get('/mine', verifyToken, async function(req, res){
+    try {
+        const posts = await database.collections.IngredientPost.find({ user_id: req.body.userid })
+            .sort({ date_time: -1 })
+            .limit(50);
+
+        res.status(200).send({
+            'status' : profileEnum.ProfileStatus_Detail.Success,
+            'status_code': profileEnum.Status_Code_Website.Success,
+            'data' : posts.map(post => ({
+                'id' : post._id,
+                'name' : post.name,
+                'name_vi' : post.name_vi || null,
+                'type' : post.type,
+                'short_detail' : post.short_detail,
+                'profile_image' : post.profile_image,
+                'is_best_post' : !!post.is_best_post,
+                'date_time' : post.date_time,
+            }))
+        });
+    } catch (_err) {
+        appDebug.writeLine(appDebug.DebugType.Exception, "Error listing own ingredient posts : " + _err);
+        res.status(500).send({
+            'status' : profileEnum.ProfileStatus_Detail.Exception,
+            'status_code': profileEnum.Status_Code_Website.InternalServerError,
+            'detail' : _err.toString()
+        });
+    }
+});
 router.post('/create_ingredient', verifyToken, async function(req, res){
     const result = await createIngredient(req.body);
     res.status(result.status_code).send(result);
