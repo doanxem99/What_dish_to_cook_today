@@ -42,7 +42,8 @@ ApiClient _uploadApi(List<String> calls) {
   }));
 }
 
-Widget _harness(ApiClient api, List<EditorBlock> blocks, void Function(List<EditorBlock>) onChanged) {
+Widget _harness(ApiClient api, List<EditorBlock> blocks, void Function(List<EditorBlock>) onChanged,
+    {bool autoTranslate = false, Future<String> Function(String, String, String)? translate}) {
   final state = AppState(catalogues: {'en': I18n(_catalogue), 'vi': I18n(const {})}, api: api);
   return AppScope(
     state: state,
@@ -58,6 +59,8 @@ Widget _harness(ApiClient api, List<EditorBlock> blocks, void Function(List<Edit
                 setState(() => blocks = next);
               },
               pickImage: () async => PickedImage(Uint8List.fromList([1, 2, 3]), 'block.png'),
+              autoTranslate: autoTranslate,
+              translate: translate,
               imageName: 'block.png',
             ),
           );
@@ -171,6 +174,28 @@ void main() {
     await tester.pump();
 
     expect(blocks.first.text, 'Served hot');
+    expect(blocks.first.textVi, 'Dùng nóng');
+  });
+  testWidgets('auto-translate fills an empty Vietnamese block on blur', (tester) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1;
+    var blocks = <EditorBlock>[];
+    var calls = 0;
+
+    await tester.pumpWidget(_harness(_uploadApi(<String>[]), blocks, (next) => blocks = next,
+        autoTranslate: true,
+        translate: (text, source, target) async {
+          calls += 1;
+          return 'Dùng nóng';
+        }));
+    await tester.tap(find.text('Add text block'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('block-text-en-0')), 'Serve hot');
+    await tester.pump();
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+
+    expect(calls, 1);
     expect(blocks.first.textVi, 'Dùng nóng');
   });
 }

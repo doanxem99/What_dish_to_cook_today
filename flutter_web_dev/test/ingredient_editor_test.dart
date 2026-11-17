@@ -49,7 +49,7 @@ http.Response _ok(Object body) {
       headers: {'content-type': 'application/json; charset=utf-8'});
 }
 
-ApiClient _api({bool guest = false, List<String>? calls}) {
+ApiClient _api({bool guest = false, List<String>? calls, List<Map<String, dynamic>>? bodies}) {
   return ApiClient('http://test', client: MockClient((request) async {
     calls?.add('${request.method} ${request.url.path}');
     if (request.url.path == '/api/auth/me') {
@@ -61,6 +61,7 @@ ApiClient _api({bool guest = false, List<String>? calls}) {
             });
     }
     if (request.url.path == '/api/ingredient/profile/create_ingredient') {
+      bodies?.add(json.decode(request.body) as Map<String, dynamic>);
       return _ok({'status': 0, 'ingredient_id': 'i-new'});
     }
     return _ok({'isSuccess': true, 'data': []});
@@ -103,15 +104,21 @@ void main() {
     tester.view.physicalSize = const Size(1200, 1400);
     tester.view.devicePixelRatio = 1;
     final calls = <String>[];
-    await _pump(tester, _api(calls: calls));
+    final bodies = <Map<String, dynamic>>[];
+    await _pump(tester, _api(calls: calls, bodies: bodies));
 
-    await tester.enterText(find.byType(TextField).at(1), 'Ginger');
-    await tester.enterText(find.byType(TextField).at(2), 'Gừng');
+    await tester.enterText(find.byKey(const ValueKey('ing-name')), 'Ginger');
+    await tester.enterText(find.byKey(const ValueKey('ing-name-vi')), 'Gừng');
     await tester.ensureVisible(find.byKey(const ValueKey('ingredient-save')));
     await tester.tap(find.byKey(const ValueKey('ingredient-save')));
     await tester.pumpAndSettle();
 
     expect(calls, contains('POST /api/ingredient/profile/create_ingredient'));
+    expect(bodies, hasLength(1));
+    expect(bodies.first['name'], 'Ginger');
+    expect(bodies.first['name_vi'], 'Gừng');
+    expect(bodies.first['type'], 'Other');
+    expect(bodies.first['display_blocks'], isEmpty);
     expect(find.text('/ingredient-route'), findsOneWidget);
   });
 
@@ -119,7 +126,8 @@ void main() {
     tester.view.physicalSize = const Size(1200, 1200);
     tester.view.devicePixelRatio = 1;
     final calls = <String>[];
-    await _pump(tester, _api(calls: calls));
+    final bodies = <Map<String, dynamic>>[];
+    await _pump(tester, _api(calls: calls, bodies: bodies));
 
     await tester.ensureVisible(find.byKey(const ValueKey('ingredient-save')));
     await tester.tap(find.byKey(const ValueKey('ingredient-save')));

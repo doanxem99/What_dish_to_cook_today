@@ -349,6 +349,8 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
                   BlocksEditor(
                     blocks: _blocks,
                     pickImage: widget.pickImage,
+                    autoTranslate: _autoTranslate,
+                    translate: (text, source, target) => _translate(text, source, target),
                     onChanged: (next) => setState(() {
                       _blocks
                         ..clear()

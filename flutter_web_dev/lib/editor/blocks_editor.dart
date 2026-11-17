@@ -109,6 +109,8 @@ class BlocksEditor extends StatefulWidget {
     this.pickImage,
     this.imageName = 'block.png',
     this.onImageError,
+    this.autoTranslate = false,
+    this.translate,
   });
 
   final List<EditorBlock> blocks;
@@ -116,6 +118,8 @@ class BlocksEditor extends StatefulWidget {
   final Future<PickedImage?> Function()? pickImage;
   final String imageName;
   final ValueChanged<String>? onImageError;
+  final bool autoTranslate;
+  final Future<String> Function(String text, String source, String target)? translate;
 
   @override
   State<BlocksEditor> createState() => _BlocksEditorState();
@@ -146,6 +150,24 @@ class _BlocksEditorState extends State<BlocksEditor> {
   void _delete(int index) {
     final next = _blocks.map((block) => block.copy()).toList()..removeAt(index);
     widget.onChanged(next);
+  }
+
+  Future<void> _translateField(int index) async {
+    final translate = widget.translate;
+    final block = _blocks[index];
+    if (!widget.autoTranslate || translate == null || block.text.trim().isEmpty || block.textVi.trim().isNotEmpty) {
+      return;
+    }
+    try {
+      final value = await translate(block.text.trim(), 'en', 'vi');
+      final current = index < _blocks.length ? _blocks[index] : null;
+      if (!mounted || current == null || current.textVi.trim().isNotEmpty) {
+        return;
+      }
+      _update(index, (item) => item.textVi = value);
+    } catch (_) {
+      //The English text stays usable; translation is optional.
+    }
   }
 
   Future<void> _addImage(AppState state) async {
@@ -287,6 +309,7 @@ class _BlocksEditorState extends State<BlocksEditor> {
             label: state.t('edit.blockTextEn'),
             value: _blocks[index].text,
             onChanged: (value) => _update(index, (block) => block.text = value),
+            onBlur: () => _translateField(index),
           ),
           const SizedBox(height: 8),
           _BlockTextField(
@@ -412,12 +435,14 @@ class _BlocksEditorState extends State<BlocksEditor> {
 
 ///Keeps its own controller so typing never rebuilds the whole block.
 class _BlockTextField extends StatefulWidget {
-  const _BlockTextField({super.key, required this.fieldKey, required this.label, required this.value, required this.onChanged});
+  const _BlockTextField(
+      {super.key, required this.fieldKey, required this.label, required this.value, required this.onChanged, this.onBlur});
 
   final Key fieldKey;
   final String label;
   final String value;
   final ValueChanged<String> onChanged;
+  final VoidCallback? onBlur;
 
   @override
   State<_BlockTextField> createState() => _BlockTextFieldState();
@@ -431,6 +456,11 @@ class _BlockTextFieldState extends State<_BlockTextField> {
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.value);
+    _focus.addListener(() {
+      if (!_focus.hasFocus) {
+        widget.onBlur?.call();
+      }
+    });
   }
 
   @override

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../api/api_client.dart';
 import '../api/models.dart';
 import '../editor/blocks_editor.dart';
 import '../editor/editor_api.dart';
@@ -27,6 +28,7 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
   final _shortVi = TextEditingController();
   final List<EditorBlock> _blocks = [];
   String _type = 'Other';
+  bool _autoTranslate = false;
   String _image = '';
   bool _loading = true;
   bool _loadFailed = false;
@@ -142,7 +144,7 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
       } else {
         final response = await state.api.postJson('/api/ingredient/profile/create_ingredient_post', {
           'ingredient_id': widget.ingredientId,
-          'ingredient_name': name,
+          'ingredient_name': name.isNotEmpty ? name : nameVi,
           'data': payload,
         });
         final status = response is Map && response['status'] is num ? (response['status'] as num).toInt() : -1;
@@ -158,6 +160,17 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
     } on EditorException catch (error) {
       if (mounted) {
         setState(() => _error = error.serverMessage ?? state.t('common.errorBody'));
+      }
+    } on ApiException catch (error) {
+      if (error.statusCode == 401) {
+        await state.refreshAccount();
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/signin', arguments: {'next': _nextRoute()});
+        }
+        return;
+      }
+      if (mounted) {
+        setState(() => _error = error.message);
       }
     } catch (_) {
       if (mounted) {
@@ -199,9 +212,18 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _field(state, _name, state.t('edit.nameEn')),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _autoTranslate,
+                        onChanged: (value) => setState(() => _autoTranslate = value ?? false),
+                      ),
+                      Expanded(child: Text(state.t('edit.autoTranslate'), style: TextStyle(fontSize: 13, color: tokens.ink))),
+                    ],
+                  ),
+                  _field(state, _name, state.t('edit.nameEn'), 'ing-name'),
                   const SizedBox(height: 10),
-                  _field(state, _nameVi, state.t('edit.nameVi')),
+                  _field(state, _nameVi, state.t('edit.nameVi'), 'ing-name-vi'),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                     value: _type,
@@ -213,9 +235,9 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
                     onChanged: (value) => setState(() => _type = value ?? 'Other'),
                   ),
                   const SizedBox(height: 10),
-                  _field(state, _short, state.t('edit.shortEn')),
+                  _field(state, _short, state.t('edit.shortEn'), 'ing-short'),
                   const SizedBox(height: 10),
-                  _field(state, _shortVi, state.t('edit.shortVi')),
+                  _field(state, _shortVi, state.t('edit.shortVi'), 'ing-short-vi'),
                   const SizedBox(height: 14),
                   Text(state.t('edit.image').toUpperCase(), style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: tokens.dim)),
                   const SizedBox(height: 6),
@@ -224,8 +246,18 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
                     label: state.t('edit.dropCover'),
                     value: _image,
                     pickImage: widget.pickImage,
-                    onChanged: (path) => setState(() => _image = path),
-                    onError: (_) => setState(() => _error = state.t('common.errorBody')),
+                    onChanged: (path) {
+                      if (!mounted) {
+                        return;
+                      }
+                      setState(() => _image = path);
+                    },
+                    onError: (_) {
+                      if (!mounted) {
+                        return;
+                      }
+                      setState(() => _error = state.t('common.errorBody'));
+                    },
                   ),
                   const SizedBox(height: 14),
                   Text(state.t('edit.blocks').toUpperCase(), style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: tokens.dim)),
@@ -233,6 +265,8 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
                   BlocksEditor(
                     blocks: _blocks,
                     pickImage: widget.pickImage,
+                    autoTranslate: _autoTranslate,
+                    translate: (text, source, target) => EditorApi(state.api).translate(text, source, target),
                     onChanged: (next) => setState(() {
                       _blocks
                         ..clear()
@@ -277,9 +311,10 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
     );
   }
 
-  Widget _field(AppState state, TextEditingController controller, String label) {
+  Widget _field(AppState state, TextEditingController controller, String label, String name) {
     final tokens = BoardTokens.of(state.isLight);
     return TextField(
+      key: ValueKey(name),
       controller: controller,
       style: TextStyle(fontSize: 13, color: tokens.ink),
       decoration: InputDecoration(labelText: label),
