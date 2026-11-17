@@ -254,6 +254,36 @@ a.router-link-active {
     color: var(--board-dim);
 }
 
+/*Square icon control for row actions such as move and remove*/
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 24px;
+    border: 1px solid var(--board-line);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--board-dim);
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.icon-btn:hover:not([disabled]) {
+    color: var(--board-ink);
+    border-color: var(--board-line-strong);
+}
+
+.icon-btn:focus-visible {
+    outline: 2px solid var(--board-amber);
+    outline-offset: 1px;
+}
+
+.icon-btn[disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 /*Footer: the shared .board rule zeroes vertical padding, so footer spacing is scoped here.*/
 .site-footer .footer-cols {
     padding-top: 28px;

@@ -62,10 +62,30 @@ export default {
       <p v-else class="text-sm" style="color: var(--board-dim)">
         {{ t('edit.imageKept') }}
       </p>
-      <div class="flex gap-2 mt-2">
-        <button class="btn btn-quiet text-xs" type="button" :disabled="index === 0" @click="move(index, -1)">{{ t('edit.moveUp') }}</button>
-        <button class="btn btn-quiet text-xs" type="button" :disabled="index === modelValue.length - 1" @click="move(index, 1)">{{ t('edit.moveDown') }}</button>
-        <button class="btn btn-quiet text-xs" type="button" @click="remove(index)">{{ t('edit.removeBlock') }}</button>
+      <div class="flex items-center gap-1 mt-2">
+        <button
+          class="icon-btn"
+          type="button"
+          :title="t('edit.moveUp')"
+          :aria-label="t('edit.moveUp')"
+          :disabled="index === 0"
+          @click="move(index, -1)"
+        ><font-awesome-icon :icon="['fas', 'arrow-up']" /></button>
+        <button
+          class="icon-btn"
+          type="button"
+          :title="t('edit.moveDown')"
+          :aria-label="t('edit.moveDown')"
+          :disabled="index === modelValue.length - 1"
+          @click="move(index, 1)"
+        ><font-awesome-icon :icon="['fas', 'arrow-down']" /></button>
+        <button
+          class="icon-btn"
+          type="button"
+          :title="t('edit.removeBlock')"
+          :aria-label="t('edit.removeBlock')"
+          @click="remove(index)"
+        ><font-awesome-icon :icon="['fas', 'xmark']" /></button>
       </div>
     </div>
     <p v-if="modelValue.length === 0" class="text-sm" style="color: var(--board-dim)">{{ t('edit.noBlocks') }}</p>

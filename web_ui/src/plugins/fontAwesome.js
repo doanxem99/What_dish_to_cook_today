@@ -20,6 +20,8 @@ import {
   faPlus,
   faXmark,
   faAngleDown,
+  faArrowUp,
+  faArrowDown,
   faPenToSquare
 } from '@fortawesome/free-solid-svg-icons'
 
@@ -48,6 +50,8 @@ library.add(
   faPlus,
   faXmark,
   faAngleDown,
+  faArrowUp,
+  faArrowDown,
   faPenToSquare
 )
 

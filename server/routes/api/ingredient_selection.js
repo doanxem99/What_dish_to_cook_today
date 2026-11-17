@@ -8,7 +8,7 @@ const findIngredientSelection = async function(){
     const ingredientPosts = await database.collections.IngredientPost.find(
                         {is_best_post : true}, 
                         "ingredient_id short_detail short_detail_vi profile_image type"
-                    ).limit(10);
+                    ).limit(30);
 
     const ingredients = await database.collections.Ingredient.find(
         { _id: { $in: ingredientPosts.map(post => post.ingredient_id) } },

@@ -15,7 +15,7 @@ const findDishsByKeyword = async function(_keyword)
     const dishs = await database.collections.Dish.find(
         { $or: [ { name: nameFilter }, { name_vi: nameFilter } ], best_post_id: { $exists: true, $ne: "" } },
         'name name_vi best_post_id'
-    ).limit(10);
+    ).limit(24);
 
     const dishPosts = await database.collections.DishPost.find(
         { _id: { $in: dishs.map(dish => dish.best_post_id) } },

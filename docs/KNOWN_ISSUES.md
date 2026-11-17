@@ -22,6 +22,8 @@ can be picked up without re-reading the codebase.
 
 ## Vue UI gaps (plan 2, current state)
 
+- **The C# seed tools still hold the small original catalog.** The local demo now seeds 30 ingredients and 13 dishes from `server/scripts/seed-catalog.mjs`; `db_control --init_data` and the worker reseed still create their older short lists. Unify the seeds when the worker is touched next.
+
 - **Editor screens are still on the old styling and have no Vietnamese fields.**
   `dish_edit_view.vue`, `ingredient_edit_view.vue`, the generate dialogs and `edit_box` predate the
   new system; they cannot set `name_vi`/`short_detail_vi`, so a dish created there falls back to

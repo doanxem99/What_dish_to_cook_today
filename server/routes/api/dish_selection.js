@@ -64,7 +64,7 @@ const findDishSelectionByIds = async function(_ingredientIds){
     const dishPosts = await database.collections.DishPost.find(
         filter,
         "dish_id ingredients short_detail short_detail_vi profile_image"
-    ).limit(10);
+    ).limit(24);
 
     return toPreviews(dishPosts, _ingredientIds);
 }
@@ -84,7 +84,7 @@ const findHomemadeDishSelection = async function(){
     const dishPosts = await database.collections.DishPost.find(
         { is_best_post: true, user_id: { $exists: true, $nin: ['unknow', seedAdminId] } },
         "dish_id user_id short_detail short_detail_vi profile_image"
-    ).limit(10);
+    ).limit(24);
 
     //Belt and braces: a legacy ObjectId-typed user id slips past the string filter
     return toPreviews(dishPosts.filter(post =>
