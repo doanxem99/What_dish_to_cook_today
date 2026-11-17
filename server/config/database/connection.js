@@ -39,6 +39,9 @@ const User = mongoose.model('user', {
         ref: 'role',
         required: true
     }],
+    created_at: {
+        type: Date
+    },
     profile_image: {
         type: Buffer
     }

@@ -85,7 +85,8 @@ const signup = async function(req, res) {
         let user = new database.collections.User({
             username: req.body.username,
             email: req.body.email,
-            password: hashedPassword
+            password: hashedPassword,
+            created_at: new Date()
         });
         let role = await database.collections.Role.findOne({ name: "user" });
         if (!role) {
@@ -126,6 +127,32 @@ router.post('/verifytoken',
         });
     }
 )
+
+router.get('/me', verifyToken, async function(req, res){
+    try {
+        const user = await database.collections.User.findOne({ _id: req.body.userid }).populate('roles');
+        if (!user) {
+            return res.status(404).send({
+                message: "User not found!"
+            });
+        }
+        return res.status(200).send({
+            message: "User loaded!",
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                //Users created before the field existed have no joined date
+                created_at: user.created_at || null,
+                roles: req.roles,
+            }
+        });
+    } catch (err) {
+        return res.status(500).send({
+            message: err.toString()
+        });
+    }
+})
 
 router.post('/signout', function(req, res){
     res.clearCookie('token');
