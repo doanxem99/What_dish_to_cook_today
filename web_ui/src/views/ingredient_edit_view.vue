@@ -133,7 +133,7 @@ export default {
 </script>
 
 <template>
-  <section class="board py-6 max-w-3xl">
+  <section class="board board-narrow py-6">
     <p v-if="!auth.isLogin" class="state">
       {{ t('edit.signInFirst') }}
       <router-link class="link" to="/signin">{{ t('nav.signIn') }}</router-link>

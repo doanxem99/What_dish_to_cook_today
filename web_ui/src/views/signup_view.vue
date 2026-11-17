@@ -38,7 +38,7 @@ export default {
 </script>
 
 <template>
-  <section class="board py-10 max-w-md">
+  <section class="board board-form py-10">
     <h1 class="board-title">{{ t('auth.signUpTitle') }}</h1>
 
     <form class="grid gap-4 mt-4 ruled p-4" @submit.prevent="submit">

@@ -9,7 +9,7 @@ export default {
 </script>
 
 <template>
-  <section class="board py-6 max-w-3xl">
+  <section class="board board-narrow py-6">
     <h1 class="board-title">{{ t('about.title') }}</h1>
     <div class="mt-6 grid gap-4 leading-relaxed">
       <p>{{ t('about.body1') }}</p>

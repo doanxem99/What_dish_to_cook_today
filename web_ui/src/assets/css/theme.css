@@ -498,3 +498,24 @@ main {
 .site-header a.link {
     padding: 4px 2px;
 }
+
+/*Width variants: Tailwind max-w-* utilities lose to the unlayered .board rule above*/
+.board-narrow {
+    max-width: 768px;
+}
+
+.board-form {
+    max-width: 512px;
+}
+
+.measure {
+    max-width: 62ch;
+}
+
+main {
+    padding-bottom: var(--space-2);
+}
+
+.site-footer .footer-bottom-row {
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+}

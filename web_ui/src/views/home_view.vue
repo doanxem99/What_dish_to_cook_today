@@ -114,7 +114,7 @@ export default {
 <template>
   <section class="board py-6">
     <h1 class="board-title">{{ t('home.title') }}</h1>
-    <p class="board-sub max-w-2xl">{{ t('home.subtitle') }}</p>
+    <p class="board-sub measure">{{ t('home.subtitle') }}</p>
 
     <div class="grid gap-4 mt-4 lg:grid-cols-3">
       <div class="lg:col-span-2 ruled p-4">
