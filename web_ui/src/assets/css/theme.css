@@ -284,6 +284,68 @@ a.router-link-active {
     cursor: not-allowed;
 }
 
+/*Editor helpers*/
+.dropzone {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border: 1px dashed var(--board-line-strong);
+    border-radius: var(--radius);
+    cursor: pointer;
+}
+
+.dropzone.dragging {
+    border-color: var(--board-amber);
+    background: var(--board-raised);
+}
+
+.extra-thumb {
+    position: relative;
+    display: inline-flex;
+}
+
+.extra-thumb img {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.extra-thumb .chip-remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+}
+
+.block-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+.input.tiny {
+    width: auto;
+    padding: 3px 6px;
+    font-size: 12px;
+}
+
+.icon-btn.is-active {
+    border-color: var(--board-amber);
+    color: var(--board-amber);
+}
+
+.view-switch {
+    display: inline-flex;
+    gap: 4px;
+}
+
 /*Footer: the shared .board rule zeroes vertical padding, so footer spacing is scoped here.*/
 .site-footer .footer-cols {
     padding-top: 28px;
@@ -358,13 +420,32 @@ main {
 }
 
 .site-header .input {
-    padding: 8px 10px;
-    min-height: 36px;
+    padding: 4px 34px 4px 10px;
+    height: 30px;
+    min-height: 30px;
 }
 
-.site-header .board-title {
-    font-size: 16px;
-    white-space: nowrap;
+.site-header .btn {
+    padding: 0 10px;
+    height: 30px;
+    font-size: 13px;
+    line-height: 1;
+}
+
+.site-header .icon-only {
+    width: 30px;
+    padding: 0;
+}
+
+.site-header .board-title.brand {
+    margin-right: 12px;
+    border-right: 1px solid var(--board-line);
+    padding-right: 20px;
+}
+
+.site-header nav a.router-link-active {
+    border-bottom: 2px solid var(--board-amber);
+    padding-bottom: 2px;
 }
 
 /*Search: one field with the action inside it, right aligned*/

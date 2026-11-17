@@ -5,10 +5,11 @@ import { usePantryStore } from '../assets/store/pantry_store'
 import { useAuthStore } from '../assets/store/auth_store'
 import serverInfo from '../assets/js/server_info.js'
 
+const VIEW_KEY = 'dishes-view'
+
 export default {
-  components: {},
   data() {
-    return { rows: [], loading: true, failed: false }
+    return { rows: [], loading: true, failed: false, view: 'list' }
   },
   computed: {
     t() { return useI18n().t },
@@ -26,18 +27,28 @@ export default {
   watch: {
     '$route.query'() { this.load() }
   },
-  mounted() { this.load() },
+  mounted() {
+    try {
+      const saved = localStorage.getItem(VIEW_KEY)
+      if (saved === 'grid' || saved === 'list') this.view = saved
+    } catch (error) {
+      this.view = 'list'
+    }
+    this.load()
+  },
   methods: {
     localName(item) {
       return (this.locale === 'vi' && item.name_vi) ? item.name_vi : item.name
     },
-    chosenName(item) {
-      return (this.locale === 'vi' && item.name_vi) ? item.name_vi : item.name
-    },
-    missingName(item) {
-      return (this.locale === 'vi' && item.name_vi) ? item.name_vi : item.name
+    ingredientLine(row) {
+      if (!Array.isArray(row.ingredients_detail)) return ''
+      return row.ingredients_detail.map(item => this.localName(item)).join(' · ')
     },
     image(path) { return path ? serverInfo.getFullPath(path) : '' },
+    setView(view) {
+      this.view = view
+      try { localStorage.setItem(VIEW_KEY, view) } catch (error) { /* session only */ }
+    },
     remove(item) {
       this.pantry.remove(item.id)
       this.load()
@@ -58,7 +69,6 @@ export default {
         } else if (this.chosen.length) {
           payload = await api.get(`/api/dish/selection/ingredients/${this.pantry.ids.join('-')}`)
           const rows = payload && Array.isArray(payload.data) ? payload.data : []
-          //The board ranks by how much of the dish the cook already has
           this.rows = rows.sort((a, b) => (b.match_count - a.match_count) || a.name.localeCompare(b.name))
         } else {
           payload = await api.get('/api/dish/selection/')
@@ -71,29 +81,50 @@ export default {
         this.loading = false
       }
     },
-    refresh() { this.$router.push('/dish_edit') },
-    closeGenerate() {}
+    openNew() { this.$router.push('/dish_edit') }
   }
 }
 </script>
 
 <template>
   <section class="board py-6">
-    <div class="flex flex-wrap items-start justify-between gap-2">
+    <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h1 class="board-title">{{ heading }}</h1>
         <p class="board-sub">{{ t('dishes.subtitle') }}</p>
       </div>
-      <button v-if="auth.isLogin" class="btn" type="button" @click="refresh">
-        {{ t('edit.newDish') }}
-      </button>
+      <div class="flex items-center gap-2">
+        <div class="view-switch" role="group" :aria-label="t('dishes.view')">
+          <button
+            class="icon-btn"
+            :class="{ 'is-active': view === 'list' }"
+            type="button"
+            :aria-label="t('dishes.listView')"
+            :aria-pressed="view === 'list'"
+            :title="t('dishes.listView')"
+            @click="setView('list')"
+          ><font-awesome-icon :icon="['fas', 'list']" /></button>
+          <button
+            class="icon-btn"
+            :class="{ 'is-active': view === 'grid' }"
+            type="button"
+            :aria-label="t('dishes.gridView')"
+            :aria-pressed="view === 'grid'"
+            :title="t('dishes.gridView')"
+            @click="setView('grid')"
+          ><font-awesome-icon :icon="['fas', 'table-cells']" /></button>
+        </div>
+        <button v-if="auth.isLogin" class="btn" type="button" @click="openNew">
+          {{ t('edit.newDish') }}
+        </button>
+      </div>
     </div>
 
     <div v-if="chosen.length" class="flex flex-wrap items-center gap-2 mt-4">
       <span class="eyebrow">{{ t('home.pickerTitle') }}</span>
       <span v-for="item in chosen" :key="item.id" class="chip">
-        {{ chosenName(item) }}
-        <button class="chip-remove" type="button" :aria-label="t('common.delete') + ' ' + chosenName(item)" @click="remove(item)">×</button>
+        {{ localName(item) }}
+        <button class="chip-remove" type="button" :aria-label="t('common.delete') + ' ' + localName(item)" @click="remove(item)">×</button>
       </span>
     </div>
 
@@ -107,14 +138,14 @@ export default {
       <p>{{ query ? t('dishes.noMatches', { q: query }) : t('dishes.emptyCatalog') }}</p>
     </div>
 
-    <ul v-else class="mt-4 ruled">
+    <ul v-else-if="view === 'list'" class="mt-4 ruled">
       <li v-for="row in rows" :key="row.id" class="row-line">
         <router-link
-          class="flex items-center gap-4 p-2"
+          class="flex items-center gap-3 p-2"
           :to="{ path: '/dish_detail', query: { dish_id: row.id } }"
         >
           <span class="lamp" :class="lampClass(row)" aria-hidden="true"></span>
-          <span v-if="row.total_ingredients" class="match-number" style="min-width: 48px">
+          <span v-if="row.total_ingredients" class="match-number" style="min-width: 44px">
             {{ row.match_count }}<span class="text-sm" style="color: var(--board-dim)">/{{ row.total_ingredients }}</span>
           </span>
           <img
@@ -123,16 +154,40 @@ export default {
             :src="image(row.profile_image)"
             alt=""
           />
-          <span class="flex-1">
-            <span class="block font-bold text-base">{{ localName(row) }}</span>
-            <span class="block text-sm" style="color: var(--board-dim)">
+          <span class="flex-1 min-w-0">
+            <span class="block font-bold">{{ localName(row) }}</span>
+            <span class="block text-xs truncate" style="color: var(--board-dim)">
               {{ locale === 'vi' && row.short_detail_vi ? row.short_detail_vi : row.short_detail }}
             </span>
-            <span v-if="row.missing && row.missing.length" class="block text-sm" style="color: var(--board-dim)">
-              {{ t('dishes.needs', { list: row.missing.map(missingName).join(', ') }) }}
+            <span v-if="ingredientLine(row)" class="block text-xs truncate" style="color: var(--board-dim)">
+              {{ ingredientLine(row) }}
             </span>
           </span>
-          <span class="eyebrow">{{ t('common.open') }}</span>
+        </router-link>
+      </li>
+    </ul>
+
+    <ul v-else class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <li v-for="row in rows" :key="row.id">
+        <router-link class="ruled block overflow-hidden" :to="{ path: '/dish_detail', query: { dish_id: row.id } }">
+          <img
+            v-if="row.profile_image"
+            class="w-full h-36 object-cover"
+            :src="image(row.profile_image)"
+            alt=""
+          />
+          <div class="p-3">
+            <div class="flex items-center gap-2">
+              <span class="lamp" :class="lampClass(row)" aria-hidden="true"></span>
+              <span class="font-bold">{{ localName(row) }}</span>
+              <span v-if="row.total_ingredients" class="ml-auto text-xs" style="color: var(--board-dim)">
+                {{ row.match_count }}/{{ row.total_ingredients }}
+              </span>
+            </div>
+            <p class="text-xs mt-1" style="color: var(--board-dim)">
+              {{ locale === 'vi' && row.short_detail_vi ? row.short_detail_vi : row.short_detail }}
+            </p>
+          </div>
         </router-link>
       </li>
     </ul>

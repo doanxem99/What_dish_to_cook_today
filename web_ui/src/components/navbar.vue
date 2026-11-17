@@ -34,8 +34,8 @@ export default {
 <template>
   <header class="site-header border-b" style="border-color: var(--board-line)">
     <div class="board py-3 flex flex-col gap-2">
-      <div class="flex flex-wrap items-center gap-4">
-        <router-link to="/" class="board-title mr-2" style="font-size: 16px">{{ t('common.appName') }}</router-link>
+      <div class="flex flex-wrap items-center gap-5">
+        <router-link to="/" class="board-title brand" style="font-size: 16px">What dish to cook today?</router-link>
 
         <form class="flex-1 min-w-48" role="search" @submit.prevent="submitSearch">
           <label class="sr-only" for="nav-search">{{ t('common.search') }}</label>
@@ -69,13 +69,14 @@ export default {
             @click="switchLocale('vi')"
           >VI</button>
           <button
-            class="btn btn-quiet"
+            class="btn btn-quiet icon-only"
             type="button"
             role="switch"
             :aria-checked="theme === 'light'"
             :aria-label="t('theme.label')"
+            :title="theme === 'light' ? t('theme.dark') : t('theme.light')"
             @click="switchTheme"
-          >{{ t('theme.label') }}: {{ theme === 'light' ? t('theme.light') : t('theme.dark') }}</button>
+          ><font-awesome-icon :icon="theme === 'light' ? ['fas', 'moon'] : ['fas', 'sun']" /></button>
         </div>
 
         <div class="flex items-center gap-2 text-sm">

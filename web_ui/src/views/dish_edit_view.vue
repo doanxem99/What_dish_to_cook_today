@@ -13,12 +13,15 @@ export default {
       loading: true,
       saving: false,
       error: '',
+      autoTranslate: false,
+      dragging: false,
       model: {
         name: '',
         name_vi: '',
         short_detail: '',
         short_detail_vi: '',
         profile_image: '',
+        images: [],
         ingredients: [],
         blocks: []
       }
@@ -56,6 +59,7 @@ export default {
             this.model.short_detail = post.short_detail || ''
             this.model.short_detail_vi = post.short_detail_vi || ''
             this.model.profile_image = post.profile_image || ''
+            this.model.images = Array.isArray(post.images) ? post.images : []
             this.model.blocks = Array.isArray(post.display_blocks) ? post.display_blocks : []
             const ids = (post.ingredients || []).join('-')
             if (ids) {
@@ -73,6 +77,10 @@ export default {
     async upload(event) {
       const file = event.target.files && event.target.files[0]
       if (!file) return
+      await this.uploadOne(file, path => { this.model.profile_image = path })
+      if (event.target) event.target.value = ''
+    },
+    async uploadOne(file, apply) {
       const form = new FormData()
       form.append('file', file)
       try {
@@ -83,7 +91,7 @@ export default {
         })
         const data = await response.json()
         if (data && data.isSuccess) {
-          this.model.profile_image = data.path
+          apply(data.path)
         } else {
           this.error = (data && data.status) || this.t('common.errorBody')
         }
@@ -91,9 +99,47 @@ export default {
         this.error = this.t('common.errorBody')
       }
     },
+    onDropCover(event) {
+      this.dragging = false
+      const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]
+      if (file) this.uploadOne(file, path => { this.model.profile_image = path })
+    },
+    async addExtraImages(event) {
+      const files = [...(event.target.files || [])]
+      for (const file of files) {
+        await this.uploadOne(file, path => { this.model.images.push(path) })
+      }
+      if (event.target) event.target.value = ''
+    },
+    async addExtraDrop(event) {
+      this.dragging = false
+      const files = [...((event.dataTransfer && event.dataTransfer.files) || [])]
+      for (const file of files) {
+        await this.uploadOne(file, path => { this.model.images.push(path) })
+      }
+    },
+    removeExtra(index) {
+      this.model.images.splice(index, 1)
+    },
+    imageSrc(path) {
+      return path && path.startsWith('public/') ? '/' + path : path
+    },
+    async translateField(field) {
+      if (!this.autoTranslate) return
+      const sourceValue = this.model[field]
+      if (!sourceValue || !sourceValue.trim()) return
+      const viField = field === 'name' ? 'name_vi' : 'short_detail_vi'
+      if (this.model[viField] && this.model[viField].trim()) return
+      try {
+        const response = await api.post('/api/translate', { text: sourceValue, source: 'en', target: 'vi' })
+        this.model[viField] = response.text
+      } catch (error) {
+        this.error = this.t('edit.translateFailed')
+      }
+    },
     async save() {
       this.error = ''
-      if (!this.model.name.trim()) {
+      if (!this.model.name.trim() && !this.model.name_vi.trim()) {
         this.error = this.t('auth.invalid')
         return
       }
@@ -105,6 +151,7 @@ export default {
           short_detail: this.model.short_detail,
           short_detail_vi: this.model.short_detail_vi,
           profile_image: this.model.profile_image,
+          images: this.model.images,
           ingredients: this.model.ingredients.map(item => item.id),
           display_blocks: this.model.blocks
         }
@@ -152,10 +199,18 @@ export default {
       <p v-if="loading" class="state" aria-live="polite">{{ t('common.loading') }}</p>
 
       <form v-else class="grid gap-4 mt-4" @submit.prevent="save">
+        <div class="ruled p-3">
+          <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" v-model="autoTranslate" />
+            <span>{{ t('edit.autoTranslate') }}</span>
+          </label>
+          <p class="text-xs mt-1" style="color: var(--board-dim)">{{ t('edit.translateHint') }}</p>
+        </div>
+
         <div class="grid gap-3 sm:grid-cols-2">
           <label class="field">
             <span class="eyebrow">{{ t('edit.nameEn') }}</span>
-            <input v-model="model.name" class="input" required />
+            <input v-model="model.name" class="input" @blur="translateField('name')" />
           </label>
           <label class="field">
             <span class="eyebrow">{{ t('edit.nameVi') }}</span>
@@ -163,7 +218,7 @@ export default {
           </label>
           <label class="field">
             <span class="eyebrow">{{ t('edit.shortEn') }}</span>
-            <input v-model="model.short_detail" class="input" />
+            <input v-model="model.short_detail" class="input" @blur="translateField('short_detail')" />
           </label>
           <label class="field">
             <span class="eyebrow">{{ t('edit.shortVi') }}</span>
@@ -178,9 +233,36 @@ export default {
 
         <div>
           <h2 class="eyebrow mb-2">{{ t('edit.image') }}</h2>
-          <div class="flex items-center gap-3">
-            <img v-if="model.profile_image" class="w-16 h-16 object-cover rounded" :src="model.profile_image.startsWith('public/') ? '/' + model.profile_image : model.profile_image" alt="" />
-            <input type="file" accept="image/png,image/jpeg" @change="upload" />
+          <label
+            class="dropzone"
+            :class="{ dragging }"
+            @dragover.prevent="dragging = true"
+            @dragleave.prevent="dragging = false"
+            @drop.prevent="onDropCover"
+          >
+            <input class="sr-only" type="file" accept="image/png,image/jpeg" @change="upload" />
+            <img v-if="model.profile_image" class="w-16 h-16 object-cover rounded" :src="imageSrc(model.profile_image)" alt="" />
+            <span class="text-sm" style="color: var(--board-dim)">{{ t('edit.dropCover') }}</span>
+          </label>
+        </div>
+
+        <div>
+          <h2 class="eyebrow mb-2">{{ t('edit.extraImages') }}</h2>
+          <label
+            class="dropzone"
+            :class="{ dragging }"
+            @dragover.prevent="dragging = true"
+            @dragleave.prevent="dragging = false"
+            @drop.prevent="addExtraDrop"
+          >
+            <input class="sr-only" type="file" accept="image/png,image/jpeg" multiple @change="addExtraImages" />
+            <span class="text-sm" style="color: var(--board-dim)">{{ t('edit.dropCover') }}</span>
+          </label>
+          <div v-if="model.images.length" class="flex flex-wrap gap-2 mt-2">
+            <span v-for="(path, index) in model.images" :key="path + index" class="extra-thumb">
+              <img :src="imageSrc(path)" alt="" />
+              <button class="chip-remove" type="button" :aria-label="t('common.delete')" @click="removeExtra(index)">×</button>
+            </span>
           </div>
         </div>
 

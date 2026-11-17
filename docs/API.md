@@ -101,6 +101,15 @@ Creating a post for a pair that already exists edits the existing post instead
 Allowed extensions: `png`, `jpg`, `jpeg`. Maximum size 5 MB. The file starts in the temporary
 folder and is moved to its final folder by the profile create/update routes.
 
+## Translation — `/api/translate`
+
+| Method | Path | Body | Answer |
+|---|---|---|---|
+| POST | `/` | `{text, source: "en"\|"vi", target: "en"\|"vi"}` | `{text}` translated |
+
+Proxies a LibreTranslate-compatible service set in `TRANSLATE_URL`. Without it the route answers
+503 with a clear message and the editor keeps translation off. Text is limited to 2000 characters.
+
 ## Web pages
 
 | Method | Path | Answer |

@@ -203,6 +203,15 @@ export default {
           :src="image(post.profile_image)"
           alt=""
         />
+        <div v-if="post.images && post.images.length" class="flex gap-2 mt-3 overflow-x-auto">
+          <img
+            v-for="(path, index) in post.images"
+            :key="path + index"
+            class="w-20 h-20 object-cover rounded shrink-0"
+            :src="image(path)"
+            alt=""
+          />
+        </div>
       </header>
 
       <section v-if="ingredients.length" class="ruled p-4 mt-4">
