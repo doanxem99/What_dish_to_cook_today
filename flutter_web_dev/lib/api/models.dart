@@ -136,6 +136,20 @@ class DisplayBlock {
 
   String label(String locale) => I18n.label(textVi, text, locale);
 
+  Map<String, dynamic> toJson() {
+    return {
+      'type': type,
+      'text': text,
+      'text_vi': textVi,
+      'src': src,
+      'font_size': fontSize,
+      'color': color,
+      'font_weight': fontWeight,
+      'font_style': fontStyle,
+      'text_align': textAlign,
+    };
+  }
+
   static List<DisplayBlock> listFromJson(dynamic json) {
     if (json is! List) {
       return [];

@@ -115,6 +115,14 @@ class _DishesScreenState extends State<DishesScreen> {
               ),
               const SizedBox(width: 12),
               _viewSwitch(state, tokens),
+              if (state.isSignedIn) ...[
+                const SizedBox(width: 8),
+                BoardButton(
+                  key: const ValueKey('new-dish'),
+                  label: state.t('edit.newDish'),
+                  onPressed: () => Navigator.pushNamed(context, '/dish-edit'),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 16),
