@@ -82,6 +82,14 @@
   "edit.unsaved": "Bạn có thay đổi chưa lưu.",
   "edit.saved": "Đã lưu.",
   "edit.signInFirst": "Đăng nhập để tạo hoặc sửa.",
+  "edit.createTitle": "Thêm món",
+  "edit.titleEditDish": "Sửa món",
+  "edit.createIngredientTitle": "Thêm nguyên liệu",
+  "edit.titleEditIngredient": "Sửa nguyên liệu",
+  "edit.createAction": "Tạo",
+  "edit.type": "Loại",
+  "edit.noBlocks": "Chưa có khối nào. Thêm khối đầu tiên.",
+  "edit.imageKept": "Khối ảnh được giữ nguyên.",
   "ingredients.title": "Nguyên liệu",
   "ingredients.subtitle": "Danh mục chung, chia theo loại.",
   "ingredients.food": "Thực phẩm",
@@ -116,5 +124,10 @@
   "auth.haveAccount": "Đã có tài khoản?",
   "auth.needAccount": "Chưa có tài khoản?",
   "auth.invalid": "Kiểm tra lại các trường và thử lại.",
-  "auth.failed": "Đăng nhập không thành công. Kiểm tra tên đăng nhập và mật khẩu."
+  "auth.failed": "Đăng nhập không thành công. Kiểm tra tên đăng nhập và mật khẩu.",
+  "footer.tagline": "Chọn bữa tối từ những gì bạn đã có, bằng tiếng Anh hoặc tiếng Việt.",
+  "footer.browse": "Khám phá",
+  "footer.aboutCol": "Giới thiệu",
+  "footer.license": "Giấy phép",
+  "footer.rights": "© {year} Hôm nay nấu gì?"
 }

@@ -82,6 +82,14 @@
   "edit.unsaved": "You have unsaved changes.",
   "edit.saved": "Saved.",
   "edit.signInFirst": "Sign in to create or edit.",
+  "edit.createTitle": "Add a dish",
+  "edit.titleEditDish": "Edit dish",
+  "edit.createIngredientTitle": "Add an ingredient",
+  "edit.titleEditIngredient": "Edit ingredient",
+  "edit.createAction": "Create",
+  "edit.type": "Type",
+  "edit.noBlocks": "No blocks yet. Add the first one.",
+  "edit.imageKept": "Image block kept as it is.",
   "ingredients.title": "Ingredients",
   "ingredients.subtitle": "The shared catalog, grouped by type.",
   "ingredients.food": "Food",
@@ -116,5 +124,10 @@
   "auth.haveAccount": "Already have an account?",
   "auth.needAccount": "New here?",
   "auth.invalid": "Check the fields and try again.",
-  "auth.failed": "Sign in failed. Check your username and password."
+  "auth.failed": "Sign in failed. Check your username and password.",
+  "footer.tagline": "Decide dinner from what you already have, in English or Vietnamese.",
+  "footer.browse": "Browse",
+  "footer.aboutCol": "About",
+  "footer.license": "License",
+  "footer.rights": "© {year} What dish to cook today?"
 }

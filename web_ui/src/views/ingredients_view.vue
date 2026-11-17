@@ -1,6 +1,7 @@
 <script>
 import { api } from '../api'
 import { useI18n } from '../i18n'
+import { useAuthStore } from '../assets/store/auth_store'
 import serverInfo from '../assets/js/server_info.js'
 
 const TYPES = ['Food', 'Spice', 'Fruit', 'Other']
@@ -15,6 +16,7 @@ export default {
   computed: {
     t() { return useI18n().t },
     locale() { return useI18n().locale.value },
+    auth() { return useAuthStore() },
     groups() {
       return TYPES.map(type => ({
         type,
@@ -59,8 +61,13 @@ export default {
 
 <template>
   <section class="board py-6">
-    <h1 class="board-title">{{ t('ingredients.title') }}</h1>
-    <p class="board-sub">{{ t('ingredients.subtitle') }}</p>
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h1 class="board-title">{{ t('ingredients.title') }}</h1>
+        <p class="board-sub">{{ t('ingredients.subtitle') }}</p>
+      </div>
+      <router-link v-if="auth.isLogin" class="btn" to="/ingredient_edit">{{ t('edit.createIngredientTitle') }}</router-link>
+    </div>
 
     <label class="sr-only" for="ingredient-filter">{{ t('ingredients.title') }}</label>
     <input id="ingredient-filter" v-model="q" class="input mt-4" type="search" :placeholder="t('home.pickerPlaceholder')" />

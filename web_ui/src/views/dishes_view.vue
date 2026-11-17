@@ -4,12 +4,11 @@ import { useI18n } from '../i18n'
 import { usePantryStore } from '../assets/store/pantry_store'
 import { useAuthStore } from '../assets/store/auth_store'
 import serverInfo from '../assets/js/server_info.js'
-import dishProfileGenerate from '../components/dish_profile_generate.vue'
 
 export default {
-  components: { dishProfileGenerate },
+  components: {},
   data() {
-    return { rows: [], loading: true, failed: false, isGenerate: false }
+    return { rows: [], loading: true, failed: false }
   },
   computed: {
     t() { return useI18n().t },
@@ -72,8 +71,8 @@ export default {
         this.loading = false
       }
     },
-    refresh() { this.$router.go(0) },
-    closeGenerate() { this.isGenerate = false }
+    refresh() { this.$router.push('/dish_edit') },
+    closeGenerate() {}
   }
 }
 </script>
@@ -85,7 +84,7 @@ export default {
         <h1 class="board-title">{{ heading }}</h1>
         <p class="board-sub">{{ t('dishes.subtitle') }}</p>
       </div>
-      <button v-if="auth.isLogin && !chosen.length" class="btn" type="button" @click="isGenerate = true">
+      <button v-if="auth.isLogin" class="btn" type="button" @click="refresh">
         {{ t('edit.newDish') }}
       </button>
     </div>
@@ -137,7 +136,5 @@ export default {
         </router-link>
       </li>
     </ul>
-
-    <dishProfileGenerate v-if="isGenerate" :onRefesh="refresh" :onCancel="closeGenerate" />
   </section>
 </template>
