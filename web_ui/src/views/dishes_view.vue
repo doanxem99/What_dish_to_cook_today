@@ -141,22 +141,22 @@ export default {
     <ul v-else-if="view === 'list'" class="mt-4 ruled">
       <li v-for="row in rows" :key="row.id" class="row-line">
         <router-link
-          class="flex items-center gap-3 p-2"
+          class="flex items-center gap-2 sm:gap-3 p-2"
           :to="{ path: '/dish_detail', query: { dish_id: row.id } }"
         >
           <span class="lamp" :class="lampClass(row)" aria-hidden="true"></span>
-          <span v-if="row.total_ingredients" class="match-number" style="min-width: 44px">
+          <span v-if="row.total_ingredients" class="match-number row-match">
             {{ row.match_count }}<span class="text-sm" style="color: var(--board-dim)">/{{ row.total_ingredients }}</span>
           </span>
           <img
             v-if="row.profile_image"
-            class="w-12 h-12 object-cover rounded"
+            class="w-11 h-11 sm:w-12 sm:h-12 shrink-0 object-cover rounded"
             :src="image(row.profile_image)"
             alt=""
           />
           <span class="flex-1 min-w-0">
-            <span class="block font-bold">{{ localName(row) }}</span>
-            <span class="block text-xs truncate" style="color: var(--board-dim)">
+            <span class="block font-bold truncate">{{ localName(row) }}</span>
+            <span class="hidden sm:block text-xs truncate" style="color: var(--board-dim)">
               {{ locale === 'vi' && row.short_detail_vi ? row.short_detail_vi : row.short_detail }}
             </span>
             <span v-if="ingredientLine(row)" class="block text-xs truncate" style="color: var(--board-dim)">

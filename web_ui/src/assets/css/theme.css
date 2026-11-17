@@ -642,3 +642,19 @@ main {
 .site-footer .footer-bottom-row {
     padding-bottom: max(14px, env(safe-area-inset-bottom));
 }
+
+/*Phones: denser rows still need 30px touch targets*/
+@media (max-width: 639px) {
+    .row-match {
+        font-size: 16px;
+        min-width: 34px;
+    }
+    .icon-btn {
+        width: 30px;
+        height: 30px;
+    }
+    .chip {
+        min-height: 30px;
+        padding: 4px 10px;
+    }
+}
