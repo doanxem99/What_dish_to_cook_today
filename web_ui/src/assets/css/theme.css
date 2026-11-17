@@ -254,7 +254,48 @@ a.router-link-active {
     color: var(--board-dim);
 }
 
-/*Legacy sheets set every element to position: relative and main to absolute; the shell is normal flow.*/
+/*Footer: the shared .board rule zeroes vertical padding, so footer spacing is scoped here.*/
+.site-footer .footer-cols {
+    padding-top: 28px;
+    padding-bottom: 28px;
+}
+
+.site-footer .footer-tagline {
+    margin-top: 8px;
+    max-width: 34ch;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.site-footer nav h2,
+.site-footer .footer-cols > div > h2 {
+    margin: 0 0 10px;
+}
+
+.site-footer ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.site-footer .footer-bottom {
+    border-top: 1px solid var(--board-line);
+}
+
+.site-footer .footer-bottom-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 14px;
+    padding-bottom: 14px;
+    font-size: 12px;
+    color: var(--board-dim);
+}
 header,
 main,
 footer,

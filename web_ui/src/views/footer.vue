@@ -10,16 +10,16 @@ export default {
 </script>
 
 <template>
-  <footer class="border-t mt-10" style="border-color: var(--board-line)">
-    <div class="board py-6 grid gap-6 sm:grid-cols-3">
+  <footer class="site-footer border-t mt-10" style="border-color: var(--board-line)">
+    <div class="board footer-cols grid gap-8 sm:grid-cols-3">
       <div>
         <p class="board-title" style="font-size: 15px">{{ t('common.appName') }}</p>
-        <p class="text-sm mt-2" style="color: var(--board-dim)">{{ t('footer.tagline') }}</p>
+        <p class="footer-tagline" style="color: var(--board-dim)">{{ t('footer.tagline') }}</p>
       </div>
 
       <nav aria-label="Browse">
-        <h2 class="eyebrow mb-2">{{ t('footer.browse') }}</h2>
-        <ul class="grid gap-1 text-sm">
+        <h2 class="eyebrow">{{ t('footer.browse') }}</h2>
+        <ul>
           <li><router-link class="link" to="/dishes">{{ t('nav.dishes') }}</router-link></li>
           <li><router-link class="link" to="/homemade">{{ t('nav.homemade') }}</router-link></li>
           <li><router-link class="link" to="/ingredients">{{ t('nav.ingredients') }}</router-link></li>
@@ -27,16 +27,16 @@ export default {
       </nav>
 
       <div>
-        <h2 class="eyebrow mb-2">{{ t('footer.aboutCol') }}</h2>
-        <ul class="grid gap-1 text-sm">
+        <h2 class="eyebrow">{{ t('footer.aboutCol') }}</h2>
+        <ul>
           <li><router-link class="link" to="/about">{{ t('nav.about') }}</router-link></li>
           <li><a class="link" href="https://github.com/doanxem99/What_dish_to_cook_today/blob/main/LICENSE">{{ t('footer.license') }}</a></li>
         </ul>
       </div>
     </div>
 
-    <div class="border-t" style="border-color: var(--board-line)">
-      <div class="board py-3 flex flex-wrap items-center justify-between gap-2 text-xs" style="color: var(--board-dim)">
+    <div class="footer-bottom">
+      <div class="board footer-bottom-row">
         <span>{{ t('footer.rights', { year: year }) }}</span>
         <span>MIT</span>
       </div>
