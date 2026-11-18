@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/widgets.dart';
 
 import '../api/api_client.dart';
@@ -15,6 +17,14 @@ class BasketItem {
   final String nameVi;
 
   String label(String locale) => I18n.label(nameVi, name, locale);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'name_vi': nameVi};
+
+  factory BasketItem.fromJson(Map<String, dynamic> json) => BasketItem(
+        id: '${json['id'] ?? ''}',
+        name: '${json['name'] ?? ''}',
+        nameVi: '${json['name_vi'] ?? ''}',
+      );
 }
 
 class AppState extends ChangeNotifier {
@@ -26,7 +36,9 @@ class AppState extends ChangeNotifier {
   })  : catalogues = catalogues ?? <String, I18n>{},
         _api = api,
         _locale = locale,
-        _isLight = isLight;
+        _isLight = isLight {
+    _restoreBasket();
+  }
 
   final Map<String, I18n> catalogues;
   ApiClient? _api;
@@ -154,6 +166,25 @@ class AppState extends ChangeNotifier {
 
   bool isChosen(String id) => _basket.any((item) => item.id == id);
 
+  void _restoreBasket() {
+    final raw = AppStorage.read(AppStorage.basketKey);
+    if (raw == null || raw.isEmpty) {
+      return;
+    }
+    try {
+      final rows = json.decode(raw);
+      if (rows is List) {
+        _basket.addAll(rows.whereType<Map>().map((row) => BasketItem.fromJson(Map<String, dynamic>.from(row))));
+      }
+    } catch (_) {
+      //A corrupt basket is dropped rather than blocking the app.
+    }
+  }
+
+  void _persistBasket() {
+    AppStorage.write(AppStorage.basketKey, json.encode(_basket.map((item) => item.toJson()).toList()));
+  }
+
   void toggleIngredient(BasketItem item) {
     final index = _basket.indexWhere((entry) => entry.id == item.id);
     if (index >= 0) {
@@ -161,16 +192,19 @@ class AppState extends ChangeNotifier {
     } else {
       _basket.add(item);
     }
+    _persistBasket();
     notifyListeners();
   }
 
   void removeIngredient(String id) {
     _basket.removeWhere((entry) => entry.id == id);
+    _persistBasket();
     notifyListeners();
   }
 
   void clearBasket() {
     _basket.clear();
+    _persistBasket();
     notifyListeners();
   }
 }

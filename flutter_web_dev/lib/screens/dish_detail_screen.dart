@@ -27,6 +27,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
   int _points = 0;
   bool _voted = false;
   bool _voteBusy = false;
+  bool _voteError = false;
   bool _commentBusy = false;
   bool _deleteBusy = false;
   bool _commentError = false;
@@ -279,7 +280,10 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
     if (_voteBusy) {
       return;
     }
-    setState(() => _voteBusy = true);
+    setState(() {
+      _voteBusy = true;
+      _voteError = false;
+    });
     try {
       final payload = await state.api.postJson('/api/dish/profile/vote/${post.id}', const {});
       if (!mounted) {
@@ -295,6 +299,9 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
     } catch (error) {
       if (error is ApiException && error.statusCode == 401) {
         await state.refreshAccount();
+      }
+      if (mounted) {
+        setState(() => _voteError = true);
       }
       //The count stays as it was; the button can be pressed again.
     } finally {
@@ -347,6 +354,10 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                 const SizedBox(height: 6),
                 Text(post.detail(state.locale), style: TextStyle(fontSize: 14, color: tokens.dim)),
               ],
+              if (post.username.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(state.t('dish.author', {'name': post.username}), style: TextStyle(fontSize: 12, color: tokens.dim)),
+              ],
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -361,6 +372,14 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  if (state.isSignedIn)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: InkWell(
+                        onTap: () => Navigator.pushNamed(context, '/dish-edit', arguments: {'dish_id': post.dishId}),
+                        child: Text(state.t('common.edit'), style: TextStyle(fontSize: 12, color: tokens.dim)),
+                      ),
+                    ),
                   BoardButton(
                     key: const ValueKey('vote-button'),
                     label: _voted ? state.t('dish.voted') : state.t('dish.vote'),
@@ -369,6 +388,11 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                   ),
                 ],
               ),
+              if (_voteError)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(state.t('common.errorBody'), style: TextStyle(fontSize: 12, color: tokens.danger)),
+                ),
               if (post.image.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 BoardImage(

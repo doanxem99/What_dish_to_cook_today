@@ -85,8 +85,11 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
         children: [
           if (_loading)
             Text(state.t('common.loading'), style: TextStyle(fontSize: 13, color: tokens.dim))
-          else if (_failed)
-            Text(state.t('common.errorBody'), style: TextStyle(fontSize: 13, color: tokens.dim))
+          else if (_failed) ...[
+            Text(state.t('common.errorBody'), style: TextStyle(fontSize: 13, color: tokens.dim)),
+            const SizedBox(height: 8),
+            BoardButton(label: state.t('common.retry'), onPressed: _load),
+          ]
           else if (_ingredient == null)
             Text(state.t('common.emptyTitle'), style: TextStyle(fontSize: 13, color: tokens.dim))
           else ...[

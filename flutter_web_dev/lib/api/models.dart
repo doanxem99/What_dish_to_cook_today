@@ -64,6 +64,7 @@ class DishPreview {
     this.matchCount = 0,
     this.totalIngredients = 0,
     this.ingredientDetails = const [],
+    this.missingDetails = const [],
   });
 
   final String id;
@@ -75,6 +76,7 @@ class DishPreview {
   final int matchCount;
   final int totalIngredients;
   final List<IngredientRef> ingredientDetails;
+  final List<IngredientRef> missingDetails;
 
   factory DishPreview.fromJson(dynamic json) {
     if (json is! Map) {
@@ -89,7 +91,8 @@ class DishPreview {
       image: _text(json['profile_image']),
       matchCount: _number(json['match_count']),
       totalIngredients: _number(json['total_ingredients']),
-      ingredientDetails: IngredientRef.listFromJson(json['ingredients_detail'] ?? json['missing']),
+      ingredientDetails: IngredientRef.listFromJson(json['ingredients_detail']),
+      missingDetails: IngredientRef.listFromJson(json['missing']),
     );
   }
 
@@ -98,6 +101,8 @@ class DishPreview {
   String detail(String locale) => I18n.label(shortDetailVi, shortDetail, locale);
 
   String ingredientLine(String locale) => ingredientDetails.map((item) => item.label(locale)).join(' · ');
+
+  String missingLine(String locale) => missingDetails.map((item) => item.label(locale)).join(', ');
 
   static List<DishPreview> listFromJson(dynamic json) {
     if (json is! List) {
@@ -189,6 +194,8 @@ class DishPost {
     this.shortDetailVi = '',
     this.image = '',
     this.type = '',
+    this.username = '',
+    this.dateTime = '',
     this.extraImages = const [],
     this.blocks = const [],
     this.points = 0,
@@ -203,6 +210,8 @@ class DishPost {
   final String shortDetailVi;
   final String image;
   final String type;
+  final String username;
+  final String dateTime;
   final List<String> extraImages;
   final List<DisplayBlock> blocks;
   final int points;
@@ -223,6 +232,8 @@ class DishPost {
       shortDetailVi: _text(json['short_detail_vi']),
       image: _text(json['profile_image']),
       type: _text(json['type']),
+      username: _text(json['username']),
+      dateTime: _text(json['date_time']),
       extraImages: images is List ? images.map(_text).where((item) => item.isNotEmpty).toList() : [],
       blocks: DisplayBlock.listFromJson(json['display_blocks']),
       points: _number(json['points']),

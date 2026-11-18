@@ -129,3 +129,12 @@ Rejected or deferred:
 - Be Vietnam Pro is not bundled; the platform sans renders Vietnamese.
 - The Flutter bundle replaces tracked `server/web/` output; git history carries the old build.
 - Colour values are copied by hand from `theme.css`; a token drift test is not possible without parsing CSS, so both palettes are asserted in a unit test against literal constants.
+
+## Critique fix pass (2026-11-18)
+
+- Board picker: chosen chips with remove, inline ingredient search-add and refetch above the board; Home added to the header nav; basket persisted across reloads through localStorage.
+- Ranking explained: rows print Needs: ... for missing ingredients, amber for partial and danger for no match.
+- Dish detail: author line, Edit entry for signed-in users, vote error line, totals stretched; method measure still full width (deferred).
+- Typography: Be Vietnam Pro bundled (400/600/800) and set as the app font.
+- Recovery: retry buttons on home, ingredients and ingredient detail; host page now has a real title, description and lang.
+- Still deferred: stock Checkbox/Dropdown controls, 28px chip targets, comments 1/3 column, unsaved-change guard, lamp legend, footer licence link.

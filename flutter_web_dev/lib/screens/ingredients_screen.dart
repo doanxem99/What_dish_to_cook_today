@@ -122,8 +122,10 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
           const SizedBox(height: 16),
           if (_loading)
             _stateLine(state.t('common.loading'))
-          else if (_failed)
-            _stateLine(state.t('common.errorBody'))
+          else if (_failed) ...[
+            _stateLine(state.t('common.errorBody')),
+            BoardButton(label: state.t('common.retry'), onPressed: _load),
+          ]
           else if (groups.isEmpty)
             _stateLine(_search.text.trim().isEmpty
                 ? state.t('common.emptyTitle')

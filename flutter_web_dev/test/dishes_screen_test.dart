@@ -13,6 +13,8 @@ const _catalogue = {
   'dishes.title': 'Dishes',
   'dishes.board': 'Your board',
   'dishes.subtitle': 'Everything in the shared catalog.',
+  'dishes.needs': 'Needs: {list}',
+  'nav.home': 'Home',
   'dishes.noMatches': 'No matches for {q}',
   'dishes.emptyCatalog': 'The catalog is empty.',
   'dishes.view': 'View',
@@ -51,6 +53,9 @@ ApiClient _api() {
                 'ingredients_detail': [
                   {'id': 'i1', 'name': 'Beef', 'name_vi': 'Thịt bò'},
                   {'id': 'i2', 'name': 'Ginger', 'name_vi': 'Gừng'}
+                ],
+                'missing': [
+                  {'id': 'i9', 'name': 'Lime', 'name_vi': 'Chanh'}
                 ]
               },
               {
@@ -94,6 +99,7 @@ void main() {
 
     expect(find.byKey(const ValueKey('row-d1')), findsOneWidget);
     expect(find.text('Beef · Ginger'), findsOneWidget);
+    expect(find.text('Needs: Lime'), findsOneWidget);
     expect(find.text('Long-simmered broth with aromatics and herbs.'), findsNothing);
   });
 

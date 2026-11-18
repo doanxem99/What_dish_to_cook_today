@@ -17,6 +17,9 @@ class DishesScreen extends StatefulWidget {
 
 class _DishesScreenState extends State<DishesScreen> {
   final List<DishPreview> _rows = [];
+  final List<IngredientRef> _catalog = [];
+  final TextEditingController _add = TextEditingController();
+  String _addQuery = '';
   bool _loading = true;
   bool _failed = false;
   bool _started = false;
@@ -28,7 +31,34 @@ class _DishesScreenState extends State<DishesScreen> {
       return;
     }
     _started = true;
+    _loadCatalog();
     _load();
+  }
+
+  Future<void> _loadCatalog() async {
+    final state = AppScope.of(context);
+    try {
+      final payload = await state.api.getJson('/api/ingredient/selection/');
+      if (!mounted) {
+        return;
+      }
+      setState(() => _catalog
+        ..clear()
+        ..addAll(IngredientRef.listFromJson(payload)));
+    } catch (_) {
+      //The board still works without the inline picker.
+    }
+  }
+
+  void _toggle(IngredientRef item) {
+    AppScope.of(context).toggleIngredient(item.toBasketItem());
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _add.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -125,7 +155,9 @@ class _DishesScreenState extends State<DishesScreen> {
               ],
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          _boardPicker(state, tokens),
+          const SizedBox(height: 12),
           if (_loading)
             _stateLine(state.t('common.loading'))
           else if (_failed)
@@ -162,6 +194,70 @@ class _DishesScreenState extends State<DishesScreen> {
             }),
         ],
       ),
+    );
+  }
+
+  Widget _boardPicker(AppState state, BoardTokens tokens) {
+    final query = _addQuery.trim().toLowerCase();
+    final options = query.isEmpty
+        ? const <IngredientRef>[]
+        : _catalog
+            .where((item) =>
+                !state.isChosen(item.id) && item.label(state.locale).toLowerCase().contains(query))
+            .take(8)
+            .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (state.basket.isNotEmpty) ...[
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final item in state.basket)
+                BoardChip(
+                  label: item.label(state.locale),
+                  onRemove: () {
+                    state.removeIngredient(item.id);
+                    _load();
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
+        SizedBox(
+          height: 32,
+          child: TextField(
+            key: const ValueKey('board-add-field'),
+            controller: _add,
+            onChanged: (value) => setState(() => _addQuery = value),
+            style: TextStyle(fontSize: 13, color: tokens.ink),
+            decoration: InputDecoration(hintText: state.t('home.pickerPlaceholder')),
+          ),
+        ),
+        if (options.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final item in options)
+                  BoardChip(
+                    key: ValueKey('board-add-${item.id}'),
+                    label: '+ ${item.label(state.locale)}',
+                    onTap: () {
+                      _add.clear();
+                      setState(() => _addQuery = '');
+                      _toggle(item);
+                    },
+                  ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
@@ -246,6 +342,16 @@ class _DishesScreenState extends State<DishesScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 12, color: tokens.dim),
+                      ),
+                    if (row.missingLine(state.locale).isNotEmpty)
+                      Text(
+                        state.t('dishes.needs', {'list': row.missingLine(state.locale)}),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: row.matchCount == 0 ? tokens.danger : tokens.amber,
+                        ),
                       ),
                   ],
                 ),
