@@ -1,25 +1,20 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, inject, onMounted, ref } from 'vue'
 import adminApi from '../../api/admin'
-import { useAuthStore } from '../../assets/store/auth_store'
 import { useI18n } from '../../i18n'
 import StatusProbe from '../../components/admin/status_probe.vue'
 import JobTable from '../../components/admin/job_table.vue'
 
 const { t } = useI18n()
-const auth = useAuthStore()
 
-const POLL_MS = 15000
 const RECENT_JOBS = 5
 
-const health = ref(null)
-const healthError = ref(null)
-const healthLoading = ref(false)
-const checkedAt = ref('')
+//The layout owns the single 15 s health poll; this view only renders its snapshot.
+const { health, healthError, healthLoading, checkedAt, reload } = inject('adminHealth')
+
 const jobs = ref([])
 const jobsLoading = ref(true)
 const jobsFailed = ref(false)
-let timer = null
 
 function when(value) {
   if (!value) return ''
@@ -92,26 +87,6 @@ const counts = computed(() => {
   ].map(row => ({ ...row, label: t('admin.count.' + row.key) }))
 })
 
-const maintenance = computed(() => (health.value && health.value.maintenance) || null)
-
-async function loadHealth() {
-  healthLoading.value = true
-  try {
-    health.value = await adminApi.health()
-    healthError.value = null
-  } catch (error) {
-    const status = (error && error.response && error.response.status) || null
-    healthError.value = { status, message: (error && error.response && error.response.data && error.response.data.message) || '' }
-    //A 401 means the session is gone: clear the stale account so the sign-in link is reachable.
-    if (status === 401) {
-      await auth.signOut()
-    }
-  } finally {
-    healthLoading.value = false
-    checkedAt.value = when(new Date().toISOString())
-  }
-}
-
 async function loadJobs() {
   jobsLoading.value = jobs.value.length === 0
   try {
@@ -125,42 +100,11 @@ async function loadJobs() {
   }
 }
 
-//One timer: the hidden-tab check happens on every tick, and a return to the tab refreshes at once.
-function tick() {
-  if (!document.hidden) {
-    loadHealth()
-  }
-}
-
-function onVisible() {
-  if (!document.hidden) {
-    loadHealth()
-  }
-}
-
-onMounted(() => {
-  loadHealth()
-  loadJobs()
-  timer = setInterval(tick, POLL_MS)
-  document.addEventListener('visibilitychange', onVisible)
-})
-
-onBeforeUnmount(() => {
-  if (timer) clearInterval(timer)
-  document.removeEventListener('visibilitychange', onVisible)
-})
+onMounted(loadJobs)
 </script>
 
 <template>
   <div class="admin-overview">
-    <p v-if="maintenance && maintenance.on" class="maintenance-banner" role="status">
-      <strong>{{ t('admin.maintenance.title') }}</strong>
-      <span>{{ maintenance.reason || t('admin.maintenance.unknown') }}</span>
-      <span v-if="maintenance.updated_at" class="maintenance-at">
-        {{ t('admin.maintenance.since', { when: when(maintenance.updated_at) }) }}
-      </span>
-    </p>
-
     <section aria-labelledby="admin-status-title">
       <div class="admin-section-head">
         <h2 id="admin-status-title" class="admin-section-title">{{ t('admin.status.title') }}</h2>
@@ -168,7 +112,7 @@ onBeforeUnmount(() => {
           class="btn btn-quiet admin-refresh"
           type="button"
           :disabled="healthLoading"
-          @click="loadHealth"
+          @click="reload"
         >{{ t('common.retry') }}</button>
       </div>
       <div class="ruled admin-probes">
@@ -209,7 +153,7 @@ onBeforeUnmount(() => {
     <section aria-labelledby="admin-recent-title">
       <div class="admin-section-head">
         <h2 id="admin-recent-title" class="admin-section-title">{{ t('admin.recent.title') }}</h2>
-        <span class="admin-tab is-disabled admin-refresh" aria-disabled="true" :title="t('admin.nav.later')">{{ t('admin.recent.viewAll') }}</span>
+        <router-link class="link admin-refresh" to="/admin/jobs">{{ t('admin.recent.viewAll') }}</router-link>
       </div>
       <JobTable :rows="jobs" :loading="jobsLoading" :failed="jobsFailed" />
     </section>
@@ -222,28 +166,12 @@ onBeforeUnmount(() => {
   gap: var(--space-5);
 }
 
-.admin-section-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-2);
-}
-
-.admin-section-head .admin-section-title {
-  margin-bottom: 0;
-}
-
 .admin-refresh {
   background: transparent;
   border: 0;
   padding: 0;
   font-size: 12px;
   cursor: pointer;
-}
-
-.admin-refresh.is-disabled {
-  cursor: not-allowed;
 }
 
 .admin-probes {
@@ -261,26 +189,6 @@ onBeforeUnmount(() => {
 
 .admin-failed-title {
   font-weight: 700;
-}
-
-.maintenance-banner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2) var(--space-3);
-  margin: 0;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--board-amber);
-  border-radius: var(--radius);
-  background: var(--board-raised);
-  color: var(--board-amber);
-  font-size: 13px;
-}
-
-.maintenance-at {
-  color: var(--board-dim);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
 }
 
 .admin-counts {

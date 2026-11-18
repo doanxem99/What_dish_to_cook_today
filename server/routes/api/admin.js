@@ -218,6 +218,8 @@ router.get('/health', wrap(async function(req, res) {
         maintenance: {
             on: Boolean(maintenanceDoc && maintenanceDoc.enabled),
             reason: maintenanceDoc ? maintenanceDoc.reason || '' : '',
+            //The banner names the job that owns the flag and links to it.
+            job_id: maintenanceDoc && maintenanceDoc.owner_job_id ? String(maintenanceDoc.owner_job_id) : null,
             updated_at: maintenanceDoc ? maintenanceDoc.updated_at || null : null
         },
         last_reset: lastReset ? {

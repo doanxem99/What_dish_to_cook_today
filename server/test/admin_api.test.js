@@ -427,10 +427,13 @@ test('restore is 409 while another job is queued', async () => {
 test('admin health reports the maintenance flag from settings', async () => {
     const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
     const updated = new Date('2026-02-03T04:05:06.000Z');
+    //The banner names the job that owns the flag and links to it.
+    const ownerJobId = new (require('mongoose').Types.ObjectId)();
     await collections.Setting.create({
         key: 'maintenance',
         enabled: true,
         reason: 'restore',
+        owner_job_id: ownerJobId,
         updated_at: updated
     });
 
@@ -440,6 +443,17 @@ test('admin health reports the maintenance flag from settings', async () => {
     assert.strictEqual(response.body.maintenance.on, true);
     assert.strictEqual(response.body.maintenance.reason, 'restore');
     assert.strictEqual(response.body.maintenance.updated_at, updated.toISOString());
+    assert.strictEqual(response.body.maintenance.job_id, String(ownerJobId));
+});
+
+test('admin health reports no maintenance job when the flag has no owner', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    await collections.Setting.create({ key: 'maintenance', enabled: true, reason: 'setup' });
+
+    const response = await call('/api/admin/health', tokenFor(admin));
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.maintenance.job_id, null);
 });
 
 test('a read-only backup directory is not reported writable', async () => {

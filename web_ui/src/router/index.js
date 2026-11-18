@@ -93,6 +93,31 @@ const router = createRouter({
           path: '',
           name: 'admin_overview',
           component: () => import('../views/admin/admin_overview.vue')
+        },
+        {
+          path: 'jobs',
+          name: 'admin_jobs',
+          component: () => import('../views/admin/admin_jobs.vue')
+        },
+        {
+          path: 'backups',
+          name: 'admin_backups',
+          component: () => import('../views/admin/admin_backups.vue')
+        },
+        {
+          path: 'users',
+          name: 'admin_users',
+          component: () => import('../views/admin/admin_users.vue')
+        },
+        {
+          path: 'ai',
+          name: 'admin_ai',
+          component: () => import('../views/admin/admin_ai.vue')
+        },
+        {
+          path: 'audit',
+          name: 'admin_audit',
+          component: () => import('../views/admin/admin_audit.vue')
         }
       ]
     }
@@ -113,7 +138,12 @@ const titleKeys = {
   signup: 'nav.signUp',
   profile: 'nav.profile',
   change_password: 'admin.password.title',
-  admin_overview: 'admin.title'
+  admin_overview: 'admin.title',
+  admin_jobs: 'admin.nav.jobs',
+  admin_backups: 'admin.nav.backups',
+  admin_users: 'admin.nav.users',
+  admin_ai: 'admin.nav.ai',
+  admin_audit: 'admin.nav.audit'
 }
 
 router.afterEach((to) => {
