@@ -1,33 +1,47 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace database_seed
 {
+    /// <summary>The documents a catalog reset writes, built before any collection is touched.</summary>
+    public sealed class SeedDocuments
+    {
+        public SeedDocuments(
+            List<BsonDocument> ingredients,
+            List<BsonDocument> ingredientPosts,
+            List<BsonDocument> dishes,
+            List<BsonDocument> dishPosts)
+        {
+            Ingredients = ingredients;
+            IngredientPosts = ingredientPosts;
+            Dishes = dishes;
+            DishPosts = dishPosts;
+        }
+
+        public List<BsonDocument> Ingredients { get; }
+        public List<BsonDocument> IngredientPosts { get; }
+        public List<BsonDocument> Dishes { get; }
+        public List<BsonDocument> DishPosts { get; }
+    }
+
     /// <summary>
-    /// Shared minimal reset used by both database tools. It requires the admin user,
-    /// checks it before dropping anything, and seeds the small demo catalog.
+    /// Shared catalog reset used by both database tools. It requires the admin user, checks it
+    /// before dropping anything, and seeds the canonical catalog/*.json exactly like the JS reset.
     /// </summary>
     public static class DatabaseSeed
     {
         public const string DatabaseName = "what_dish_to_cook_today";
         public const string AdminUsername = "moonshine@gmail.com";
 
-        private static readonly (string Name, string NameVi, string Type)[] Ingredients =
+        private static readonly string[] CatalogCollections =
         {
-            ("Beef", "Thịt bò", "Food"),
-            ("Salmon", "Cá hồi", "Food"),
-            ("Egg", "Trứng", "Food"),
-            ("Salt", "Muối", "Spice"),
-            ("Honey", "Mật ong", "Spice"),
-            ("Orange", "Cam", "Fruit"),
-            ("Pork", "Thịt heo", "Food"),
-            ("Chicken", "Thịt gà", "Food"),
-            ("Potato", "Khoai tây", "Food")
+            "ingredient", "ingredient_post", "dish", "dish_post", "vote", "comment"
         };
 
-        public static void Init(string connectionString)
+        public static void Init(string connectionString, string databaseName = DatabaseName)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
             {
@@ -35,9 +49,29 @@ namespace database_seed
             }
 
             var client = new MongoClient(connectionString);
-            var database = client.GetDatabase(DatabaseName);
+            var database = client.GetDatabase(databaseName);
 
             // Resolve the admin before any collection is dropped.
+            var admin = RequireAdmin(database);
+            var adminId = admin.GetValue("_id").ToString()!;
+            var seed = BuildDocuments(adminId, Catalog.Load(), DateTime.UtcNow);
+
+            foreach (var name in CatalogCollections)
+            {
+                database.DropCollection(name);
+                database.CreateCollection(name);
+            }
+
+            Insert(database, "ingredient", seed.Ingredients);
+            Insert(database, "ingredient_post", seed.IngredientPosts);
+            Insert(database, "dish", seed.Dishes);
+            Insert(database, "dish_post", seed.DishPosts);
+            RecreateIndexes(database);
+        }
+
+        /// <summary>Throws when the admin account is absent, before any destructive work.</summary>
+        public static BsonDocument RequireAdmin(IMongoDatabase database)
+        {
             var admin = database.GetCollection<BsonDocument>("user")
                 .Find(Builders<BsonDocument>.Filter.Eq("username", AdminUsername))
                 .FirstOrDefault();
@@ -45,186 +79,236 @@ namespace database_seed
             {
                 throw new InvalidOperationException($"User {AdminUsername} must exist before data init.");
             }
-            var adminId = admin.GetValue("_id").ToString();
-
-            CreateIngredientPosts(database, adminId);
-            CreateIngredients(database, adminId);
-            CreateDish(database, adminId);
+            return admin;
         }
 
-        private static BsonDocument IngredientPost(string name, string nameVi, string type, string adminId)
+        /// <summary>Builds the exact documents scripts/dev-demo.mjs and the JS reset write.</summary>
+        public static SeedDocuments BuildDocuments(string adminId, CatalogData catalog, DateTime now)
         {
-            return new BsonDocument
+            var ingredientIds = new Dictionary<string, string>();
+            var ingredients = new List<BsonDocument>();
+            var ingredientPosts = new List<BsonDocument>();
+
+            foreach (var row in catalog.Ingredients)
             {
-                { "name", name },
-                { "name_vi", nameVi },
-                { "user_id", adminId },
-                { "ingredient_id", "" },
-                { "is_best_post", true },
-                { "date_time", DateTime.Now.ToLocalTime() },
-                { "unique_id", adminId + "_" },
-                { "points", 0 },
-                { "views", 0 },
-                { "comments", 0 },
-                { "type", type },
-                { "short_detail", "Nutritional food" },
-                { "short_detail_vi", "Thực phẩm bổ dưỡng" },
-                { "profile_image", "public/pictures/ingredients/" + name + ".jpg" },
-                { "display_blocks", new BsonArray
-                    {
-                        new BsonDocument
+                var name = row["name"].AsString;
+                var nameVi = row["name_vi"].AsString;
+                var ingredientId = ObjectId.GenerateNewId();
+                var postId = ObjectId.GenerateNewId();
+                ingredientIds[name] = ingredientId.ToString();
+
+                ingredients.Add(new BsonDocument
+                {
+                    { "_id", ingredientId },
+                    { "name", name },
+                    { "name_vi", nameVi },
+                    { "best_post_id", postId.ToString() },
+                    { "nutrition", Field(row, "nutrition") },
+                    { "is_need_update", false }
+                });
+
+                ingredientPosts.Add(new BsonDocument
+                {
+                    { "_id", postId },
+                    { "name", name },
+                    { "name_vi", nameVi },
+                    { "user_id", adminId },
+                    { "ingredient_id", ingredientId.ToString() },
+                    { "unique_id", $"{ingredientId}_{adminId}" },
+                    { "is_best_post", true },
+                    { "date_time", new BsonDateTime(now) },
+                    { "points", new BsonDouble(0) },
+                    { "type", Field(row, "type") },
+                    { "nutrition", Field(row, "nutrition") },
+                    { "short_detail", Field(row, "short_detail") },
+                    { "short_detail_vi", Field(row, "short_detail_vi") },
+                    { "profile_image", Field(row, "image", "") },
+                    { "display_blocks", new BsonArray
                         {
-                            { "type", "text" },
-                            { "text", $"{name} is kept in the shared catalog so every cook means the same thing." },
-                            { "text_vi", $"{nameVi} được lưu trong danh mục chung để mọi người hiểu cùng một nghĩa." },
-                            { "font_size", 14 },
-                            { "text_align", "left" },
-                            { "color", "black" }
+                            new BsonDocument
+                            {
+                                { "type", "text" },
+                                { "text", $"{name} is kept in the shared catalog so every cook means the same thing." },
+                                { "text_vi", $"{nameVi} được lưu trong danh mục chung để mọi người hiểu cùng một nghĩa." },
+                                { "font_size", new BsonDouble(14) },
+                                { "color", "black" }
+                            }
                         }
                     }
-                }
-            };
-        }
-
-        private static void CreateIngredientPosts(IMongoDatabase database, string adminId)
-        {
-            database.DropCollection("ingredient_post");
-            database.CreateCollection("ingredient_post");
-            var posts = database.GetCollection<BsonDocument>("ingredient_post");
-            var documents = new List<BsonDocument>();
-            foreach (var ingredient in Ingredients)
-            {
-                documents.Add(IngredientPost(ingredient.Name, ingredient.NameVi, ingredient.Type, adminId));
-            }
-            posts.InsertMany(documents);
-        }
-
-        private static void CreateIngredients(IMongoDatabase database, string adminId)
-        {
-            database.DropCollection("ingredient");
-            database.CreateCollection("ingredient");
-            var ingredients = database.GetCollection<BsonDocument>("ingredient");
-            var posts = database.GetCollection<BsonDocument>("ingredient_post");
-
-            var documents = new List<BsonDocument>();
-            foreach (var ingredient in Ingredients)
-            {
-                var post = posts.Find(Builders<BsonDocument>.Filter.Eq("name", ingredient.Name)).FirstOrDefault();
-                documents.Add(new BsonDocument
-                {
-                    { "name", ingredient.Name },
-                    { "name_vi", ingredient.NameVi },
-                    { "best_post_id", post.GetValue("_id").ToString() }
                 });
             }
-            ingredients.InsertMany(documents);
-        }
 
-        private static void CreateDish(IMongoDatabase database, string adminId)
-        {
-            database.DropCollection("dish");
-            database.DropCollection("dish_post");
-            database.DropCollection("vote");
-            database.DropCollection("comment");
-            database.CreateCollection("dish");
-            database.CreateCollection("dish_post");
-
-            var dishes = database.GetCollection<BsonDocument>("dish");
-            var posts = database.GetCollection<BsonDocument>("dish_post");
-            var ingredients = database.GetCollection<BsonDocument>("ingredient");
-
-            var idBeef = ingredients.Find(Builders<BsonDocument>.Filter.Eq("name", "Beef")).FirstOrDefault().GetValue("_id").ToString();
-            var idSalt = ingredients.Find(Builders<BsonDocument>.Filter.Eq("name", "Salt")).FirstOrDefault().GetValue("_id").ToString();
-
-            dishes.InsertOne(new BsonDocument
+            var dishes = new List<BsonDocument>();
+            var dishPosts = new List<BsonDocument>();
+            foreach (var row in catalog.Dishes)
             {
-                { "name", "Spagetti" },
-                { "name_vi", "Mì Ý" },
-                { "best_post_id", "" }
-            });
-            var dish = dishes.Find(Builders<BsonDocument>.Filter.Eq("name", "Spagetti")).FirstOrDefault();
-            var dishId = dish.GetValue("_id").ToString();
-
-            var post = new BsonDocument
-            {
-                { "name", "Spagetti" },
-                { "name_vi", "Mì Ý" },
-                { "user_id", adminId },
-                { "dish_id", dishId },
-                { "is_best_post", true },
-                { "date_time", DateTime.Now.ToLocalTime() },
-                { "unique_id", adminId + "_" + dishId },
-                { "points", 0 },
-                { "views", 0 },
-                { "comments", 0 },
-                { "ingredients", new BsonArray { idBeef, idSalt } },
-                { "short_detail", "Italian food" },
-                { "short_detail_vi", "Món ăn Ý" },
-                { "profile_image", "public/pictures/dishs/Spaghetti.jpg" },
-                { "display_blocks", new BsonArray
+                var name = row["name"].AsString;
+                var dishId = ObjectId.GenerateNewId();
+                var postId = ObjectId.GenerateNewId();
+                var amounts = Field(row, "amounts", new BsonDocument()).AsBsonDocument;
+                var servings = Servings(row);
+                var ingredientAmounts = new BsonArray();
+                foreach (var amount in amounts)
+                {
+                    if (ingredientIds.TryGetValue(amount.Name, out var ingredientId))
                     {
-                        new BsonDocument
+                        ingredientAmounts.Add(new BsonDocument
                         {
-                            { "type", "text" },
-                            { "text", "There's nothing like classic spaghetti and meat sauce to bring people together around the dinner table. This homemade spaghetti sauce with ground beef recipe will satisfy all your comfort food cravings." },
-                            { "text_vi", "Không gì bằng mì Ý sốt thịt bò kiểu truyền thống cho bữa cơm gia đình. Công thức sốt cà chua với thịt bò băm này sẽ làm hài lòng mọi người." },
-                            { "font_size", 14 },
-                            { "text_align", "left" },
-                            { "color", "black" }
-                        },
-                        new BsonDocument
-                        {
-                            { "type", "text" },
-                            { "text", "How to Make Spaghetti Sauce with Ground Beef" },
-                            { "font_size", 24 },
-                            { "font_weight", "bold" },
-                            { "text_align", "left" },
-                            { "color", "black" }
-                        },
-                        new BsonDocument
-                        {
-                            { "type", "text" },
-                            { "text", "Cook ground beef in a saucepan over medium-high heat with garlic, onion, and green pepper. Stir until the meat is brown and crumbly." },
-                            { "font_size", 14 },
-                            { "text_align", "left" },
-                            { "color", "black" }
-                        },
-                        new BsonDocument
-                        {
-                            { "type", "text" },
-                            { "text", "Stir diced tomatoes, tomato sauce, and tomato paste into the beef mixture. Add oregano, basil, salt, and pepper. Simmer until thick and aromatic, then serve over cooked spaghetti noodles." },
-                            { "font_size", 14 },
-                            { "text_align", "left" },
-                            { "color", "black" }
-                        },
-                        new BsonDocument
-                        {
-                            { "type", "image" },
-                            { "src", "public/pictures/dishs/Spaghetti.jpg" },
-                            { "text", "Finally !" },
-                            { "font_size", 14 }
-                        }
+                            { "ingredient_id", ingredientId },
+                            { "grams", amount.Value }
+                        });
                     }
                 }
-            };
 
-            posts.InsertOne(post);
-            var postId = posts.Find(Builders<BsonDocument>.Filter.Eq("unique_id", adminId + "_" + dishId)).FirstOrDefault().GetValue("_id").ToString();
-            dishes.UpdateOne(dish, Builders<BsonDocument>.Update.Set("best_post_id", postId));
+                dishes.Add(new BsonDocument
+                {
+                    { "_id", dishId },
+                    { "name", name },
+                    { "name_vi", row["name_vi"].AsString },
+                    { "best_post_id", postId.ToString() },
+                    { "is_need_update", false }
+                });
+
+                dishPosts.Add(new BsonDocument
+                {
+                    { "_id", postId },
+                    { "name", name },
+                    { "name_vi", row["name_vi"].AsString },
+                    { "user_id", adminId },
+                    { "dish_id", dishId.ToString() },
+                    { "unique_id", $"{dishId}_{adminId}" },
+                    { "is_best_post", true },
+                    { "date_time", new BsonDateTime(now) },
+                    { "points", new BsonDouble(0) },
+                    { "views", new BsonDouble(0) },
+                    { "comments", new BsonDouble(0) },
+                    { "ingredients", new BsonArray(row["ingredients"].AsBsonArray
+                        .Select(value => ingredientIds.TryGetValue(value.AsString, out var id)
+                            ? (BsonValue)new BsonString(id)
+                            : BsonNull.Value)
+                        .Where(value => !value.IsBsonNull)) },
+                    { "short_detail", Field(row, "short_detail", "") },
+                    { "short_detail_vi", Field(row, "short_detail_vi", "") },
+                    { "profile_image", Field(row, "image", "") },
+                    { "servings", servings },
+                    { "nutrition", RecipeNutrition(amounts, servings, catalog.Nutrition) },
+                    { "ingredient_amounts", ingredientAmounts },
+                    { "display_blocks", DisplayBlocks(row) }
+                });
+            }
+
+            return new SeedDocuments(ingredients, ingredientPosts, dishes, dishPosts);
         }
 
-        /// <summary>Reads MONGODB_URI, falling back to the local server.</summary>
-        public static string ConnectionString()
+        /// <summary>Same nutrition maths as scripts/dev-demo.mjs and the JS reset.</summary>
+        public static BsonDocument RecipeNutrition(BsonDocument amounts, BsonValue servings, BsonDocument nutrition)
         {
+            var names = new[] { "calories", "protein", "fat", "carbs", "fiber", "sodium" };
+            var totals = names.ToDictionary(name => name, name => 0.0);
+
+            foreach (var amount in amounts)
+            {
+                if (!nutrition.TryGetValue(amount.Name, out var row) || !row.IsBsonDocument
+                    || !row.AsBsonDocument.TryGetValue("per_100g", out var per100))
+                {
+                    continue;
+                }
+                var grams = amount.Value.ToDouble();
+                foreach (var name in names)
+                {
+                    if (per100.AsBsonDocument.TryGetValue(name, out var nutrient))
+                    {
+                        totals[name] += nutrient.ToDouble() * grams / 100;
+                    }
+                }
+            }
+
+            var portions = servings.IsBsonNull ? 1 : servings.ToDouble();
+            if (portions == 0)
+            {
+                portions = 1;
+            }
+
+            var result = new BsonDocument();
+            foreach (var name in names)
+            {
+                var value = totals[name] / portions;
+                result[name] = new BsonDouble(name == "calories"
+                    ? Math.Floor(value + 0.5)
+                    : Math.Floor(value * 10 + 0.5) / 10);
+            }
+            return result;
+        }
+
+        /// <summary>Recreates the unique indexes a drop or a restore removes.</summary>
+        public static void RecreateIndexes(IMongoDatabase database)
+        {
+            var keys = Builders<BsonDocument>.IndexKeys;
+            Index(database, "ingredient", keys.Ascending("name"), "name_1");
+            Index(database, "ingredient_post", keys.Ascending("unique_id"), "unique_id_1");
+            Index(database, "dish", keys.Ascending("name"), "name_1");
+            Index(database, "dish_post", keys.Ascending("unique_id"), "unique_id_1");
+            Index(database, "vote", keys.Ascending("user_id").Ascending("dish_post_id"),
+                "user_id_1_dish_post_id_1");
+        }
+
+        /// <summary>Reads MONGODB_URI, or the URI given on the command line, then the local server.</summary>
+        public static string ConnectionString(string? uri = null)
+        {
+            if (!string.IsNullOrWhiteSpace(uri))
+            {
+                return uri!;
+            }
             var value = Environment.GetEnvironmentVariable("MONGODB_URI");
-            return string.IsNullOrWhiteSpace(value) ? "mongodb://localhost:27017" : value;
+            return string.IsNullOrWhiteSpace(value) ? "mongodb://localhost:27017" : value!;
         }
 
-        /// <summary>Reads WORKER_WS_URL, falling back to the local worker endpoint.</summary>
-        public static string WorkerUrl()
+        private static void Insert(IMongoDatabase database, string name, List<BsonDocument> documents)
         {
-            var value = Environment.GetEnvironmentVariable("WORKER_WS_URL");
-            return string.IsNullOrWhiteSpace(value) ? "ws://localhost:3000/worker" : value;
+            if (documents.Count > 0)
+            {
+                database.GetCollection<BsonDocument>(name).InsertMany(documents);
+            }
+        }
+
+        private static void Index(IMongoDatabase database, string collection, IndexKeysDefinition<BsonDocument> keys, string name)
+        {
+            database.GetCollection<BsonDocument>(collection).Indexes.CreateOne(
+                new CreateIndexModel<BsonDocument>(keys, new CreateIndexOptions { Unique = true, Name = name }));
+        }
+
+        private static BsonValue Servings(BsonDocument dish)
+        {
+            if (!dish.TryGetValue("servings", out var value) || value.IsBsonNull || value.ToDouble() == 0)
+            {
+                return BsonNull.Value;
+            }
+            return value;
+        }
+
+        private static BsonArray DisplayBlocks(BsonDocument dish)
+        {
+            var blocks = new BsonArray();
+            foreach (var step in Field(dish, "steps", new BsonArray()).AsBsonArray)
+            {
+                var document = step.AsBsonDocument;
+                blocks.Add(new BsonDocument
+                {
+                    { "type", "text" },
+                    { "text", Field(document, "text", "") },
+                    { "text_vi", Field(document, "text_vi", "") },
+                    { "font_size", new BsonDouble(14) },
+                    { "color", "black" }
+                });
+            }
+            return blocks;
+        }
+
+        private static BsonValue Field(BsonDocument document, string name, BsonValue? fallback = null)
+        {
+            return document.TryGetValue(name, out var value) && !value.IsBsonNull
+                ? value
+                : fallback ?? BsonNull.Value;
         }
     }
 }

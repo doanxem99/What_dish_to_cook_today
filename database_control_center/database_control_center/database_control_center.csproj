@@ -9,17 +9,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="MainForm.Designer.cs~RF41b7a5c2.TMP" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="MongoDB.Driver" Version="3.2.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="Websocket.Client" Version="4.4.43" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\shared\DatabaseSeed.cs" Link="DatabaseSeed.cs" />
+    <Compile Include="..\..\shared\*.cs" Link="shared\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\catalog\*.json" Link="catalog\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

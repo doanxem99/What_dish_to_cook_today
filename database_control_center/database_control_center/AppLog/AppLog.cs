@@ -19,8 +19,9 @@ namespace database_control_center
 
         private static bool isInit = false;
         private static readonly object logLock = new object();
-        private static readonly string directoryPath = Directory.GetCurrentDirectory() + "/Temporary";
-        private static readonly string logPath = directoryPath + "/AppLog.txt";
+        //Next to the executable, so the log does not depend on the working directory.
+        private static readonly string directoryPath = Path.Combine(AppContext.BaseDirectory, "Temporary");
+        private static readonly string logPath = Path.Combine(directoryPath, "AppLog.txt");
 
         public static void Log(AppLogType _applockType, string _data)
         {
