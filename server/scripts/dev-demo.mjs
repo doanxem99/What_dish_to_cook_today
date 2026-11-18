@@ -9,6 +9,13 @@ import { DISHES } from './seed-dishes.mjs'
 import nutritionData from './nutrition.json' with { type: 'json' }
 
 const here = path.dirname(fileURLToPath(import.meta.url))
+let ingredientImages = {}
+try {
+    ingredientImages = JSON.parse(await fs.readFile(path.join(here, 'seed-ingredient-images.json'), 'utf8'))
+} catch (error) {
+    ingredientImages = {}
+}
+
 let images = {}
 try {
     images = JSON.parse(await fs.readFile(path.join(here, 'seed-images.json'), 'utf8'))
@@ -103,7 +110,7 @@ for (const [name, nameVi, type, detail, detailVi] of INGREDIENTS) {
         nutrition,
         short_detail: detail,
         short_detail_vi: detailVi,
-        profile_image: '',
+        profile_image: ingredientImages[name] ? ingredientImages[name].file : '',
         display_blocks: [
             {
                 type: 'text',

@@ -29,6 +29,7 @@ const User = mongoose.model('user', {
         type: String,
         required: true
     },
+    background_image: String,
     email: {
         type: String,
         unique: true, // `name` must be unique

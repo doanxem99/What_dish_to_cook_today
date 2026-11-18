@@ -2,22 +2,52 @@
 import { api } from '../api'
 import { useI18n } from '../i18n'
 import { useAuthStore } from '../assets/store/auth_store'
+import serverInfo from '../assets/js/server_info.js'
 
 export default {
   data() {
-    return { user: null, dishes: [], ingredients: [], loading: true, failed: false }
+    return { user: null, dishes: [], ingredients: [], loading: true, failed: false, coverError: false }
   },
   computed: {
     t() { return useI18n().t },
     locale() { return useI18n().locale.value },
-    auth() { return useAuthStore() }
+    auth() { return useAuthStore() },
+    bannerStyle() {
+      const path = this.user && this.user.background_image
+      return path ? { backgroundImage: `url(${this.image(path)})` } : {}
+    }
   },
   mounted() { this.load() },
   methods: {
+    image(path) { return path ? serverInfo.getFullPath(path) : '' },
     joined(value) {
       if (!value) return ''
       const date = new Date(value)
       return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString()
+    },
+    async uploadCover(event) {
+      const file = event.target.files && event.target.files[0]
+      if (!file) return
+      this.coverError = false
+      try {
+        const form = new FormData()
+        form.append('file', file)
+        const response = await fetch('/api/gallery_upload/temporary', { method: 'POST', credentials: 'include', body: form })
+        const data = await response.json()
+        if (!data || !data.isSuccess) {
+          this.coverError = true
+          return
+        }
+        await api.post('/api/auth/background', { background_image: data.path })
+        this.user.background_image = data.path
+      } catch (error) {
+        this.coverError = true
+      } finally {
+        if (event.target) event.target.value = ''
+      }
+    },
+    initial() {
+      return (this.user && this.user.username ? this.user.username[0] : '?').toUpperCase()
     },
     async load() {
       this.loading = true
@@ -54,8 +84,17 @@ export default {
     </div>
 
     <template v-else-if="user">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div>
+      <div class="profile-banner" :class="{ 'is-empty': !user.background_image }" :style="bannerStyle">
+        <label class="btn profile-cover-action">
+          {{ t('profile.changeCover') }}
+          <input class="sr-only" type="file" accept="image/png,image/jpeg" @change="uploadCover" />
+        </label>
+      </div>
+      <p v-if="coverError" class="text-sm mt-2" role="alert" style="color: var(--board-danger)">{{ t('common.errorBody') }}</p>
+
+      <div class="profile-head">
+        <span class="profile-avatar" aria-hidden="true">{{ initial() }}</span>
+        <div class="flex-1 min-w-0">
           <h1 class="board-title">{{ user.username }}</h1>
           <p v-if="joined(user.created_at)" class="board-sub">
             {{ t('profile.joined', { date: joined(user.created_at) }) }}

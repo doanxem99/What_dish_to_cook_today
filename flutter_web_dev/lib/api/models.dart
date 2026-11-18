@@ -365,12 +365,13 @@ class DishSummary {
 }
 
 class Account {
-  const Account({required this.id, required this.username, this.email = '', this.createdAt = ''});
+  const Account({required this.id, required this.username, this.email = '', this.createdAt = '', this.backgroundImage = ''});
 
   final String id;
   final String username;
   final String email;
   final String createdAt;
+  final String backgroundImage;
 
   factory Account.fromJson(dynamic json) {
     if (json is! Map) {
@@ -381,6 +382,7 @@ class Account {
       username: _text(json['username']),
       email: _text(json['email']),
       createdAt: _text(json['created_at']),
+      backgroundImage: _text(json['background_image']),
     );
   }
 }

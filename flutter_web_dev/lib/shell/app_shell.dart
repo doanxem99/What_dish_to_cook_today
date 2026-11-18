@@ -30,7 +30,8 @@ class AppShell extends StatelessWidget {
                       constraints: BoxConstraints(
                         minHeight: (MediaQuery.sizeOf(context).height - 160).clamp(0.0, double.infinity),
                       ),
-                      child: Center(
+                      child: Align(
+                        alignment: Alignment.topCenter,
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: BoardTokens.boardWidth),
                           child: Padding(

@@ -129,6 +129,7 @@
   "about.body3": "Every dish, ingredient and comment on this site comes from a real entry or a seed record. Nothing here is invented proof, and empty lists stay empty until someone writes something.",
   "about.body4": "The interface is available in English and Vietnamese, and catalog entries can carry both languages.",
   "profile.title": "Profile",
+  "profile.changeCover": "Change cover",
   "profile.joined": "Joined {date}",
   "profile.myDishes": "My dishes",
   "profile.myIngredients": "My ingredients",
@@ -152,3 +153,4 @@
   "footer.license": "License",
   "footer.rights": "© {year} What dish to cook today?"
 }
+

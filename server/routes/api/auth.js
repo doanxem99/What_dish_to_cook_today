@@ -142,6 +142,7 @@ router.get('/me', verifyToken, async function(req, res){
                 id: user._id,
                 username: user.username,
                 email: user.email,
+                background_image: user.background_image || '',
                 //Users created before the field existed have no joined date
                 created_at: user.created_at || null,
                 roles: req.roles,
@@ -151,6 +152,19 @@ router.get('/me', verifyToken, async function(req, res){
         return res.status(500).send({
             message: err.toString()
         });
+    }
+})
+
+router.post('/background', verifyToken, async function(req, res) {
+    try {
+        const value = typeof req.body.background_image === 'string' ? req.body.background_image : '';
+        if (value && !value.startsWith('public/gallery/')) {
+            return res.status(400).send({ message: 'Image must be uploaded first' });
+        }
+        await database.collections.User.updateOne({ _id: req.body.userid }, { $set: { background_image: value } });
+        return res.status(200).send({ message: 'Background updated', background_image: value });
+    } catch (err) {
+        return res.status(500).send({ message: err.toString() });
     }
 })
 
