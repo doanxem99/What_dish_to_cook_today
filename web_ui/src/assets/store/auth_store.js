@@ -25,20 +25,34 @@ const errorText = function(error) {
     return error?.response?.data?.message || error?.data?.message || error?.message;
 }
 
+//The sign-in answer carries roles and the password flag beside the user, so both are folded into it.
+const accountFrom = function(response) {
+    const account = response.data.user || {};
+    return {
+        ...account,
+        roles: Array.isArray(response.data.roles) ? response.data.roles : [],
+        mustChange: response.data.must_change_password === true,
+    };
+}
+
 export const useAuthStore = defineStore("auth", {
     namespace: true,
     state: () => ({
         ...initialState,
     }),
+    getters: {
+        isAdmin: (state) => Boolean(state.user && Array.isArray(state.user.roles) && state.user.roles.includes('admin')),
+        mustChange: (state) => Boolean(state.user && state.user.mustChange),
+    },
     actions: {
         async signIn(user) {
             this.errorMessage = null;
             try {
                 const response = await authAction.signin(user);
-                this.user = response.data.user;
+                this.user = accountFrom(response);
                 this.isLogin = true;
                 this.errorMessage = null;
-                Cookie.set('user', JSON.stringify(response.data.user));
+                Cookie.set('user', JSON.stringify(this.user));
                 return true;
             } catch (error) {
                 this.errorMessage = errorText(error);
@@ -54,6 +68,13 @@ export const useAuthStore = defineStore("auth", {
             } catch (error) {
                 this.errorMessage = errorText(error);
                 return false;
+            }
+        },
+        //The server cleared the flag; keep the local session in step so the guard stops redirecting
+        passwordChanged() {
+            if (this.user) {
+                this.user = { ...this.user, mustChange: false };
+                Cookie.set('user', JSON.stringify(this.user));
             }
         },
         async signOut() {

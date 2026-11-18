@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../assets/store/auth_store'
+import { guardDecision } from '../components/admin/admin_guard'
 import { t } from '../i18n'
 import homeView from '../views/home_view.vue'
 
@@ -75,6 +76,25 @@ const router = createRouter({
       meta: {
         requiresAuth: true
       }
+    },
+    {
+      path: '/change-password',
+      name: 'change_password',
+      component: () => import('../views/change_password_view.vue')
+    },
+    {
+      path: '/admin',
+      component: () => import('../views/admin/admin_layout.vue'),
+      meta: {
+        requiresAdmin: true
+      },
+      children: [
+        {
+          path: '',
+          name: 'admin_overview',
+          component: () => import('../views/admin/admin_overview.vue')
+        }
+      ]
     }
   ]
 })
@@ -91,7 +111,9 @@ const titleKeys = {
   about: 'nav.about',
   signin: 'nav.signIn',
   signup: 'nav.signUp',
-  profile: 'nav.profile'
+  profile: 'nav.profile',
+  change_password: 'admin.password.title',
+  admin_overview: 'admin.title'
 }
 
 router.afterEach((to) => {
@@ -100,13 +122,18 @@ router.afterEach((to) => {
 })
 
 router.beforeEach((to, from, next) => {
-  if (to.meta.requiresAuth && !useAuthStore().isLogin) {
-    useAuthStore().jumpPage = to.fullPath;
-    next('/signin');
+  const auth = useAuthStore()
+  const decision = guardDecision(
+    { isLogin: auth.isLogin, isAdmin: auth.isAdmin, mustChange: auth.mustChange },
+    to
+  )
+  if (decision === 'allow' || decision === 'forbidden') {
+    return next()
   }
-  else {
-    next();
+  if (decision.remember) {
+    auth.jumpPage = to.fullPath
   }
+  return next(decision.redirect)
 })
 
 export default router
