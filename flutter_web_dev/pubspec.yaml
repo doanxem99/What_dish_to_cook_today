@@ -30,7 +30,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  url_strategy: ^0.2.0
+  url_strategy: ^0.3.0
   http: ^0.13.5
   collection: ^1.16.0
   # The following adds the Cupertino Icons font to your application.
