@@ -1,6 +1,7 @@
 <script>
 import { useI18n } from '../i18n'
 import { api } from '../api'
+import { translationFailure } from './translation_error.js'
 
 export default {
   props: {
@@ -9,10 +10,13 @@ export default {
   },
   emits: ['update:modelValue'],
   data() {
-    return { uploading: false, uploadError: false }
+    return { uploading: false, uploadError: false, translateError: null }
   },
   computed: {
     t() { return useI18n().t }
+  },
+  watch: {
+    autoTranslate(on) { if (!on) this.translateError = null }
   },
   methods: {
     copy() { return this.modelValue.map(block => ({ ...block })) },
@@ -38,9 +42,11 @@ export default {
         if (!current || current[fromKey] !== source || (current[toKey] && current[toKey].trim())) return
         const blocks = this.copy()
         blocks[index][toKey] = response.text
+        this.translateError = null
         this.emit(blocks)
       } catch (error) {
         //Leave the target empty; the editor still saves what was typed
+        this.translateError = { index, reason: 'edit.translate.' + translationFailure(error && error.status) }
       }
     },
     setStyle(index, key, value) {
@@ -88,6 +94,7 @@ export default {
     remove(index) {
       const blocks = this.copy()
       blocks.splice(index, 1)
+      this.translateError = null
       this.emit(blocks)
     },
     move(index, delta) {
@@ -96,6 +103,7 @@ export default {
       const blocks = this.copy()
       const [row] = blocks.splice(index, 1)
       blocks.splice(target, 0, row)
+      this.translateError = null
       this.emit(blocks)
     },
     imageSrc(src) {
@@ -155,6 +163,7 @@ export default {
           <span class="eyebrow">{{ t('edit.blockTextVi') }}</span>
           <textarea class="textarea" rows="2" :value="block.text_vi" @input="updateText(index, 'text_vi', $event.target.value)" @blur="translateBlock(index, 'text_vi', 'text')"></textarea>
         </label>
+        <p v-if="translateError && translateError.index === index" class="text-sm mt-1" role="alert" style="color: var(--board-danger)">{{ t(translateError.reason) }}</p>
       </template>
 
       <template v-else>

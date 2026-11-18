@@ -4,6 +4,7 @@ import { useI18n } from '../i18n'
 import { useAuthStore } from '../assets/store/auth_store'
 import ingredientPickerEdit from '../components/ingredient_picker_edit.vue'
 import blocksEditor from '../components/blocks_editor.vue'
+import { translationFailure } from '../components/translation_error.js'
 
 export default {
   components: { ingredientPickerEdit, blocksEditor },
@@ -13,6 +14,7 @@ export default {
       loading: true,
       saving: false,
       error: '',
+      translateError: '',
       autoTranslate: false,
       dragging: false,
       model: {
@@ -52,6 +54,9 @@ export default {
         carbs: round(total.carbs / divisor, 1)
       }
     }
+  },
+  watch: {
+    autoTranslate(on) { if (!on) this.translateError = '' }
   },
   mounted() {
     this.dishId = this.$route.query.dish_id || null
@@ -162,8 +167,9 @@ export default {
       try {
         const response = await api.post('/api/translate', { text: sourceValue, source: 'en', target: 'vi' })
         this.model[viField] = response.text
+        this.translateError = ''
       } catch (error) {
-        this.error = this.t('edit.translateFailed')
+        this.translateError = this.t('edit.translate.' + translationFailure(error && error.status))
       }
     },
     async save() {
@@ -236,6 +242,7 @@ export default {
             <input type="checkbox" v-model="autoTranslate" />
             <span>{{ t('edit.autoTranslate') }}</span>
           </label>
+          <p v-if="translateError" class="text-sm mt-1" role="alert" style="color: var(--board-danger)">{{ translateError }}</p>
         </div>
 
         <div class="grid gap-3 sm:grid-cols-2">
