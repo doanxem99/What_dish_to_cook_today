@@ -156,6 +156,27 @@ test('requireAdmin lets an admin through', async () => {
     assert.strictEqual(result.body.ok, true);
 });
 
+test('requireAdmin rejects a user with no roles with 403', async () => {
+    const user = await createUser({ username: 'roleless', roles: [] });
+
+    const result = await getAdminPing(tokenFor(user));
+
+    assert.strictEqual(result.status, 403);
+});
+
+test('a valid token whose user was deleted answers 401', async () => {
+    const user = await createUser({ username: 'ghost' });
+    const token = tokenFor(user);
+    await collections.User.deleteOne({ _id: user._id });
+
+    const response = await fetch(`${baseUrl}/api/auth/me`, {
+        headers: { cookie: `token=${token}` }
+    });
+
+    assert.strictEqual(response.status, 401);
+    assert.strictEqual((await response.json()).message, 'User not found!');
+});
+
 test('password change refuses a wrong current password', async () => {
     const user = await createUser({ username: 'pw-wrong', must_change_password: true });
 

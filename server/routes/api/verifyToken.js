@@ -26,7 +26,8 @@ const verifyToken = async function (req, res, next) {
         // Get user and roles
         const user = await database.collections.User.findOne({ _id: req.body.userid }).populate('roles');
         if (!user) {
-            return res.status(profile_enum.Status_Code_Website.NotFound).send({
+            //A valid token for a deleted user is not a usable identity
+            return res.status(profile_enum.Status_Code_Website.Unauthorized).send({
                 message: "User not found!"
             });
         }

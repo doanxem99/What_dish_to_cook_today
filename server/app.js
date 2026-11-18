@@ -7,6 +7,7 @@ const expressWs = require('express-ws');
 const workerCenter = require('./config/worker/worker_center');
 const adminJobs = require('./config/admin/jobs');
 const adminMaintenance = require('./config/admin/maintenance');
+const database = require('./config/database/connection');
 const appDebug = require('./config/debug/app_debug');
 const cookieParser = require('cookie-parser');
 
@@ -56,9 +57,6 @@ if (!process.env.JWT_SECRET) {
 //*Init
 appDebug.init();
 
-//Promote ADMIN_USERNAME (default moonshine@gmail.com) when the account exists
-require('./routes/api/auth').promoteAdmin();
-
 //*Set public folder
 const rootPath = __dirname;
 app.use("/public", express.static(path.join(rootPath, 'public')));
@@ -96,15 +94,26 @@ app.use(require('./routes/web/error.js'));
 
 
 //*Listening
-app.listen("3000", () => {
+app.listen("3000", async () => {
   console.log('Begin listening on port 3000');
 
   workerCenter.startWorkers();
+
+  //Recovery and admin promotion both read Mongo, so wait for the connection first
+  try {
+    await database.mongoose.connection.asPromise();
+  } catch (error) {
+    console.error('Startup could not reach MongoDB: ' + error.message);
+  }
 
   //A row left queued or running by the previous process can never finish
   adminJobs.markInterruptedJobs().catch((error) => {
     console.error('Cannot recover interrupted jobs: ' + error.message);
   });
+
+  //Promote ADMIN_USERNAME (default moonshine@gmail.com) when the account exists.
+  //It logs one line for promoted, already admin and skipped.
+  await require('./routes/api/auth').promoteAdmin();
 
   //Admin jobs run in-process, one at a time. The worker above keeps its own queue.
   const jobTimer = setInterval(() => {

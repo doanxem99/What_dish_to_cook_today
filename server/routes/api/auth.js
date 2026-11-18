@@ -46,9 +46,9 @@ const signin = async function(req, res) {
             });
         }
         let user = await database.collections.User.findOne({ $or: [{ username: req.body.username }, { email: req.body.username }] })
+        //Same answer for an unknown account and a wrong password, so presence is not discoverable
         if (!user) {
-            return res.status(404).send({
-                //User not found
+            return res.status(401).send({
                 message: "User/email or password is not correct!"
             });
         }
@@ -184,9 +184,10 @@ router.post('/verifytoken',
 
 router.post('/password', verifyToken, async function(req, res) {
     try {
-        const user = await database.collections.User.findOne({ _id: req.body.userid });
-        if (!user) {
-            return res.status(404).send({ message: "User not found!" });
+        //verifyToken already loaded the account for this token
+        const user = req.current_user;
+        if (user.is_disabled) {
+            return res.status(403).send({ message: "This account is disabled!" });
         }
         if (!isValidPassword(req.body.current_password)
             || !bcrypt.compareSync(req.body.current_password, user.password)) {
