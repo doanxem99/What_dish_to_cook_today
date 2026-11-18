@@ -100,6 +100,14 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
           Text(state.t('ingredients.title'), style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 4),
           Text(state.t('ingredients.subtitle'), style: TextStyle(fontSize: 13, color: tokens.dim)),
+          if (state.isSignedIn) ...[
+            const SizedBox(height: 10),
+            BoardButton(
+              key: const ValueKey('new-ingredient'),
+              label: state.t('edit.createIngredientTitle'),
+              onPressed: () => Navigator.pushNamed(context, '/ingredient-edit'),
+            ),
+          ],
           const SizedBox(height: 12),
           SizedBox(
             height: 34,
@@ -114,8 +122,10 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
           const SizedBox(height: 16),
           if (_loading)
             _stateLine(state.t('common.loading'))
-          else if (_failed)
-            _stateLine(state.t('common.errorBody'))
+          else if (_failed) ...[
+            _stateLine(state.t('common.errorBody')),
+            BoardButton(label: state.t('common.retry'), onPressed: _load),
+          ]
           else if (groups.isEmpty)
             _stateLine(_search.text.trim().isEmpty
                 ? state.t('common.emptyTitle')
@@ -148,7 +158,7 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
           padding: const EdgeInsets.all(8),
           child: Row(
             children: [
-              BoardImage(url: state.api.imageUrl(item.image), width: 44, height: 44),
+              BoardImage(url: state.api.imageUrl(item.image), width: 44, height: 44, kind: 'ingredient'),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -160,6 +170,15 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: tokens.ink),
                     ),
+                    if (!item.nutrition.isEmpty)
+                      Text('${item.nutrition.calories.round()} kcal / 100 g', style: TextStyle(fontSize: 11, color: tokens.dim)),
+                    if (item.detail(state.locale).isNotEmpty)
+                      Text(
+                        item.detail(state.locale),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, height: 1.4, color: tokens.dim),
+                      ),
                   ],
                 ),
               ),

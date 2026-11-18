@@ -4,7 +4,10 @@ import 'tokens.dart';
 
 ///Board look: flat ruled surfaces, no elevation, dense type.
 ThemeData boardTheme(BoardTokens tokens) {
-  final base = ThemeData(brightness: tokens.bg.computeLuminance() < 0.5 ? Brightness.dark : Brightness.light);
+  final base = ThemeData(
+    fontFamily: 'Be Vietnam Pro',
+    fontFamilyFallback: const ['Segoe UI', 'Roboto', 'sans-serif'],
+    brightness: tokens.bg.computeLuminance() < 0.5 ? Brightness.dark : Brightness.light);
   final textTheme = base.textTheme
       .apply(bodyColor: tokens.ink, displayColor: tokens.ink)
       .copyWith(
@@ -21,6 +24,8 @@ ThemeData boardTheme(BoardTokens tokens) {
     cardColor: tokens.raised,
     dividerColor: tokens.line,
     splashFactory: NoSplash.splashFactory,
+    focusColor: tokens.amber.withValues(alpha: 0.24),
+    hoverColor: tokens.amber.withValues(alpha: 0.12),
     highlightColor: Colors.transparent,
     textTheme: textTheme,
     colorScheme: ColorScheme.fromSeed(

@@ -352,6 +352,78 @@ a.router-link-active {
     gap: 4px;
 }
 
+/*Profile cover and identity block*/
+.profile-banner {
+    position: relative;
+    height: 180px;
+    border: 1px solid var(--board-line);
+    border-radius: var(--radius);
+    background-color: var(--board-raised);
+    background-size: cover;
+    background-position: center;
+    margin-bottom: -32px;
+}
+
+.profile-banner.is-empty {
+    background-image:
+        radial-gradient(circle at 18% 25%, rgba(168, 86, 52, 0.45), transparent 42%),
+        radial-gradient(circle at 82% 70%, rgba(217, 154, 78, 0.35), transparent 46%),
+        repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0 2px, transparent 2px 12px);
+}
+
+.profile-cover-action {
+    position: absolute;
+    right: 12px;
+    bottom: 44px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.35);
+    cursor: pointer;
+}
+
+.profile-head {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    padding: 0 4px;
+}
+
+.profile-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    flex: 0 0 72px;
+    border-radius: 50%;
+    border: 3px solid var(--board-bg);
+    background: var(--board-red);
+    color: #fff;
+    font-size: 28px;
+    font-weight: 800;
+}
+
+/*Ingredient detail: photo beside the facts*/
+.ingredient-hero {
+    display: grid;
+    gap: 16px;
+}
+
+@media (min-width: 768px) {
+    .ingredient-hero {
+        grid-template-columns: 280px 1fr;
+        align-items: start;
+    }
+}
+
+.ingredient-hero img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    border-radius: var(--radius);
+    border: 1px solid var(--board-line);
+}
+
 /*Footer: the shared .board rule zeroes vertical padding, so footer spacing is scoped here.*/
 .site-footer .footer-cols {
     padding-top: 28px;

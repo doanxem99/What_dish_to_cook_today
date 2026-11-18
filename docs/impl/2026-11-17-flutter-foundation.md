@@ -85,6 +85,15 @@ Rulings in Phase 2:
 - `flutter_localizations` was not added; English uses `MaterialLocalizations`, Vietnamese uses day/month/year order.
 - Auth failures show `auth.failed` from the catalogue in every locale instead of the server's English sentence.
 
+## Phase 3 — editors
+
+- New dependencies: file_picker and desktop_drop; multipart uploads and translation through EditorApi.
+- Shared widgets: EditorImageField (pick or drop, 5 MB and PNG/JPEG checks before reading), BlocksEditor (text/image blocks, both languages, formatting, reorder, delete, Vue JSON shape), translation on blur with the overwrite guard.
+- Screens: dish editor (create dish or post an edit, ingredient picker, cover and extra images, blocks) and ingredient editor (type, images, blocks). Both require a session and return to the page after sign-in.
+- Routes `/dish-edit` and `/ingredient-edit`; New dish and New ingredient entries for signed-in users.
+- Review fixes: image blocks serialise src and image-only keys, stable block ids, controllers isolated per field, add-image appends against the current list, server projections for ingredient name_vi/type/short_detail_vi, create forwards images and blocks, save responses checked before navigation, 401s return to sign-in with a next route.
+- Deferred: block translation errors are silent (the English text stays usable), and upload progress is a busy label rather than a bar.
+
 Whole-branch review fixes:
 
 - Boot route now comes from `Uri.base` with the `/flutter` prefix stripped, so `/flutter/profile` reloads as the profile instead of silently becoming home.
@@ -120,3 +129,12 @@ Rejected or deferred:
 - Be Vietnam Pro is not bundled; the platform sans renders Vietnamese.
 - The Flutter bundle replaces tracked `server/web/` output; git history carries the old build.
 - Colour values are copied by hand from `theme.css`; a token drift test is not possible without parsing CSS, so both palettes are asserted in a unit test against literal constants.
+
+## Critique fix pass (2026-11-18)
+
+- Board picker: chosen chips with remove, inline ingredient search-add and refetch above the board; Home added to the header nav; basket persisted across reloads through localStorage.
+- Ranking explained: rows print Needs: ... for missing ingredients, amber for partial and danger for no match.
+- Dish detail: author line, Edit entry for signed-in users, vote error line, totals stretched; method measure still full width (deferred).
+- Typography: Be Vietnam Pro bundled (400/600/800) and set as the app font.
+- Recovery: retry buttons on home, ingredients and ingredient detail; host page now has a real title, description and lang.
+- Still deferred: stock Checkbox/Dropdown controls, 28px chip targets, comments 1/3 column, unsaved-change guard, lamp legend, footer licence link.

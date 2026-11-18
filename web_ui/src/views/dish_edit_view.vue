@@ -30,7 +30,28 @@ export default {
   computed: {
     t() { return useI18n().t },
     auth() { return useAuthStore() },
-    creating() { return !this.dishId }
+    locale() { return useI18n().locale.value },
+    creating() { return !this.dishId },
+    perServing() {
+      const total = { calories: 0, protein: 0, fat: 0, carbs: 0 }
+      for (const item of this.model.ingredients) {
+        const grams = Number(this.model.grams[item.id] || 0)
+        const per100 = item.nutrition && item.nutrition.per_100g
+        if (!per100 || grams <= 0) continue
+        for (const key of Object.keys(total)) {
+          total[key] += (per100[key] || 0) * grams / 100
+        }
+      }
+      const servings = Number(this.model.servings) || 0
+      const divisor = servings > 0 ? servings : 1
+      const round = (value, digits) => Math.round(value * 10 ** digits) / 10 ** digits
+      return {
+        calories: Math.round(total.calories / divisor),
+        protein: round(total.protein / divisor, 1),
+        fat: round(total.fat / divisor, 1),
+        carbs: round(total.carbs / divisor, 1)
+      }
+    }
   },
   mounted() {
     this.dishId = this.$route.query.dish_id || null
@@ -41,6 +62,9 @@ export default {
     }
   },
   methods: {
+    localName(item) {
+      return (this.locale === 'vi' && item.name_vi) ? item.name_vi : item.name
+    },
     async load() {
       this.loading = true
       try {
@@ -61,6 +85,11 @@ export default {
             this.model.profile_image = post.profile_image || ''
             this.model.images = Array.isArray(post.images) ? post.images : []
             this.model.blocks = Array.isArray(post.display_blocks) ? post.display_blocks : []
+            this.model.servings = post.servings || 4
+            this.model.grams = {}
+            for (const amount of (post.ingredient_amounts || [])) {
+              this.model.grams[amount.ingredient_id] = amount.grams
+            }
             const ids = (post.ingredients || []).join('-')
             if (ids) {
               const rows = await api.get(`/api/ingredient/search/ids/${ids}`)
@@ -153,6 +182,9 @@ export default {
           profile_image: this.model.profile_image,
           images: this.model.images,
           ingredients: this.model.ingredients.map(item => item.id),
+          servings: Number(this.model.servings) || 0,
+          ingredient_amounts: this.model.ingredients.map(item => ({ ingredient_id: item.id, grams: Number(this.model.grams[item.id]) || 0 })),
+          nutrition: this.perServing,
           display_blocks: this.model.blocks
         }
         let response
@@ -228,6 +260,20 @@ export default {
         <div>
           <h2 class="eyebrow mb-2">{{ t('edit.ingredients') }}</h2>
           <ingredientPickerEdit v-model="model.ingredients" />
+          <div class="mt-3">
+            <span class="eyebrow">{{ t('edit.nutrition') }}</span>
+            <label class="field mt-1">
+              <span class="text-sm">{{ t('edit.servings') }}</span>
+              <input v-model.number="model.servings" class="input" type="number" min="1" />
+            </label>
+            <div v-for="item in model.ingredients" :key="item.id" class="flex items-center gap-2 mt-2">
+              <span class="flex-1 text-sm">{{ localName(item) }}</span>
+              <input v-model.number="model.grams[item.id]" class="input" type="number" min="0" :placeholder="t('edit.grams')" style="max-width: 110px" />
+            </div>
+            <p class="text-sm mt-2" style="color: var(--board-dim)">
+              {{ perServing.calories }} kcal · P {{ perServing.protein }} g · F {{ perServing.fat }} g · C {{ perServing.carbs }} g
+            </p>
+          </div>
         </div>
 
         <div>

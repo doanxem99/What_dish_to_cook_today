@@ -6,10 +6,12 @@ import 'api/api_client.dart';
 import 'i18n/i18n.dart';
 import 'screens/about_screen.dart';
 import 'screens/dish_detail_screen.dart';
+import 'screens/dish_editor_screen.dart';
 import 'screens/dishes_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/homemade_screen.dart';
 import 'screens/ingredient_detail_screen.dart';
+import 'screens/ingredient_editor_screen.dart';
 import 'screens/ingredients_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/signin_screen.dart';
@@ -153,11 +155,17 @@ class _BoardAppState extends State<BoardApp> {
       case '/dish':
         page = DishDetailScreen(dishId: id, postId: postId);
         break;
+      case '/dish-edit':
+        page = DishEditorScreen(dishId: id);
+        break;
       case '/ingredients':
         page = IngredientsScreen(query: query);
         break;
       case '/ingredient':
         page = IngredientDetailScreen(ingredientId: id);
+        break;
+      case '/ingredient-edit':
+        page = IngredientEditorScreen(ingredientId: id);
         break;
       case '/homemade':
         page = const HomemadeScreen();

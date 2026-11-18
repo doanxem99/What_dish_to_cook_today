@@ -36,7 +36,7 @@ export default {
     localName(item) {
       return (this.locale === 'vi' && item.name_vi) ? item.name_vi : item.name
     },
-    image(path) { return path ? serverInfo.getFullPath(path) : '' },
+    image(path) { return serverInfo.getImage(path, 'ingredient') },
     async search() {
       this.loading = true
       this.failed = false
@@ -95,6 +95,9 @@ export default {
                 <span class="block font-bold truncate">{{ localName(item) }}</span>
                 <span class="block text-xs sm:text-sm truncate" style="color: var(--board-dim)">
                   {{ locale === 'vi' && item.short_detail_vi ? item.short_detail_vi : item.short_detail }}
+                </span>
+                <span v-if="item.nutrition && item.nutrition.per_100g" class="block text-xs" style="color: var(--board-dim)">
+                  {{ Math.round(item.nutrition.per_100g.calories) }} kcal / 100 g
                 </span>
               </span>
             </router-link>

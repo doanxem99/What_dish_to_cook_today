@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
+import '../editor/editor_api.dart';
+import '../editor/editor_image_field.dart';
 import '../i18n/i18n.dart';
 import '../shell/app_shell.dart';
 import '../state/app_state.dart';
@@ -23,6 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _checked = false;
   bool _redirecting = false;
   bool _signingOut = false;
+  String? _error;
 
   @override
   void didChangeDependencies() {
@@ -164,11 +167,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return AppShell(
       active: '/profile',
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Container(
+            height: 150,
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              border: Border.all(color: tokens.line),
+              borderRadius: BorderRadius.circular(BoardTokens.radius),
+              color: tokens.raised,
+              image: (state.account?.backgroundImage.isNotEmpty ?? false)
+                  ? DecorationImage(
+                      image: NetworkImage(state.api.imageUrl(state.account!.backgroundImage)),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            alignment: Alignment.bottomRight,
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                color: Colors.black54,
+                child: EditorImageField(
+                  api: EditorApi(state.api),
+                  label: state.t('profile.changeCover'),
+                  value: '',
+                  height: 32,
+                  onChanged: (path) async {
+                    if (path.isEmpty) {
+                      return;
+                    }
+                    try {
+                      await state.api.postJson('/api/auth/background', {'background_image': path});
+                      await state.refreshAccount();
+                    } catch (_) {
+                      if (mounted) {
+                        setState(() => _error = state.t('common.errorBody'));
+                      }
+                    }
+                  },
+                  onError: (_) {
+                    if (mounted) {
+                      setState(() => _error = state.t('common.errorBody'));
+                    }
+                  },
+                ),
+              ),
+            ),
+          ),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: tokens.red,
+                child: Text(
+                  (state.account?.username.isNotEmpty ?? false)
+                      ? state.account!.username[0].toUpperCase()
+                      : '?',
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white),
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,6 +253,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               BoardButton(label: state.t('nav.signOut'), onPressed: _signOut),
             ],
           ),
+          if (_error != null) ...[
+            const SizedBox(height: 6),
+            Text(_error!, style: TextStyle(fontSize: 13, color: tokens.danger)),
+          ],
           const SizedBox(height: 16),
           if (!_checked || _loading)
             Text(state.t('common.loading'), style: TextStyle(fontSize: 13, color: tokens.dim))

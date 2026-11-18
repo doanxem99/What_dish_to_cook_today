@@ -26,6 +26,8 @@ const toPreviews = async function(_dishPosts, _selectedIds = []) {
                 "short_detail": post.short_detail,
                 "short_detail_vi": post.short_detail_vi || null,
                 "profile_image": post.profile_image,
+                "servings": post.servings || null,
+                "nutrition": post.nutrition || null,
                 //How much of the dish the cook already has; the board ranks on this
                 "match_count": matchedIds.length,
                 "total_ingredients": ingredientIds.length,
@@ -67,7 +69,7 @@ const findDishSelectionByIds = async function(_ingredientIds){
     }
     const dishPosts = await database.collections.DishPost.find(
         filter,
-        "dish_id ingredients short_detail short_detail_vi profile_image"
+        "dish_id ingredients short_detail short_detail_vi profile_image servings nutrition"
     ).limit(24);
 
     return toPreviews(dishPosts, _ingredientIds);
@@ -87,7 +89,7 @@ const findHomemadeDishSelection = async function(){
     const seedAdminId = seedAdmin._id.toString();
     const dishPosts = await database.collections.DishPost.find(
         { is_best_post: true, user_id: { $exists: true, $nin: ['unknow', seedAdminId] } },
-        "dish_id user_id short_detail short_detail_vi profile_image"
+        "dish_id user_id short_detail short_detail_vi profile_image servings nutrition"
     ).limit(24);
 
     //Belt and braces: a legacy ObjectId-typed user id slips past the string filter

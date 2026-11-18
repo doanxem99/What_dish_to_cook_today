@@ -84,6 +84,9 @@ const createDishPost = async function(_postData) {
         'short_detail_vi': short_detail_vi,
         'profile_image': profile_image,
         'images': images,
+        'servings': _postData.data.servings || null,
+        'nutrition': _postData.data.nutrition || null,
+        'ingredient_amounts': Array.isArray(_postData.data.ingredient_amounts) ? _postData.data.ingredient_amounts : [],
         'display_blocks': display_blocks
     };
 
@@ -194,6 +197,10 @@ const createDish = async function(_postData) {
                 'short_detail': short_detail,
                 'short_detail_vi': _postData.short_detail_vi || "",
                 'profile_image': profile_image,
+                'images': Array.isArray(_postData.images) ? _postData.images : [],
+                'servings': _postData.servings || null,
+                'nutrition': _postData.nutrition || null,
+                'ingredient_amounts': Array.isArray(_postData.ingredient_amounts) ? _postData.ingredient_amounts : [],
                 'display_blocks': display_blocks
             }
         };
@@ -255,7 +262,7 @@ const getDishPostDetail = async function(_dishPostId) {
     try {
         const response = await database.collections.DishPost.findById(
             _dishPostId,
-            "name name_vi dish_id user_id is_best_post date_time points ingredients short_detail short_detail_vi profile_image images display_blocks"
+            "name name_vi dish_id user_id is_best_post date_time points ingredients short_detail short_detail_vi profile_image images servings nutrition ingredient_amounts display_blocks"
         );
 
         // Update views count
@@ -287,7 +294,7 @@ const getBestDishPost = async function() {
         // Find the best dish post based on the maximum points in the DishPost collection
         const dishPost = await database.collections.DishPost.findOne(
             { is_best_post: true },
-            "name name_vi dish_id user_id is_best_post date_time points views comments ingredients short_detail short_detail_vi profile_image images display_blocks"
+            "name name_vi dish_id user_id is_best_post date_time points views comments ingredients short_detail short_detail_vi profile_image images servings nutrition ingredient_amounts display_blocks"
         ).sort({ points: -1 });
 
         if (!dishPost) {

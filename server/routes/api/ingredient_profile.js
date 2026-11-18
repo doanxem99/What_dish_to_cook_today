@@ -68,12 +68,14 @@ const createIngredientPost = async function(_postData)
 
     let ingredientPostData = {
         'name' : ingredient_name,
+        'name_vi' : _postData.data.name_vi || "",
         'user_id' : user_id,
         'ingredient_id' : ingredient_id, 
         'unique_id' : unique_id,
         'date_time' : new Date().toJSON(),
         'points' : 0,
         'type' : type,
+        'nutrition' : _postData.data.nutrition || null,
         'short_detail' : short_detail,
         'short_detail_vi' : short_detail_vi,
         'profile_image' : profile_image,
@@ -172,11 +174,13 @@ const createIngredient = async function(_postData){
                 'ingredient_name': ingredient_name,
                 'data': {
                     'user_id' : user_id,
+                    'name_vi' : _postData.name_vi || "",
+                    'nutrition' : _postData.nutrition || null,
                     'type' : type,
                     'short_detail' : short_detail,
                     'short_detail_vi' : _postData.short_detail_vi || "",
                     'profile_image' : profile_image,
-                    'display_blocks' : []
+                    'display_blocks' : Array.isArray(_postData.display_blocks) ? _postData.display_blocks : []
                 }
             }
 
@@ -228,7 +232,7 @@ const createIngredient = async function(_postData){
 const getIngredientDetail = async function(_ingredientId)
 {
     try {
-        const _response = await database.collections.Ingredient.findById(_ingredientId, 'name best_post_id');
+        const _response = await database.collections.Ingredient.findById(_ingredientId, 'name name_vi nutrition best_post_id');
 
         return {
             'status' : profileEnum.ProfileStatus_Detail.Success, 
@@ -247,7 +251,7 @@ const getIngredientPostDetail = async function(_ingredientPostId)
 {
     try {
         const _response = await database.collections.IngredientPost.findById(_ingredientPostId, 
-        "name ingredient_id user_id is_best_post date_time points type short_detail profile_image display_blocks");
+        "name name_vi ingredient_id user_id is_best_post date_time points type nutrition short_detail short_detail_vi profile_image display_blocks");
 
         return {
             'status' : profileEnum.ProfileStatus_PostDetail.Success,

@@ -9,7 +9,7 @@ const VIEW_KEY = 'dishes-view'
 
 export default {
   data() {
-    return { rows: [], loading: true, failed: false, view: 'list' }
+    return { rows: [], catalog: [], addQuery: '', loading: true, failed: false, view: 'list' }
   },
   computed: {
     t() { return useI18n().t },
@@ -35,10 +35,34 @@ export default {
       this.view = 'list'
     }
     this.load()
+    this.loadCatalog()
   },
   methods: {
+    async loadCatalog() {
+      try {
+        const payload = await api.get('/api/ingredient/selection/')
+        this.catalog = payload && Array.isArray(payload.data) ? payload.data : []
+      } catch (error) {
+        this.catalog = []
+      }
+    },
     localName(item) {
       return (this.locale === 'vi' && item.name_vi) ? item.name_vi : item.name
+    },
+    addOptions() {
+      const term = this.addQuery.trim().toLowerCase()
+      if (!term) return []
+      return this.catalog.filter(item => !this.isChosen(item.id) && this.localName(item).toLowerCase().includes(term)).slice(0, 8)
+    },
+    missingLine(row) {
+      if (!Array.isArray(row.missing)) return ''
+      return row.missing.map(item => this.localName(item)).join(', ')
+    },
+    isChosen(id) { return this.chosen.some(item => item.id === id) },
+    addIngredient(item) {
+      this.pantry.toggle(item)
+      this.addQuery = ''
+      this.load()
     },
     ingredientLine(row) {
       if (!Array.isArray(row.ingredients_detail)) return ''
@@ -47,7 +71,7 @@ export default {
     detail(row) {
       return (this.locale === 'vi' && row.short_detail_vi) ? row.short_detail_vi : (row.short_detail || '')
     },
-    image(path) { return path ? serverInfo.getFullPath(path) : '' },
+    image(path) { return serverInfo.getImage(path, 'dish') },
     setView(view) {
       this.view = view
       try { localStorage.setItem(VIEW_KEY, view) } catch (error) { /* session only */ }
@@ -131,6 +155,27 @@ export default {
       </span>
     </div>
 
+    <div class="mt-3">
+      <label class="sr-only" for="board-add">Add ingredient</label>
+      <input
+        id="board-add"
+        v-model="addQuery"
+        class="input"
+        type="search"
+        :placeholder="t('home.pickerPlaceholder')"
+        style="max-width: 320px"
+      />
+      <div v-if="addQuery.trim() && addOptions().length" class="flex flex-wrap gap-2 mt-2">
+        <button
+          v-for="item in addOptions()"
+          :key="item.id"
+          class="chip"
+          type="button"
+          @click="addIngredient(item)"
+        >+ {{ localName(item) }}</button>
+      </div>
+    </div>
+
     <p v-if="loading" class="state" aria-live="polite">{{ t('common.loading') }}</p>
     <div v-else-if="failed" class="state" role="alert">
       <p>{{ t('common.errorTitle') }}</p>
@@ -164,6 +209,9 @@ export default {
             </span>
             <span v-if="ingredientLine(row)" class="block text-xs truncate" style="color: var(--board-dim)">
               {{ ingredientLine(row) }}
+            </span>
+            <span v-if="missingLine(row)" class="block text-xs truncate" style="color: var(--board-amber)">
+              {{ t('dishes.needs', { list: missingLine(row) }) }}
             </span>
           </span>
         </router-link>

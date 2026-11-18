@@ -7,7 +7,7 @@ const findIngredientSelection = async function(){
     //Limit 10 item
     const ingredientPosts = await database.collections.IngredientPost.find(
                         {is_best_post : true}, 
-                        "ingredient_id short_detail short_detail_vi profile_image type"
+                        "ingredient_id short_detail short_detail_vi profile_image type nutrition"
                     ).limit(30);
 
     const ingredients = await database.collections.Ingredient.find(
@@ -28,6 +28,7 @@ const findIngredientSelection = async function(){
                 "short_detail" : post.short_detail,
                 "short_detail_vi" : post.short_detail_vi || null,
                 "profile_image" : post.profile_image,
+                "nutrition" : post.nutrition || null,
             };
         });
 

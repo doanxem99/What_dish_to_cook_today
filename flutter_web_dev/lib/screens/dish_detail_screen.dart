@@ -27,6 +27,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
   int _points = 0;
   bool _voted = false;
   bool _voteBusy = false;
+  bool _voteError = false;
   bool _commentBusy = false;
   bool _deleteBusy = false;
   bool _commentError = false;
@@ -279,7 +280,10 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
     if (_voteBusy) {
       return;
     }
-    setState(() => _voteBusy = true);
+    setState(() {
+      _voteBusy = true;
+      _voteError = false;
+    });
     try {
       final payload = await state.api.postJson('/api/dish/profile/vote/${post.id}', const {});
       if (!mounted) {
@@ -295,6 +299,9 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
     } catch (error) {
       if (error is ApiException && error.statusCode == 401) {
         await state.refreshAccount();
+      }
+      if (mounted) {
+        setState(() => _voteError = true);
       }
       //The count stays as it was; the button can be pressed again.
     } finally {
@@ -312,7 +319,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
     return AppShell(
       active: '/dishes',
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (_loading)
             Text(state.t('common.loading'), style: TextStyle(fontSize: 13, color: tokens.dim))
@@ -336,7 +343,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
 
   Widget _body(AppState state, BoardTokens tokens, DishPost post) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         BoardCard(
           child: Column(
@@ -346,6 +353,17 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
               if (post.detail(state.locale).isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(post.detail(state.locale), style: TextStyle(fontSize: 14, color: tokens.dim)),
+              ],
+              if (!post.nutrition.isEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  '${post.nutrition.calories.round()} kcal · P ${post.nutrition.protein.toStringAsFixed(1)}g · F ${post.nutrition.fat.toStringAsFixed(1)}g · C ${post.nutrition.carbs.toStringAsFixed(1)}g',
+                  style: TextStyle(fontSize: 12, color: tokens.dim),
+                ),
+              ],
+              if (post.username.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(state.t('dish.author', {'name': post.username}), style: TextStyle(fontSize: 12, color: tokens.dim)),
               ],
               const SizedBox(height: 12),
               Row(
@@ -361,6 +379,14 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  if (state.isSignedIn)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: InkWell(
+                        onTap: () => Navigator.pushNamed(context, '/dish-edit', arguments: {'dish_id': post.dishId}),
+                        child: Text(state.t('common.edit'), style: TextStyle(fontSize: 12, color: tokens.dim)),
+                      ),
+                    ),
                   BoardButton(
                     key: const ValueKey('vote-button'),
                     label: _voted ? state.t('dish.voted') : state.t('dish.vote'),
@@ -369,6 +395,11 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                   ),
                 ],
               ),
+              if (_voteError)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(state.t('common.errorBody'), style: TextStyle(fontSize: 12, color: tokens.danger)),
+                ),
               if (post.image.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 BoardImage(

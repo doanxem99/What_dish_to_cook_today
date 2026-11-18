@@ -42,7 +42,7 @@ export default {
   },
   mounted() { this.load() },
   methods: {
-    image(path) { return path ? serverInfo.getFullPath(path) : '' },
+    image(path) { return serverInfo.getImage(path, 'dish') },
     blockText(block) {
       return this.locale === 'vi' && block.text_vi ? block.text_vi : block.text
     },
@@ -172,6 +172,9 @@ export default {
           <div class="min-w-0">
             <h1 class="board-title">{{ title }}</h1>
             <p class="board-sub">{{ shortDetail }}</p>
+            <p v-if="post.nutrition && post.nutrition.calories" class="text-sm mt-2" style="color: var(--board-dim)">
+              {{ Math.round(post.nutrition.calories) }} kcal · P {{ post.nutrition.protein }} g · F {{ post.nutrition.fat }} g · C {{ post.nutrition.carbs }} g
+            </p>
             <p class="eyebrow mt-3">
               {{ t('dish.author', { name: post.username || post.user_id || t('common.unknown') }) }}
             </p>

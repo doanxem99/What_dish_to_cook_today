@@ -61,7 +61,7 @@ class BoardButton extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(BoardTokens.radius),
         child: Container(
-          height: dense ? 26 : 32,
+          height: dense ? 30 : 36,
           padding: EdgeInsets.symmetric(horizontal: dense ? 8 : 10),
           decoration: BoxDecoration(
             color: primary ? tokens.red : Colors.transparent,
@@ -136,7 +136,7 @@ class BoardChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(999),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 28),
+          constraints: const BoxConstraints(minHeight: 34),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
             color: tokens.raised,
@@ -201,22 +201,22 @@ class BoardImage extends StatelessWidget {
     this.width,
     this.height,
     this.fit = BoxFit.cover,
+    this.kind = 'dish',
   });
 
   final String url;
   final double? width;
   final double? height;
   final BoxFit fit;
+  final String kind;
 
   @override
   Widget build(BuildContext context) {
-    final tokens = BoardTokens.of(AppScope.of(context).isLight);
-    final placeholder = Container(
+    final placeholder = Image.asset(
+      kind == 'ingredient' ? 'assets/defaults/ingredient.png' : 'assets/defaults/dish.png',
       width: width,
       height: height,
-      color: tokens.bg,
-      alignment: Alignment.center,
-      child: Icon(Icons.restaurant_menu, size: 18, color: tokens.dim),
+      fit: fit,
     );
     if (url.isEmpty) {
       return ClipRRect(borderRadius: BorderRadius.circular(4), child: placeholder);

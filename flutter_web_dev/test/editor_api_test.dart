@@ -1,0 +1,162 @@
+//Editors talk to the gallery upload and translate routes.
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:what_dish_to_cook_today/api/api_client.dart';
+import 'package:what_dish_to_cook_today/editor/editor_api.dart';
+
+ApiClient _api(void Function(http.BaseRequest request, String body) onRequest,
+    {Object? uploadBody, int uploadStatus = 200, Uint8List? rawBody}) {
+  return ApiClient('http://test', client: MockClient((request) async {
+    if (request.url.path == '/api/gallery_upload/temporary') {
+      onRequest(request, request.body);
+      if (rawBody != null) {
+        return http.Response.bytes(rawBody, uploadStatus,
+            headers: {'content-type': 'text/plain'});
+      }
+      return http.Response(
+          json.encode(uploadBody ?? {'isSuccess': true, 'path': 'public/gallery/temporary/a.png'}), uploadStatus,
+          headers: {'content-type': 'application/json; charset=utf-8'});
+    }
+    onRequest(request, request.body);
+    return http.Response(json.encode({'text': 'Gà gừng'}), 200,
+        headers: {'content-type': 'application/json; charset=utf-8'});
+  }));
+}
+
+void main() {
+  test('upload posts the file as multipart and returns the stored path', () async {
+    late http.BaseRequest seen;
+    late String body;
+    final api = EditorApi(_api((request, requestBody) {
+      seen = request;
+      body = requestBody;
+    }));
+
+    final path = await api.upload(Uint8List.fromList([1, 2, 3]), 'cover.png');
+
+    expect(seen.method, 'POST');
+    expect(seen.url.path, '/api/gallery_upload/temporary');
+    expect(seen.headers['content-type'], contains('multipart/form-data'));
+    expect(body, contains('name="file"'));
+    expect(body, contains('cover.png'));
+    expect(path, 'public/gallery/temporary/a.png');
+  });
+
+  test('upload rejects a non-image and an oversized file before the request', () async {
+    var calls = 0;
+    final api = EditorApi(_api((request, body) => calls += 1));
+
+    expect(() => api.upload(Uint8List.fromList([1]), 'notes.txt'),
+        throwsA(isA<EditorException>().having((error) => error.kind, 'kind', 'type')));
+    expect(() => api.upload(Uint8List.fromList(List.filled(6 * 1024 * 1024, 1)), 'big.png'),
+        throwsA(isA<EditorException>().having((error) => error.kind, 'kind', 'too-large')));
+    expect(() => api.upload(Uint8List.fromList([1]), 'noextension'),
+        throwsA(isA<EditorException>().having((error) => error.kind, 'kind', 'type')));
+    expect(calls, 0);
+  });
+
+  test('the exactly-5MB boundary is accepted, including upper-case extensions', () async {
+    final api = EditorApi(_api((request, body) {}));
+    final boundary = Uint8List.fromList(List.filled(5 * 1024 * 1024, 1));
+
+    expect(await api.upload(boundary, 'photo.JPEG'), 'public/gallery/temporary/a.png');
+  });
+
+  test('a server validation error keeps the status code and message', () async {
+    final api = EditorApi(_api((request, body) {},
+        uploadStatus: 400,
+        uploadBody: {'isSuccess': false, 'status': 'File is larger than 5 MB'}));
+
+    expect(
+      () => api.upload(Uint8List.fromList([1]), 'cover.png'),
+      throwsA(isA<EditorException>()
+          .having((error) => error.statusCode, 'status', 400)
+          .having((error) => error.serverMessage, 'message', contains('larger than 5 MB'))),
+    );
+  });
+
+  test('a 200 answer without a path is a failure', () async {
+    final api = EditorApi(_api((request, body) {}, uploadBody: {'isSuccess': true}));
+
+    expect(
+      () => api.upload(Uint8List.fromList([1]), 'cover.png'),
+      throwsA(isA<EditorException>().having((error) => error.kind, 'kind', 'upload')),
+    );
+  });
+
+  test('translate sends both language codes and returns the text', () async {
+    late http.BaseRequest seen;
+    late String body;
+    final api = EditorApi(_api((request, requestBody) {
+      seen = request;
+      body = requestBody;
+    }));
+
+    final text = await api.translate('Ginger chicken', 'en', 'vi');
+
+    expect(seen.url.path, '/api/translate');
+    expect(json.decode(body), {'text': 'Ginger chicken', 'source': 'en', 'target': 'vi'});
+    expect(text, 'Gà gừng');
+  });
+
+  test('a translation service failure becomes an editor error with its status', () async {
+    final client = ApiClient('http://test', client: MockClient((request) async {
+      return http.Response(json.encode({'message': 'Translation is not configured.'}), 503,
+          headers: {'content-type': 'application/json; charset=utf-8'});
+    }));
+
+    expect(
+      () => EditorApi(client).translate('x', 'en', 'vi'),
+      throwsA(isA<EditorException>()
+          .having((error) => error.kind, 'kind', 'translate')
+          .having((error) => error.statusCode, 'status', 503)),
+    );
+  });
+  test('a malformed error body still becomes an editor error with its status', () async {
+    final api = EditorApi(_api((request, body) {},
+        uploadStatus: 500, rawBody: Uint8List.fromList([0xff, 0xfe, 0x00, 0x81])));
+
+    expect(
+      () => api.upload(Uint8List.fromList([1]), 'cover.png'),
+      throwsA(isA<EditorException>()
+          .having((error) => error.statusCode, 'status', 500)
+          .having((error) => error.kind, 'kind', 'upload')),
+    );
+  });
+
+  test('a 200 answer with isSuccess false is a failure', () async {
+    final api = EditorApi(_api((request, body) {},
+        uploadBody: {'isSuccess': false, 'status': 'Only png, jpg and jpeg are allowed'}));
+
+    expect(
+      () => api.upload(Uint8List.fromList([1]), 'cover.png'),
+      throwsA(isA<EditorException>()
+          .having((error) => error.kind, 'kind', 'upload')
+          .having((error) => error.serverMessage, 'message', contains('Only png'))),
+    );
+  });
+
+  test('a 401 is exposed as unauthorised with the server message', () async {
+    final api = EditorApi(_api((request, body) {},
+        uploadStatus: 401, uploadBody: {'message': 'Authentication invalid!'}));
+
+    expect(
+      () => api.upload(Uint8List.fromList([1]), 'cover.png'),
+      throwsA(isA<EditorException>()
+          .having((error) => error.isUnauthorised, 'unauthorised', isTrue)
+          .having((error) => error.serverMessage, 'message', 'Authentication invalid!')),
+    );
+  });
+
+  test('one byte over the limit is rejected', () async {
+    final api = EditorApi(_api((request, body) {}));
+    final over = Uint8List.fromList(List.filled(EditorApi.maxBytes + 1, 1));
+
+    expect(() => api.upload(over, 'photo.png'),
+        throwsA(isA<EditorException>().having((error) => error.kind, 'kind', 'too-large')));
+  });
+}

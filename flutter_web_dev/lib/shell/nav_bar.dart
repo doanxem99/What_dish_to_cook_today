@@ -116,6 +116,7 @@ class _NavBarState extends State<NavBar> {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
+                    _navLink('/', state.t('nav.home'), tokens),
                     _navLink('/dishes', state.t('nav.dishes'), tokens),
                     _navLink('/homemade', state.t('nav.homemade'), tokens),
                     _navLink('/ingredients', state.t('nav.ingredients'), tokens),

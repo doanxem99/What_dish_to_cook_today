@@ -29,6 +29,7 @@ const User = mongoose.model('user', {
         type: String,
         required: true
     },
+    background_image: String,
     email: {
         type: String,
         unique: true, // `name` must be unique
@@ -54,6 +55,7 @@ const Ingredient = mongoose.model('ingredient', {
     },
     name_vi: String,
     best_post_id : String,
+    nutrition : Object,
     is_need_update: Boolean
 },'ingredient');
 
@@ -73,6 +75,7 @@ const IngredientPost = mongoose.model('ingredient_post', {
     },
     points: Number,
     type: String,
+    nutrition : Object,
     short_detail: String,
     short_detail_vi: String,
     profile_image : String,
@@ -111,6 +114,9 @@ const DishPost = mongoose.model('dish_post', {
     short_detail_vi: String,
     profile_image : String,
     images : Array,
+    servings : Number,
+    nutrition : Object,
+    ingredient_amounts : Array,
     display_blocks : Array
 },'dish_post');
 

@@ -81,16 +81,46 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
     return AppShell(
       active: '/ingredients',
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (_loading)
             Text(state.t('common.loading'), style: TextStyle(fontSize: 13, color: tokens.dim))
-          else if (_failed)
-            Text(state.t('common.errorBody'), style: TextStyle(fontSize: 13, color: tokens.dim))
+          else if (_failed) ...[
+            Text(state.t('common.errorBody'), style: TextStyle(fontSize: 13, color: tokens.dim)),
+            const SizedBox(height: 8),
+            BoardButton(label: state.t('common.retry'), onPressed: _load),
+          ]
           else if (_ingredient == null)
             Text(state.t('common.emptyTitle'), style: TextStyle(fontSize: 13, color: tokens.dim))
           else ...[
             Text(_ingredient!.label(state.locale), style: Theme.of(context).textTheme.titleLarge),
+            if (_ingredient!.image.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              BoardImage(
+                url: state.api.imageUrl(_ingredient!.image),
+                width: double.infinity,
+                height: 220,
+              ),
+            ],
+            if (!_ingredient!.nutrition.isEmpty) ...[
+              const SizedBox(height: 12),
+              BoardCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${state.t('edit.nutrition')} (100 g)'.toUpperCase(),
+                      style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: tokens.dim),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${_ingredient!.nutrition.calories.round()} kcal · P ${_ingredient!.nutrition.protein.toStringAsFixed(1)} g · F ${_ingredient!.nutrition.fat.toStringAsFixed(1)} g · C ${_ingredient!.nutrition.carbs.toStringAsFixed(1)} g · Na ${_ingredient!.nutrition.sodium.round()} mg',
+                      style: TextStyle(fontSize: 13, color: tokens.ink),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             BoardCard(
               child: Column(
@@ -114,7 +144,7 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
                     else if (block.type == 'image')
                       Padding(
                         padding: const EdgeInsets.only(bottom: 16),
-                        child: BoardImage(url: state.api.imageUrl(block.src), width: double.infinity, height: 220),
+                        child: BoardImage(url: state.api.imageUrl(block.src), width: double.infinity, height: 220, kind: 'ingredient'),
                       ),
                   ],
                   if (_post == null || _post!.blocks.isEmpty)

@@ -165,7 +165,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           if (_loading) _stateLine(state.t('common.loading')),
-          if (_failed) _stateLine(state.t('common.errorBody')),
+          if (_failed) ...[
+            _stateLine(state.t('common.errorBody')),
+            BoardButton(label: state.t('common.retry'), onPressed: _loadCatalog),
+          ],
           if (!_loading && !_failed && groups.isEmpty) _stateLine(state.t('common.emptyTitle')),
           for (final entry in groups.entries) ...[
             const SizedBox(height: 12),

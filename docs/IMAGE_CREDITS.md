@@ -21,3 +21,7 @@ Dish photos are used under the licence shown, sourced through Wikimedia Commons 
 
 Lemongrass chicken has no photo: the only free candidate was blocked by the source's rate limit,
 and the earlier Flickr result was non-commercial, which does not belong in an MIT repository.
+
+## Ingredient photos
+
+The 32 ingredient photos under server/public/pictures/ingredients/ were fetched through Openverse (CC-licensed sources) and are listed with source URL, licence and artist in server/scripts/seed-ingredient-images.json. Six ingredients (Beef, Chicken, Rice noodle, Fish sauce, Sugar, Rice flour) have no photo yet and fall back to server/public/pictures/defaults/ingredient.png. The same placeholder is used for dishes without a photo (dish.png).

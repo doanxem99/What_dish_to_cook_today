@@ -13,7 +13,7 @@ export default {
   },
   mounted() { this.load() },
   methods: {
-    image(path) { return path ? serverInfo.getFullPath(path) : '' },
+    image(path) { return serverInfo.getImage(path, 'dish') },
     localName(item) {
       return (this.locale === 'vi' && item.name_vi) ? item.name_vi : item.name
     },
