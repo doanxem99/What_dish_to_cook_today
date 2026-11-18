@@ -5,6 +5,8 @@ const cors = require('cors');
 const busboy = require('connect-busboy');
 const expressWs = require('express-ws');
 const workerCenter = require('./config/worker/worker_center');
+const adminJobs = require('./config/admin/jobs');
+const adminMaintenance = require('./config/admin/maintenance');
 const appDebug = require('./config/debug/app_debug');
 const cookieParser = require('cookie-parser');
 
@@ -61,6 +63,9 @@ require('./routes/api/auth').promoteAdmin();
 const rootPath = __dirname;
 app.use("/public", express.static(path.join(rootPath, 'public')));
 
+//Public API answers 503 while a destructive job runs
+app.use(adminMaintenance.maintenanceMiddleware);
+
 //* Add router listener
 //+ API
 app.use('/api/auth', require('./routes/api/auth'));
@@ -95,4 +100,17 @@ app.listen("3000", () => {
   console.log('Begin listening on port 3000');
 
   workerCenter.startWorkers();
+
+  //A row left queued or running by the previous process can never finish
+  adminJobs.markInterruptedJobs().catch((error) => {
+    console.error('Cannot recover interrupted jobs: ' + error.message);
+  });
+
+  //Admin jobs run in-process, one at a time. The worker above keeps its own queue.
+  const jobTimer = setInterval(() => {
+    adminJobs.runNextJob().catch((error) => {
+      console.error('Job runner error: ' + error.message);
+    });
+  }, 2000);
+  jobTimer.unref();
 });

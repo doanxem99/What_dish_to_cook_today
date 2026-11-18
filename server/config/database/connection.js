@@ -154,6 +154,68 @@ const Vote = mongoose.model('vote', {
 //One vote per user and post
 Vote.schema.index({ user_id: 1, dish_post_id: 1 }, { unique: true });
 
+//Immutable admin actions. No update or delete path exists in code.
+const AuditLog = mongoose.model('audit_log', {
+    actor_id : {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'user'
+    },
+    actor_name : String,
+    action : String,
+    target_type : String,
+    target_id : String,
+    result : String,
+    detail : String,
+    ip : String,
+    created_at : Date
+},'audit_log');
+AuditLog.schema.index({ created_at: 1 });
+AuditLog.schema.index({ action: 1 });
+
+//Queued admin work. The runner claims one row at a time.
+const AdminJob = mongoose.model('admin_job', {
+    type : String,
+    status : {
+        type: String,
+        enum: ['queued', 'running', 'done', 'failed'],
+        default: 'queued'
+    },
+    actor_id : {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'user'
+    },
+    actor_name : String,
+    payload : Object,
+    detail : String,
+    error : String,
+    created_at : Date,
+    started_at : Date,
+    finished_at : Date,
+    //Reserved for AI jobs: metrics only, never prompt or response text
+    provider : String,
+    model : String,
+    latency_ms : Number,
+    tokens_in : Number,
+    tokens_out : Number,
+    cost_estimate : Number
+},'admin_job');
+AdminJob.schema.index({ status: 1, created_at: 1 });
+
+const Setting = mongoose.model('setting', {
+    key : {
+        type: String,
+        unique: true
+    },
+    enabled : Boolean,
+    reason : String,
+    actor_id : {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'user'
+    },
+    actor_name : String,
+    updated_at : Date
+},'settings');
+
 module.exports = {
     "mongoose" : mongoose,
     "default_roles" : default_roles,
@@ -166,6 +228,9 @@ module.exports = {
         DishPost,
         DatabaseWorkerJob,
         Comment,
-        Vote
+        Vote,
+        AuditLog,
+        AdminJob,
+        Setting
     }
 };
