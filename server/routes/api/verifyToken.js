@@ -31,6 +31,12 @@ const verifyToken = async function (req, res, next) {
                 message: "User not found!"
             });
         }
+        //A disabled account keeps a valid token; reject it here so the ban does not wait for expiry.
+        if (user.is_disabled === true) {
+            return res.status(profile_enum.Status_Code_Website.Unauthorized).send({
+                message: "This account is disabled!"
+            });
+        }
         //Hand the loaded user to later middleware without a second query
         req.current_user = user;
         

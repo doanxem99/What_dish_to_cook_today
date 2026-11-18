@@ -1,5 +1,6 @@
 const { mongoose, collections } = require('../database/connection');
-const { loadCatalog } = require('../catalog');
+//Required as a module so a test can stub the loader.
+const catalogModule = require('../catalog');
 const { setMaintenance } = require('./maintenance');
 const backups = require('./backups');
 const { FORMAT, VERSION, CATALOG_COLLECTIONS, fromExportDoc } = backups;
@@ -43,8 +44,7 @@ const recipeNutrition = function(amounts, servings, nutritionData) {
 };
 
 //Repo owns the exact same fields scripts/dev-demo.mjs seeds. userId owns every seeded post.
-const seedCatalog = async function(userId) {
-    const catalog = loadCatalog();
+const seedCatalog = async function(userId, catalog) {
     const db = mongoose.connection.db;
     const nutritionData = catalog.nutrition;
     const now = new Date();
@@ -152,19 +152,22 @@ const dropCollection = async function(name) {
 
 const resetCatalog = async function(actor) {
     const actorId = actorIdOf(actor);
+    //Load and validate before the flag and the first drop: a bad catalog changes nothing.
+    const catalog = catalogModule.loadCatalog();
+    const problems = catalogModule.validateCatalog(catalog);
+    if (problems.length > 0) {
+        throw new Error(`Catalog is invalid: ${problems.join('; ')}`);
+    }
     //Public writes must stop before the backup, or they land in data the reset then destroys.
     await setMaintenance(true, 'catalog reset', actor);
-    try {
-        const backup = await backups.createBackup({ trigger: 'reset', actor });
-        for (const name of CATALOG_COLLECTIONS) {
-            await dropCollection(name);
-        }
-        await seedCatalog(actorId);
-        await recreateUniqueIndexes();
-        return `reset complete, backup ${backup.file}`;
-    } finally {
-        await setMaintenance(false, 'catalog reset finished', actor);
+    const backup = await backups.createBackup({ trigger: 'reset', actor });
+    for (const name of CATALOG_COLLECTIONS) {
+        await dropCollection(name);
     }
+    await seedCatalog(actorId, catalog);
+    await recreateUniqueIndexes();
+    await setMaintenance(false, 'catalog reset finished', actor);
+    return `reset complete, backup ${backup.file}`;
 };
 
 const validateArchive = function(archive) {
@@ -242,8 +245,10 @@ const isRenameRefused = function(error) {
 };
 
 //Staging is complete before this runs, so the fallback never drops a target for a partial copy.
+//Every rename is attempted: one failure must not leave the later collections on the old data.
 const swapCollections = async function(staged) {
     const db = mongoose.connection.db;
+    const failures = [];
     for (const { name, temporary, docs } of staged) {
         try {
             await db.admin().command({
@@ -253,7 +258,8 @@ const swapCollections = async function(staged) {
             });
         } catch (error) {
             if (!isRenameRefused(error)) {
-                throw error;
+                failures.push(`${name}: ${error.message}`);
+                continue;
             }
             //shortcut: without admin rights the target is empty between drop and insert.
             await dropCollection(name);
@@ -263,26 +269,26 @@ const swapCollections = async function(staged) {
             await dropCollection(temporary);
         }
     }
+    if (failures.length > 0) {
+        throw new Error(`Restore could not swap ${failures.length} collection(s): ${failures.join('; ')}`);
+    }
 };
 
 const restoreBackup = async function(id, actor) {
     //Public writes must stop before the backup as well.
     await setMaintenance(true, 'catalog restore', actor);
-    try {
-        //Current data first: even a rejected archive leaves a fresh backup behind.
-        //keepId spares the archive being restored when the prune would otherwise reach it.
-        const backup = await backups.createBackup({ trigger: 'restore', actor, keepId: id });
-        const source = validateArchive(await backups.readBackup(id));
-        validateDocuments(source);
-        await dropStaleStaging();
-        const staged = await stageCollections(source);
-        await swapCollections(staged);
-        //Only the six catalog collections are written; user, audit_log and admin_job are ignored.
-        await recreateUniqueIndexes();
-        return `restored ${id}, previous data saved to ${backup.file}`;
-    } finally {
-        await setMaintenance(false, 'catalog restore finished', actor);
-    }
+    //Current data first: even a rejected archive leaves a fresh backup behind.
+    //keepId spares the archive being restored when the prune would otherwise reach it.
+    const backup = await backups.createBackup({ trigger: 'restore', actor, keepId: id });
+    const source = validateArchive(await backups.readBackup(id));
+    validateDocuments(source);
+    await dropStaleStaging();
+    const staged = await stageCollections(source);
+    await swapCollections(staged);
+    //Only the six catalog collections are written; user, audit_log and admin_job are ignored.
+    await recreateUniqueIndexes();
+    await setMaintenance(false, 'catalog restore finished', actor);
+    return `restored ${id}, previous data saved to ${backup.file}`;
 };
 
 module.exports = { resetCatalog, restoreBackup, recreateUniqueIndexes };

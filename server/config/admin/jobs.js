@@ -1,5 +1,5 @@
 const { collections } = require('../database/connection');
-const { releaseMaintenance, setMaintenance, setRunningJob } = require('./maintenance');
+const { releaseMaintenance, releaseStaleMaintenance, setMaintenance, setRunningJob } = require('./maintenance');
 
 //Type -> handler(job) returning a detail string. Task 4 registers the destructive operations.
 const handlers = {};
@@ -18,7 +18,12 @@ const timeoutFor = function(type) {
 
 const withTimeout = function(promise, ms) {
     return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('handler timed out')), ms);
+        const timer = setTimeout(() => {
+            const error = new Error('handler timed out');
+            //The handler is not cancelled: the runner keeps the queue closed until it settles.
+            error.timedOut = true;
+            reject(error);
+        }, ms);
         timer.unref();
         promise.then(
             (value) => {
@@ -60,45 +65,77 @@ const runNextJob = async function(timeoutMs) {
     if (busy) {
         return null;
     }
-    busy = true;
+    //A flag whose job already ended is retried on every tick; a failed write must not stop the tick.
     try {
-        const job = await collections.AdminJob.findOneAndUpdate(
+        await releaseStaleMaintenance();
+    } catch (error) {
+        console.error(`Cannot clear a stale maintenance flag: ${error.message}`);
+    }
+
+    busy = true;
+    let job;
+    try {
+        job = await collections.AdminJob.findOneAndUpdate(
             { status: 'queued' },
             { $set: { status: 'running', started_at: new Date() } },
             { sort: { created_at: 1 }, new: true }
         );
-        if (!job) {
-            return null;
-        }
+    } catch (error) {
+        busy = false;
+        throw error;
+    }
+    if (!job) {
+        busy = false;
+        return null;
+    }
 
+    setRunningJob(job._id);
+    let handlerSettled = null;
+    let timedOut = false;
+    try {
+        const handler = handlers[job.type];
+        if (!handler) {
+            throw new Error(`No handler for job type ${job.type}`);
+        }
+        const running = Promise.resolve(handler(job));
+        //An abandoned handler may still reject; that rejection is not unhandled.
+        handlerSettled = running.then(() => {}, () => {});
+        job.detail = (await withTimeout(running, timeoutMs || timeoutFor(job.type))) || '';
+        job.status = 'done';
+    } catch (error) {
+        job.status = 'failed';
+        job.error = error.message;
+        timedOut = error.timedOut === true;
+    }
+
+    job.finished_at = new Date();
+    try {
+        await job.save();
+    } catch (error) {
+        //The row stays running until the database recovers; the site must not stay blocked.
+        console.error(`Cannot save job ${job._id} outcome: ${error.message}`);
+    }
+
+    //Only the job that switched the flag on releases it, and always runs.
+    const release = async function() {
         try {
-            const handler = handlers[job.type];
-            if (!handler) {
-                throw new Error(`No handler for job type ${job.type}`);
-            }
-            setRunningJob(job._id);
-            job.detail = (await withTimeout(handler(job), timeoutMs || timeoutFor(job.type))) || '';
-            job.status = 'done';
-        } catch (error) {
-            job.status = 'failed';
-            job.error = error.message;
+            await releaseMaintenance(job._id, `job ${job.type} ${job.status}`);
         } finally {
             setRunningJob(null);
-            job.finished_at = new Date();
-            try {
-                await job.save();
-            } catch (error) {
-                //The row stays running until the database recovers; the site must not stay blocked.
-                console.error(`Cannot save job ${job._id} outcome: ${error.message}`);
-            } finally {
-                //Only the job that switched the flag on releases it, and always runs.
-                await releaseMaintenance(job._id, `job ${job.type} ${job.status}`);
-            }
+            busy = false;
         }
+    };
+
+    //A timed-out handler is still writing: the next job waits and the flag stays on until it ends.
+    if (timedOut && handlerSettled) {
+        handlerSettled
+            .then(() => release())
+            .catch((error) => console.error(`Cannot release maintenance for job ${job._id}: ${error.message}`));
         return job;
-    } finally {
-        busy = false;
     }
+
+    await release();
+    return job;
 };
 
 //Boot recovery: a queued or running row cannot survive a restart. No auto-retry.

@@ -83,10 +83,11 @@ can be picked up without re-reading the codebase.
     `JWT_SECRET = 'what-dish-to-cook-today'`. Anyone with a clone can forge tokens if a
     deployment reuses that value. Generate a fresh random secret; never restore the old one.
     History is not rewritten here.
-18. **`must_change_password` is enforced by the client guard only.** The server reports the flag
-    at signin and `/api/auth/me` and clears it on `POST /api/auth/password`; it does not refuse
-    other API calls from a session that has not changed its password yet. A script that keeps the
-    temporary password can use the account. Enforce the flag in `verifyToken` if that matters.
+18. **`must_change_password` is enforced by the client guard only.** `verifyToken` rejects a
+    disabled account with 401, but it does not refuse a session that only needs a password
+    change. The server reports the flag at signin and `/api/auth/me` and clears it on
+    `POST /api/auth/password`; other API calls still work. A script that keeps the temporary
+    password can use the account. Enforce the flag in `verifyToken` if that matters.
 19. **The Vite dev server cannot serve `/public/i18n/*.json`.** Those catalogs live in
     `server/public`, and `/public` belongs to Express, so `npm run dev` renders interface keys
     instead of translations unless a proxy or a copied folder supplies them. The build served by
@@ -104,8 +105,7 @@ can be picked up without re-reading the codebase.
 ## Data tools
 
 23. **The C# catalog reader mirrors a JSON shape the server does not validate strictly.**
-    `shared/Catalog.cs` and `server/config/catalog/validate.js` both read `catalog/*.json`; the
-    Node side only checks the shape it uses (`validateCatalog` is not wired into the reset).
-    A malformed file fails the reset job after the backup, never before it, and the C# tools fail
-    on their own parse. Add a catalog check to the reset path if the files start being edited by
-    hand.
+    `shared/Catalog.cs` and `server/config/catalog/validate.js` both read `catalog/*.json`.
+    `POST /api/admin/reset` loads and validates the catalog before it sets maintenance or drops
+    a collection, but `shared/Catalog.cs` still fails on its own parse. A malformed file still
+    fails the C# tools before they write.

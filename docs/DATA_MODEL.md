@@ -197,8 +197,8 @@ Image blocks:
 ## Seeding
 
 All three paths read the canonical `catalog/*.json` and produce 38 ingredients and 13 dishes,
-with `name_vi`, nutrition, servings, grams per ingredient and the image paths from
-`catalog/images.json`:
+with `name_vi`, nutrition, servings, grams per ingredient and the relative image path stored on
+each ingredient and dish row (`image`):
 
 - `db_control init --yes` — drops and re-seeds the six catalog collections from the terminal.
 - `POST /api/admin/reset` — the same work as an admin job; it writes a backup first.

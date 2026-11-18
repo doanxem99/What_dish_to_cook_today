@@ -28,7 +28,7 @@ operations run inside the server process, one job at a time.
 |---|---|---|---|
 | `mongo` | `mongo:7` | none | `mongo-data:/data/db` |
 | `server` | this repository's `Dockerfile` | `3000:3000` | `backup-data:/app/backups`, `gallery:/app/public/gallery` |
-| `libretranslate` | `libretranslate/libretranslate:latest` | none | `translate-models:/home/libretranslate/.local` |
+| `libretranslate` | `libretranslate/libretranslate:v1.6.5` | none | `translate-models:/home/libretranslate/.local` |
 
 The `Dockerfile` has two stages. The first builds `web_ui` with Node and writes the result to
 `server/web_ui` (see `web_ui/vite.config.mjs`). The second installs the server's production
@@ -151,8 +151,8 @@ container the folder is `/catalog`.
   `verifyToken` in the middleware chain; they must not trust a user id from the body.
 - `POST /api/auth/password` changes the password and clears `must_change_password`.
 - `POST /api/auth/signout` clears the cookie.
-- On boot `promoteAdmin()` creates the roles and grants `admin` to `ADMIN_USERNAME`
-  (default `moonshine@gmail.com`) when that account exists.
+- On boot `promoteAdmin()` creates the roles and grants `admin` to `ADMIN_USERNAME` when that
+  account exists. An unset or empty `ADMIN_USERNAME` promotes nobody.
 
 ## Clients
 

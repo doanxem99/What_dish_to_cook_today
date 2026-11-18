@@ -159,13 +159,13 @@ test('a signed-in non-admin gets 403', async () => {
     assert.match(response.body.error.message, /admin/i);
 });
 
-test('a disabled admin gets 403', async () => {
+test('a disabled admin gets 401', async () => {
     const admin = await createUser({ username: 'oldadmin', roles: ['user', 'admin'], is_disabled: true });
 
     const response = await call('/api/admin/users', tokenFor(admin));
 
-    assert.strictEqual(response.status, 403);
-    assert.strictEqual(response.body.error.code, 'forbidden');
+    assert.strictEqual(response.status, 401);
+    assert.strictEqual(response.body.error.code, 'unauthorized');
 });
 
 test('the user list has roles but never a password hash', async () => {
@@ -264,6 +264,24 @@ test('an admin cannot disable themselves', async () => {
 
     assert.strictEqual(response.status, 409);
     assert.strictEqual(response.body.error.code, 'self');
+});
+
+test('a concurrent demote and disable keep at least one enabled admin', async () => {
+    const first = await createUser({ username: 'first-admin', roles: ['user', 'admin'] });
+    const second = await createUser({ username: 'second-admin', roles: ['user', 'admin'] });
+
+    //Each request is authorized while both are admins; the mutations then run one at a time.
+    await Promise.all([
+        call(`/api/admin/users/${second._id}/role`, tokenFor(first), 'POST', { admin: false }),
+        call(`/api/admin/users/${first._id}/disabled`, tokenFor(second), 'POST', { disabled: true })
+    ]);
+
+    const adminRole = await collections.Role.findOne({ name: 'admin' });
+    const enabledAdmins = await collections.User.countDocuments({
+        roles: adminRole._id,
+        is_disabled: { $ne: true }
+    });
+    assert.ok(enabledAdmins >= 1, `expected an enabled admin, found ${enabledAdmins}`);
 });
 
 test('the audit list paginates newest first and filters by action', async () => {
@@ -517,6 +535,9 @@ test('admin health reports no maintenance job when the flag has no owner', async
 
 test('a read-only backup directory is not reported writable', async () => {
     const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    const originalDir = process.env.BACKUP_DIR;
+    //A fresh directory misses the successful-probe cache.
+    process.env.BACKUP_DIR = path.join(require('node:os').tmpdir(), `wdtct-readonly-${process.pid}-${Date.now()}`);
     const original = fs.writeFile;
     fs.writeFile = async function(target, ...rest) {
         if (String(target).includes('.probe-')) {
@@ -532,6 +553,7 @@ test('a read-only backup directory is not reported writable', async () => {
         assert.strictEqual(response.body.backup.dir_writable, false);
     } finally {
         fs.writeFile = original;
+        process.env.BACKUP_DIR = originalDir;
     }
 });
 

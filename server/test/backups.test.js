@@ -206,7 +206,9 @@ test('restore refuses an archive missing dish and writes nothing', async () => {
     );
 
     assert.strictEqual(await collections.Ingredient.countDocuments({}), 1);
-    assert.strictEqual(await maintenance.isMaintenance(), false);
+    //The handler failed after the flag went on; the runner releases it once the job settles.
+    assert.strictEqual(await maintenance.isMaintenance(), true);
+    await maintenance.setMaintenance(false, 'test cleanup', null);
 });
 
 test('restore ignores user, audit_log and admin_job even when present', async () => {
@@ -367,7 +369,9 @@ test('reset aborts before touching the catalog when the backup fails', async () 
     await assert.rejects(() => catalogReset.resetCatalog({ id: user._id, name: 'boss' }));
 
     assert.strictEqual(await collections.Ingredient.countDocuments({}), 1);
-    assert.strictEqual(await maintenance.isMaintenance(), false);
+    //The handler failed after the flag went on; the runner releases it once the job settles.
+    assert.strictEqual(await maintenance.isMaintenance(), true);
+    await maintenance.setMaintenance(false, 'test cleanup', null);
 });
 
 test('prune keeps the newest ten archives', async () => {
@@ -477,7 +481,9 @@ test('restore aborts on a malformed row before writing any collection', async ()
     );
 
     assert.strictEqual(await collections.Ingredient.countDocuments({}), 1);
-    assert.strictEqual(await maintenance.isMaintenance(), false);
+    //The handler failed after the flag went on; the runner releases it once the job settles.
+    assert.strictEqual(await maintenance.isMaintenance(), true);
+    await maintenance.setMaintenance(false, 'test cleanup', null);
 });
 
 test('a partial archive never appears in the listing', async () => {
@@ -508,4 +514,61 @@ test('restore drops staging collections left behind by a crash', async () => {
 test('reset refuses to run without an actor id', async () => {
     await assert.rejects(() => catalogReset.resetCatalog({}), /actor id/);
     assert.strictEqual(await collections.Ingredient.countDocuments({}), 0);
+});
+
+test('a broken catalog fails the reset before the flag and the first drop', async () => {
+    const { user } = await seedAccount();
+    await collections.Ingredient.create({ name: 'Keep me', name_vi: 'Giữ tôi' });
+    const catalogModule = require('../config/catalog');
+    const originalLoad = catalogModule.loadCatalog;
+    catalogModule.loadCatalog = () => {
+        throw new Error('catalog file is broken');
+    };
+    try {
+        await assert.rejects(
+            () => catalogReset.resetCatalog({ id: user._id, name: 'boss' }),
+            /catalog file is broken/
+        );
+    } finally {
+        catalogModule.loadCatalog = originalLoad;
+    }
+
+    assert.strictEqual(await collections.Ingredient.countDocuments({}), 1);
+    assert.strictEqual(await maintenance.isMaintenance(), false);
+});
+
+test('a failed rename still swaps the other collections and names the failure', async () => {
+    const { user } = await seedAccount();
+    const db = require('../config/database/connection').mongoose.connection.db;
+    const realAdmin = db.admin();
+    db.admin = function() {
+        return {
+            command: async (command) => {
+                if (command.to && command.to.endsWith('.dish')) {
+                    throw new Error('rename exploded');
+                }
+                return realAdmin.command(command);
+            }
+        };
+    };
+    writeArchive('backup-20260101-000006.json.gz', archiveWith('fresh'));
+    try {
+        await assert.rejects(
+            () => catalogReset.restoreBackup('backup-20260101-000006', { id: user._id, name: 'boss' }),
+            (error) => /dish/.test(error.message) && /rename exploded/.test(error.message)
+        );
+        //The handler failed mid-swap; the runner releases the flag once the job settles.
+        assert.strictEqual(await maintenance.isMaintenance(), true);
+    } finally {
+        delete db.admin;
+        await maintenance.setMaintenance(false, 'test cleanup', null);
+    }
+
+    const names = (await db.listCollections({}, { nameOnly: true }).toArray()).map(row => row.name);
+    const staged = names.filter(name => /_restore_/.test(name));
+    //Every collection was attempted: the five after the failure are no longer staged.
+    assert.strictEqual(staged.length, 1);
+    assert.match(staged[0], /^dish_restore_/);
+    assert.ok(names.includes('ingredient'));
+    assert.ok(names.includes('ingredient_post'));
 });

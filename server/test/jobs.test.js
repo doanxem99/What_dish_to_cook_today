@@ -199,16 +199,88 @@ test('only the job that set maintenance clears the flag', async () => {
     assert.strictEqual(await maintenance.isMaintenance(), false);
 });
 
+const waitForFlag = async function(expected, ms = 2000) {
+    const until = Date.now() + ms;
+    while (Date.now() < until) {
+        if ((await maintenance.isMaintenance()) === expected) {
+            return true;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    return false;
+};
+
 test('a handler past its timeout fails with handler timed out', async () => {
     jobs.registerHandler('slow_type', () => new Promise((resolve) => setTimeout(() => resolve('late'), 200)));
+    await maintenance.setMaintenance(true, 'reset running', null);
 
     const queued = await jobs.enqueueJob('slow_type', null, {});
     const finished = await jobs.runNextJob(20);
 
     assert.strictEqual(finished.status, 'failed');
     assert.strictEqual(finished.error, 'handler timed out');
-    assert.strictEqual(await maintenance.isMaintenance(), false);
     assert.strictEqual((await collections.AdminJob.findById(queued._id)).status, 'failed');
+    //The abandoned handler is still running, so the site stays closed until it settles.
+    assert.strictEqual(await maintenance.isMaintenance(), true);
+    assert.strictEqual(await waitForFlag(false), true);
+});
+
+test('a timed-out handler keeps the queue closed until it settles', async () => {
+    let finishHandler;
+    let started = 0;
+    jobs.registerHandler('stuck_type', () => {
+        started += 1;
+        return new Promise((resolve) => {
+            finishHandler = resolve;
+        });
+    });
+    jobs.registerHandler('after_stuck_type', async () => 'after done');
+
+    const stuck = await jobs.enqueueJob('stuck_type', null, {});
+    await maintenance.setMaintenance(true, 'reset running', null, stuck._id);
+
+    const abandoned = await jobs.runNextJob(20);
+    assert.strictEqual(abandoned.status, 'failed');
+    assert.strictEqual(abandoned.error, 'handler timed out');
+
+    await jobs.enqueueJob('after_stuck_type', null, {});
+    assert.strictEqual(await jobs.runNextJob(), null);
+    assert.strictEqual(started, 1);
+    assert.strictEqual(await maintenance.isMaintenance(), true);
+
+    finishHandler('late');
+    assert.strictEqual(await waitForFlag(false), true);
+
+    const next = await jobs.runNextJob();
+    assert.strictEqual(next.type, 'after_stuck_type');
+    assert.strictEqual(next.status, 'done');
+    assert.strictEqual(started, 1);
+});
+
+test('the runner clears a flag whose owning job is terminal', async () => {
+    const job = await collections.AdminJob.create({ type: 'reset', status: 'failed', created_at: new Date() });
+    await maintenance.setMaintenance(true, 'reset running', null, job._id);
+
+    const originalWrite = collections.Setting.findOneAndUpdate;
+    let writes = 0;
+    collections.Setting.findOneAndUpdate = async function(...args) {
+        writes += 1;
+        if (writes === 1) {
+            throw new Error('db down');
+        }
+        return originalWrite.apply(this, args);
+    };
+    try {
+        await jobs.runNextJob();
+        assert.strictEqual(writes, 1);
+        assert.strictEqual(await maintenance.isMaintenance(), true);
+
+        //The next tick retries the clear the failed write left behind.
+        await jobs.runNextJob();
+        assert.strictEqual(await maintenance.isMaintenance(), false);
+    } finally {
+        collections.Setting.findOneAndUpdate = originalWrite;
+    }
 });
 
 test('two concurrent runner calls run one job only', async () => {

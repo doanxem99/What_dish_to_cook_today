@@ -75,6 +75,9 @@ before(async () => {
     app.use(express.json());
     app.use(cookieParser());
     app.use('/api/auth', authRouter);
+    app.get('/api/auth/ping', require('../routes/api/verifyToken').verifyToken, (req, res) => {
+        res.json({ ok: true });
+    });
     app.get('/api/admin/ping', adminModule.requireAdmin, (req, res) => {
         res.json({ ok: true, roles: req.roles });
     });
@@ -128,6 +131,17 @@ test('a disabled account cannot sign in', async () => {
     assert.match(result.body.message, /disabled/i);
 });
 
+test('a disabled account cannot use a token issued before the ban', async () => {
+    const user = await createUser({ username: 'frozen', is_disabled: true });
+
+    const response = await fetch(`${baseUrl}/api/auth/ping`, {
+        headers: { cookie: `token=${tokenFor(user)}` }
+    });
+
+    assert.strictEqual(response.status, 401);
+    assert.match((await response.json()).message, /disabled/i);
+});
+
 test('requireAdmin rejects an anonymous request with 401', async () => {
     const result = await getAdminPing(null);
     assert.strictEqual(result.status, 401);
@@ -141,12 +155,13 @@ test('requireAdmin rejects a signed-in normal user with 403', async () => {
     assert.strictEqual(result.status, 403);
 });
 
-test('requireAdmin rejects a disabled admin with 403', async () => {
+test('requireAdmin rejects a disabled admin with 401', async () => {
     const user = await createUser({ username: 'sleepy', roles: ['admin'], is_disabled: true });
 
     const result = await getAdminPing(tokenFor(user));
 
-    assert.strictEqual(result.status, 403);
+    assert.strictEqual(result.status, 401);
+    assert.match(result.body.message, /disabled/i);
 });
 
 test('requireAdmin lets an admin through', async () => {

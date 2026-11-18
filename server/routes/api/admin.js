@@ -17,6 +17,8 @@ const { collections, mongoose } = database;
 const PAGE_SIZE = 25;
 //The page poll asks every 15 s; the service probe runs at most twice a minute.
 const TRANSLATION_CACHE_MS = 30 * 1000;
+//A successful backup-dir probe is trusted for a minute; a failure is retried on the next poll.
+const BACKUP_PROBE_CACHE_MS = 60 * 1000;
 
 const fail = function(res, status, code, message) {
     return res.status(status).send({ error: { code, message } });
@@ -118,6 +120,27 @@ const jobIsBusy = async function() {
     return (await collections.AdminJob.countDocuments({ status: { $in: ['queued', 'running'] } })) > 0;
 };
 
+//Role and disabled changes are read-then-write checks of the last enabled admin, so they run one
+//at a time. A single process is enough here; several instances would need a database transaction.
+let adminMutation = Promise.resolve();
+const serializeAdminMutation = function(req, res, next) {
+    const previous = adminMutation;
+    let release;
+    adminMutation = new Promise((resolve) => {
+        release = resolve;
+    });
+    const finish = function() {
+        res.off('finish', finish);
+        res.off('close', finish);
+        release();
+    };
+    previous.then(() => {
+        res.once('finish', finish);
+        res.once('close', finish);
+        next();
+    });
+};
+
 //requireAdmin guards the whole router, including the GETs, before any route runs.
 router.use(errorEnvelope, requireAdmin);
 
@@ -157,16 +180,25 @@ const probeTranslation = async function() {
     return value;
 };
 
+let backupProbeCache = { dir: null, at: 0, value: null };
+
 const probeBackupDir = async function() {
     const dir = backups.backupDir();
+    if (backupProbeCache.value && backupProbeCache.dir === dir
+        && Date.now() - backupProbeCache.at < BACKUP_PROBE_CACHE_MS) {
+        return backupProbeCache.value;
+    }
     const probe = path.join(dir, `.probe-${crypto.randomBytes(6).toString('hex')}`);
     try {
         await fs.mkdir(dir, { recursive: true });
         //Actually create and remove a file: a read-only directory still passes an access check.
         await fs.writeFile(probe, '');
         await fs.unlink(probe);
-        return { dir_writable: true, dir };
+        const value = { dir_writable: true, dir };
+        backupProbeCache = { dir, at: Date.now(), value };
+        return value;
     } catch (error) {
+        backupProbeCache = { dir: null, at: 0, value: null };
         await fs.unlink(probe).catch(() => {});
         return { dir_writable: false, dir, error: error.message };
     }
@@ -364,7 +396,7 @@ router.get('/users', wrap(async function(req, res) {
     return res.status(200).send({ rows: users.map(user => userRow(user, names)), total, page });
 }));
 
-router.post('/users/:id/role', wrap(async function(req, res) {
+router.post('/users/:id/role', serializeAdminMutation, wrap(async function(req, res) {
     if (typeof req.body.admin !== 'boolean') {
         return fail(res, 400, 'invalid', 'admin must be true or false');
     }
@@ -409,7 +441,7 @@ router.post('/users/:id/role', wrap(async function(req, res) {
     return res.status(200).send(await userRowWithRoles(user));
 }));
 
-router.post('/users/:id/disabled', wrap(async function(req, res) {
+router.post('/users/:id/disabled', serializeAdminMutation, wrap(async function(req, res) {
     if (typeof req.body.disabled !== 'boolean') {
         return fail(res, 400, 'invalid', 'disabled must be true or false');
     }
