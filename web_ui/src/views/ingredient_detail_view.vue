@@ -65,6 +65,20 @@ export default {
         {{ locale === 'vi' && post.short_detail_vi ? post.short_detail_vi : post.short_detail }}
       </p>
 
+      <div v-if="ingredient.nutrition && ingredient.nutrition.per_100g" class="ruled p-4 mt-4">
+        <h2 class="eyebrow">{{ t('edit.nutrition') }} (100 g)</h2>
+        <p class="text-sm mt-2" style="color: var(--board-dim)">
+          {{ ingredient.nutrition.description }}
+        </p>
+        <p class="text-sm mt-1">
+          {{ Math.round(ingredient.nutrition.per_100g.calories) }} kcal ·
+          P {{ ingredient.nutrition.per_100g.protein }} g ·
+          F {{ ingredient.nutrition.per_100g.fat }} g ·
+          C {{ ingredient.nutrition.per_100g.carbs }} g ·
+          Na {{ ingredient.nutrition.per_100g.sodium }} mg
+        </p>
+      </div>
+
       <div v-if="post" class="ruled p-4 mt-6">
         <template v-for="(block, index) in (post.display_blocks || [])" :key="index">
           <p v-if="block.type === 'text'" class="mb-4 leading-relaxed">{{ blockText(block) }}</p>

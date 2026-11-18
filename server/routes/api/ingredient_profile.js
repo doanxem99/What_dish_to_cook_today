@@ -230,7 +230,7 @@ const createIngredient = async function(_postData){
 const getIngredientDetail = async function(_ingredientId)
 {
     try {
-        const _response = await database.collections.Ingredient.findById(_ingredientId, 'name name_vi best_post_id');
+        const _response = await database.collections.Ingredient.findById(_ingredientId, 'name name_vi nutrition best_post_id');
 
         return {
             'status' : profileEnum.ProfileStatus_Detail.Success, 
@@ -249,7 +249,7 @@ const getIngredientPostDetail = async function(_ingredientPostId)
 {
     try {
         const _response = await database.collections.IngredientPost.findById(_ingredientPostId, 
-        "name name_vi ingredient_id user_id is_best_post date_time points type short_detail short_detail_vi profile_image display_blocks");
+        "name name_vi ingredient_id user_id is_best_post date_time points type nutrition short_detail short_detail_vi profile_image display_blocks");
 
         return {
             'status' : profileEnum.ProfileStatus_PostDetail.Success,

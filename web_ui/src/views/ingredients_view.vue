@@ -96,6 +96,9 @@ export default {
                 <span class="block text-xs sm:text-sm truncate" style="color: var(--board-dim)">
                   {{ locale === 'vi' && item.short_detail_vi ? item.short_detail_vi : item.short_detail }}
                 </span>
+                <span v-if="item.nutrition && item.nutrition.per_100g" class="block text-xs" style="color: var(--board-dim)">
+                  {{ Math.round(item.nutrition.per_100g.calories) }} kcal / 100 g
+                </span>
               </span>
             </router-link>
           </li>
