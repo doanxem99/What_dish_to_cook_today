@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -28,6 +29,7 @@ namespace db_seed_tests
             CheckCatalog(catalog);
             CheckSeedDocuments(catalog);
             CheckArchive();
+            CheckArchiveRoundTrip(catalog);
             CheckCli();
 
             if (failures > 0)
@@ -88,6 +90,12 @@ namespace db_seed_tests
                 dishPost["nutrition"]["calories"].ToDouble() == 608);
             Check("dish post nutrition protein matches the JS seed",
                 dishPost["nutrition"]["protein"].ToDouble() == 25.9);
+            Check("dish post calories are int32 like the JS seed",
+                dishPost["nutrition"]["calories"].BsonType == BsonType.Int32);
+            Check("dish post protein stays a double",
+                dishPost["nutrition"]["protein"].BsonType == BsonType.Double);
+            Check("ingredient post points are int32 like the JS seed",
+                ingredientPost["points"].BsonType == BsonType.Int32);
             Check("dish post amount rows carry the catalog grams",
                 dishPost["ingredient_amounts"].AsBsonArray.Count == 7);
             Check("dish post image matches the catalog",
@@ -137,13 +145,62 @@ namespace db_seed_tests
                 "Backup is missing collection dish"));
         }
 
+        private static void CheckArchiveRoundTrip(CatalogData catalog)
+        {
+            var now = new DateTime(2026, 11, 18, 9, 2, 32, DateTimeKind.Utc);
+            var seed = DatabaseSeed.BuildDocuments(AdminId, catalog, now);
+            var source = new Dictionary<string, List<BsonDocument>>
+            {
+                ["ingredient"] = seed.Ingredients,
+                ["ingredient_post"] = seed.IngredientPosts,
+                ["dish"] = seed.Dishes,
+                ["dish_post"] = seed.DishPosts,
+                ["vote"] = new List<BsonDocument>(),
+                ["comment"] = new List<BsonDocument>(),
+                ["user"] = new List<BsonDocument>()
+            };
+
+            Check("default backup name is the UTC stamp the admin lists",
+                BackupArchive.DefaultFileName(now) == FixtureName);
+
+            var directory = Path.Combine(Path.GetTempPath(), "db_seed_tests-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            try
+            {
+                var first = BackupArchive.DefaultPath(directory, now);
+                Check("default path uses the admin name", Path.GetFileName(first) == FixtureName);
+                File.WriteAllText(first, "");
+                Check("a taken default name gets a -1 suffix",
+                    Path.GetFileName(BackupArchive.DefaultPath(directory, now))
+                    == "backup-20261118-090232-1.json.gz");
+            }
+            finally
+            {
+                Directory.Delete(directory, true);
+            }
+
+            var parsed = BackupArchive.Parse(BackupArchive.Compose(now, source));
+            Check("write then parse keeps the counts",
+                Count(parsed, "ingredient") == 38 && Count(parsed, "ingredient_post") == 38
+                && Count(parsed, "dish") == 13 && Count(parsed, "dish_post") == 13);
+            Check("write then parse keeps created_at", parsed.CreatedAt == now);
+            Check("write then parse keeps _id as a hex string",
+                parsed.Collections["ingredient"][0]["_id"].BsonType == BsonType.String);
+            Check("write then parse keeps date_time as an ISO string",
+                parsed.Collections["ingredient_post"][0]["date_time"].BsonType == BsonType.String);
+            var phoPost = parsed.Collections["dish_post"].First(row => row["name"].AsString == "Beef noodle soup");
+            Check("write then parse keeps calories as int32",
+                phoPost["nutrition"]["calories"].BsonType == BsonType.Int32
+                && phoPost["nutrition"]["calories"].ToDouble() == 608);
+        }
+
         private static void CheckCli()
         {
             Check("no command is a usage error", db_control.Program.Main(Array.Empty<string>()) == 2);
             Check("unknown command is a usage error", db_control.Program.Main(new[] { "bogus" }) == 2);
             Check("--help succeeds", db_control.Program.Main(new[] { "--help" }) == 0);
-            Check("backup without --out is a usage error",
-                db_control.Program.Main(new[] { "backup" }) == 2);
+            Check("backup with a stray argument is a usage error",
+                db_control.Program.Main(new[] { "backup", "extra" }) == 2);
             Check("restore without --file is a usage error",
                 db_control.Program.Main(new[] { "restore" }) == 2);
             Check("recalc without an id is a usage error",
@@ -151,12 +208,45 @@ namespace db_seed_tests
             Check("recalc with a bad id is a usage error",
                 db_control.Program.Main(new[] { "recalc-best-post", "nothex" }) == 2);
 
+            var error = new StringWriter();
+            var previous = Console.Error;
+            Console.SetError(error);
+            var code = db_control.Program.Main(new[] { "--json", "bogus" });
+            Console.SetError(previous);
+            Check("options before the command are parsed",
+                code == 2 && error.ToString().Contains("Unknown command: bogus"));
+
+            Check("init without --yes and redirected stdin is exit 2", ExitCode("init") == 2);
+            Check("restore confirms before it checks the file",
+                ExitCode("restore --file definitely-missing.json.gz") == 2);
+
             Check("non-TTY without --yes must not run",
                 !db_control.Program.CanProceed(yes: false, interactive: false));
             Check("TTY without --yes may prompt",
                 db_control.Program.CanProceed(yes: false, interactive: true));
             Check("--yes runs without a TTY",
                 db_control.Program.CanProceed(yes: true, interactive: false));
+        }
+
+        //Runs the built CLI with stdin closed, so a destructive command must refuse with exit 2.
+        private static int ExitCode(string arguments)
+        {
+            var exe = Path.Combine(AppContext.BaseDirectory,
+                OperatingSystem.IsWindows() ? "db_control.exe" : "db_control");
+            var start = new ProcessStartInfo(exe, arguments)
+            {
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var process = Process.Start(start)!;
+            process.StandardInput.Close();
+            process.StandardOutput.ReadToEnd();
+            process.StandardError.ReadToEnd();
+            process.WaitForExit();
+            return process.ExitCode;
         }
 
         private static int Count(BackupArchiveData archive, string name)

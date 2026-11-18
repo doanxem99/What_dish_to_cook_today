@@ -117,7 +117,7 @@ namespace database_seed
                     { "unique_id", $"{ingredientId}_{adminId}" },
                     { "is_best_post", true },
                     { "date_time", new BsonDateTime(now) },
-                    { "points", new BsonDouble(0) },
+                    { "points", JsonBson.Number(0) },
                     { "type", Field(row, "type") },
                     { "nutrition", Field(row, "nutrition") },
                     { "short_detail", Field(row, "short_detail") },
@@ -130,7 +130,7 @@ namespace database_seed
                                 { "type", "text" },
                                 { "text", $"{name} is kept in the shared catalog so every cook means the same thing." },
                                 { "text_vi", $"{nameVi} được lưu trong danh mục chung để mọi người hiểu cùng một nghĩa." },
-                                { "font_size", new BsonDouble(14) },
+                                { "font_size", JsonBson.Number(14) },
                                 { "color", "black" }
                             }
                         }
@@ -179,9 +179,9 @@ namespace database_seed
                     { "unique_id", $"{dishId}_{adminId}" },
                     { "is_best_post", true },
                     { "date_time", new BsonDateTime(now) },
-                    { "points", new BsonDouble(0) },
-                    { "views", new BsonDouble(0) },
-                    { "comments", new BsonDouble(0) },
+                    { "points", JsonBson.Number(0) },
+                    { "views", JsonBson.Number(0) },
+                    { "comments", JsonBson.Number(0) },
                     { "ingredients", new BsonArray(row["ingredients"].AsBsonArray
                         .Select(value => ingredientIds.TryGetValue(value.AsString, out var id)
                             ? (BsonValue)new BsonString(id)
@@ -233,7 +233,7 @@ namespace database_seed
             foreach (var name in names)
             {
                 var value = totals[name] / portions;
-                result[name] = new BsonDouble(name == "calories"
+                result[name] = JsonBson.Number(name == "calories"
                     ? Math.Floor(value + 0.5)
                     : Math.Floor(value * 10 + 0.5) / 10);
             }
@@ -297,7 +297,7 @@ namespace database_seed
                     { "type", "text" },
                     { "text", Field(document, "text", "") },
                     { "text_vi", Field(document, "text_vi", "") },
-                    { "font_size", new BsonDouble(14) },
+                    { "font_size", JsonBson.Number(14) },
                     { "color", "black" }
                 });
             }

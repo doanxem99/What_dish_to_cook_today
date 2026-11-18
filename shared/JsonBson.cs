@@ -53,6 +53,19 @@ namespace database_seed
             }
         }
 
+        /// <summary>
+        /// Same numeric type the Node driver writes: int32 for integral values in range, double
+        /// otherwise (js-bson serializeNumber).
+        /// </summary>
+        public static BsonValue Number(double value)
+        {
+            if (Math.Floor(value) == value && value >= int.MinValue && value <= int.MaxValue)
+            {
+                return new BsonInt32((int)value);
+            }
+            return new BsonDouble(value);
+        }
+
         /// <summary>Parses plain JSON, restoring ObjectIds and known date fields as BSON types.</summary>
         public static BsonValue ToDatabaseBson(JsonNode node, string key = "")
         {
@@ -144,8 +157,8 @@ namespace database_seed
                 case JsonValueKind.False:
                     return BsonBoolean.False;
                 case JsonValueKind.Number:
-                    //JavaScript numbers are doubles; keep the type a Node restore would write.
-                    return new BsonDouble(value.GetValue<double>());
+                    //The archive has no number types; use the one a Node restore would write.
+                    return Number(value.GetValue<double>());
                 case JsonValueKind.String:
                     return new BsonString(value.GetValue<string>());
                 default:

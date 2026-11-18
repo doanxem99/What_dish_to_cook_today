@@ -77,3 +77,4 @@ jobs:
           dotnet-version: 9.0.x
       - run: dotnet build db_control/db_control/db_control.csproj
       - run: dotnet build database_control_center/database_control_center/database_control_center.csproj
+      - run: dotnet run --project db_seed_tests

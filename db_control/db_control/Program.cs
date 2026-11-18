@@ -62,8 +62,28 @@ namespace db_control
                 return Success;
             }
 
-            var command = args[0];
-            var options = ParseOptions(args.Skip(1).ToArray());
+            //Options may come before the command: db_control --json health.
+            var commandIndex = -1;
+            for (var index = 0; index < args.Length; index += 1)
+            {
+                if (TakesValue(args[index]))
+                {
+                    index += 1;
+                    continue;
+                }
+                if (!args[index].StartsWith("-", StringComparison.Ordinal))
+                {
+                    commandIndex = index;
+                    break;
+                }
+            }
+            if (commandIndex < 0)
+            {
+                throw new UsageException("No command given.");
+            }
+
+            var command = args[commandIndex];
+            var options = ParseOptions(args.Where((_, index) => index != commandIndex).ToArray());
             return command switch
             {
                 "init" => Init(options),
@@ -103,12 +123,11 @@ namespace db_control
         private static int Backup(Options options)
         {
             ExpectPositionals(options, 0);
-            if (string.IsNullOrWhiteSpace(options.Out))
-            {
-                throw new UsageException("backup needs --out <file>.");
-            }
+            var path = string.IsNullOrWhiteSpace(options.Out)
+                ? BackupArchive.DefaultPath(Environment.CurrentDirectory, DateTime.UtcNow)
+                : options.Out;
 
-            var info = BackupArchive.Write(Connect(options).Database, options.Out);
+            var info = BackupArchive.Write(Connect(options).Database, path);
             if (options.Json)
             {
                 var result = Result("backup", null, info.Counts);
@@ -121,6 +140,8 @@ namespace db_control
             {
                 Console.WriteLine($"Wrote {info.File} ({info.Bytes} bytes).");
                 PrintCounts(info.Counts);
+                Console.WriteLine("Restore from /admin: copy the file into " + RestoreDirectory()
+                    + " keeping a backup-YYYYMMDD-HHmmss.json.gz name.");
             }
             return Success;
         }
@@ -132,14 +153,15 @@ namespace db_control
             {
                 throw new UsageException("restore needs --file <file>.");
             }
+            //Confirm first: a missing --yes on a non-TTY is a usage error even with a bad path.
+            if (Confirm(options, "RESTORE") is var refused && refused != Success)
+            {
+                return refused;
+            }
             if (!System.IO.File.Exists(options.File))
             {
                 Console.Error.WriteLine("error: file not found: " + options.File);
                 return Failure;
-            }
-            if (Confirm(options, "RESTORE") is var refused && refused != Success)
-            {
-                return refused;
             }
 
             var archive = BackupArchive.Read(options.File);
@@ -329,6 +351,19 @@ namespace db_control
             return options;
         }
 
+        private static bool TakesValue(string arg)
+        {
+            return arg == "--uri" || arg == "--db" || arg == "--out" || arg == "--file";
+        }
+
+        private static string RestoreDirectory()
+        {
+            var configured = Environment.GetEnvironmentVariable("BACKUP_DIR");
+            return string.IsNullOrWhiteSpace(configured)
+                ? "the server BACKUP_DIR (server/backups locally, /app/backups in Compose)"
+                : configured!;
+        }
+
         private static string NextValue(string[] args, ref int index, string option)
         {
             if (index + 1 >= args.Length)
@@ -345,7 +380,7 @@ namespace db_control
 
 Usage:
   db_control init [--yes]
-  db_control backup --out <file>
+  db_control backup [--out <file>]
   db_control restore --file <file> [--yes]
   db_control recalc-best-post <ingredient_id>
   db_control health
@@ -360,7 +395,8 @@ Global options:
 
 Exit codes: 0 success, 1 failure, 2 usage error.
 init and restore are destructive: pass --yes or type RESET/RESTORE in a terminal.
-backup --out writes the same gzip contract the admin page restores.");
+backup writes backup-YYYYMMDD-HHmmss.json.gz in the current directory unless --out names a file.
+It uses the same gzip contract the admin page restores; copy it into BACKUP_DIR to list it there.");
         }
 
         private sealed class Options

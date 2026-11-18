@@ -10,7 +10,7 @@ Spec: [docs/superpowers/specs/2026-11-18-admin-operations-design.md](../superpow
 
 | Path | Responsibility |
 |---|---|
-| `shared/JsonBson.cs` | plain JSON <-> BSON conversion: ObjectId to hex, date fields to ISO, numbers to doubles |
+| `shared/JsonBson.cs` | plain JSON <-> BSON conversion: ObjectId to hex, date fields to ISO, int32 for integral numbers else double |
 | `shared/Catalog.cs` | resolve and load `catalog/*.json`, merge dish servings and amounts |
 | `shared/DatabaseSeed.cs` | build the seed documents from the catalog, reset the six collections, recreate unique indexes |
 | `shared/BackupArchive.cs` | read/write/validate the `wdtct-backup` v1 archive, stage and swap a restore |
@@ -70,10 +70,18 @@ static class BackupArchive
     const int Version = 1;
     static readonly string[] CatalogCollections; // ingredient, ingredient_post, dish, dish_post, vote, comment
     static readonly string[] ExportCollections;  // catalog + user
+    static string DefaultFileName(DateTime createdAt);           // backup-YYYYMMDD-HHmmss.json.gz, UTC
+    static string DefaultPath(string directory, DateTime createdAt); // same, -1/-2 when taken
+    static byte[] Compose(DateTime createdAt, IReadOnlyDictionary<string, List<BsonDocument>> collections);
     static BackupArchiveData Parse(byte[] gzip);
     static BackupArchiveData Read(string path);
     static BackupInfo Write(IMongoDatabase database, string path); // exact path, temp then rename
     static void Restore(IMongoDatabase database, BackupArchiveData archive);
+}
+
+static class JsonBson
+{
+    static BsonValue Number(double value); // int32 when integral and in int32 range, else double
 }
 
 static class IngredientVoteBestPost
@@ -82,10 +90,12 @@ static class IngredientVoteBestPost
 }
 ```
 
-CLI: `init [--yes]`, `backup --out <file>`, `restore --file <file> [--yes]`,
+CLI: `init [--yes]`, `backup [--out <file>]`, `restore --file <file> [--yes]`,
 `recalc-best-post <ingredient_id>`, `health`; globals `--uri`, `--db`, `--json`, `--yes`,
-`--help`, `--version`. Exit 0 success, 1 failure, 2 usage. Non-TTY destructive run without
-`--yes` is usage error 2.
+`--help`, `--version`. Options may precede the command (`db_control --json health`); the first
+non-option token is the command. `backup` defaults to `backup-YYYYMMDD-HHmmss.json.gz` (UTC) in
+the current directory; `--out` keeps the operator's name. Exit 0 success, 1 failure, 2 usage.
+Non-TTY destructive run without `--yes` is usage error 2, checked before the input file.
 
 ## Task list
 
@@ -95,6 +105,8 @@ CLI: `init [--yes]`, `backup --out <file>`, `restore --file <file> [--yes]`,
 - [x] CLI returns documented exit codes.
 - [x] Both projects build; WinForms has no worker references.
 - [x] Live check on a scratch database only.
+- [x] Review fixes: backup naming matches `/admin`, CLI edge cases, int32 parity, AppLog fallback,
+      self-check round trip and init refusal, CI self-check step, cached log removed.
 
 ## Decisions and deviations
 
@@ -114,6 +126,25 @@ CLI: `init [--yes]`, `backup --out <file>`, `restore --file <file> [--yes]`,
 - `init` and `restore` confirm before connecting, so a missing `--yes` on a non-TTY exits 2
   without touching MongoDB.
 - The console refuses a reset before asking for a backup path when the admin account is absent.
+- Backup names are one contract: `BackupArchive.DefaultFileName` and `DefaultPath` produce the
+  UTC `backup-YYYYMMDD-HHmmss.json.gz` (with `-N` when taken) that `server/config/admin/backups.js`
+  lists. `--out` and a console save dialog keep a name the operator types. Internal console safety
+  copies (`backup-before-reset`, `backup-before-restore`) keep their own names; they exist to undo
+  an action, not to be restored from `/admin`. Both tools print the placement hint (BACKUP_DIR,
+  else `server/backups` locally and `/app/backups` in Compose).
+- Archive numbers follow js-bson `serializeNumber`: integral values in int32 range are written as
+  `BsonInt32`, everything else `BsonDouble`. The archive is plain JSON, so the type is recomputed
+  on both read and write exactly as a Node restore does; a stored double `0.0` therefore becomes
+  int32 `0`, matching the server. The seed uses the same rule, so a C# reset and the JS reset
+  produce the same BSON types for calories, points, views and comments.
+- The destructive confirmation now runs before the input file check in `restore`: a missing
+  `--yes` on a non-TTY is exit 2 even when the path is also wrong. Options before the command are
+  accepted by skipping the command token when parsing.
+- `AppLog` writes next to the executable when that folder is writable and falls back to
+  `%LOCALAPPDATA%\database_control_center\Temporary`; a failed write is ignored so logging cannot
+  break an operation.
+- `Newtonsoft.Json` was unused and is removed from the console. The tracked
+  `Temporary/AppLog.txt` was dropped from the index; `**/Temporary/AppLog.txt` stays ignored.
 
 ## Verification
 
@@ -135,6 +166,11 @@ Build succeeded. 0 Warning(s) 0 Error(s)
 $ dotnet build database_control_center/database_control_center/database_control_center.csproj
 Build succeeded. 0 Warning(s) 0 Error(s)
 ```
+
+Review-fix run (2026-11-18): both `dotnet build` projects succeeded with 0 warnings and 0 errors,
+and `dotnet run --project db_seed_tests` printed `ALL CHECKS PASSED`, including the new write/parse
+round trip, default-name suffix, int32 parity, init refusal and restore confirmation order checks.
+`npm test --prefix server` reported `# pass 125`.
 
 Live check on `wdtct_scratch_task8` only (the dev database was not opened):
 
@@ -164,3 +200,7 @@ Live check on `wdtct_scratch_task8` only (the dev database was not opened):
   restore on a large archive.
 - The console is an internal operator tool, so it follows the OS control set with a compact,
   ruled layout rather than the web admin visual language.
+- Accepted risk: the single-instance guard went with the removed worker. Two consoles can run at
+  once; only the operator's own discipline stops two resets or restores on the same database.
+  Restore stages then swaps, so a second run does not half-write a collection, but the loser's
+  result is unspecified.

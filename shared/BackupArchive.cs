@@ -70,6 +70,24 @@ namespace database_seed
             return Parse(File.ReadAllBytes(Path.GetFullPath(path)));
         }
 
+        /// <summary>backup-YYYYMMDD-HHmmss, UTC: the only name the admin page lists.</summary>
+        public static string DefaultFileName(DateTime createdAt)
+        {
+            return "backup-" + FileStamp(createdAt) + ".json.gz";
+        }
+
+        /// <summary>The default path in a directory, suffixed -1, -2 ... like the server when taken.</summary>
+        public static string DefaultPath(string directory, DateTime createdAt)
+        {
+            var stem = Path.Combine(directory, "backup-" + FileStamp(createdAt));
+            var path = stem + ".json.gz";
+            for (var counter = 1; File.Exists(path); counter += 1)
+            {
+                path = $"{stem}-{counter}.json.gz";
+            }
+            return path;
+        }
+
         public static BackupArchiveData Parse(byte[] gzip)
         {
             string text;
@@ -140,35 +158,50 @@ namespace database_seed
             }
 
             var created = DateTime.UtcNow;
-            var collections = new JsonObject();
+            var collections = new Dictionary<string, List<BsonDocument>>();
             var counts = new Dictionary<string, int>();
             foreach (var name in ExportCollections)
             {
                 var documents = database.GetCollection<BsonDocument>(name)
                     .Find(FilterDefinition<BsonDocument>.Empty)
                     .ToList();
-                var rows = new JsonArray();
-                foreach (var document in documents)
-                {
-                    rows.Add(JsonBson.ToJson(document));
-                }
-                collections[name] = rows;
+                collections[name] = documents;
                 counts[name] = documents.Count;
+            }
+
+            var bytes = Compose(created, collections);
+            var partPath = fullPath + ".part";
+            File.WriteAllBytes(partPath, bytes);
+            File.Move(partPath, fullPath, overwrite: true);
+            return new BackupInfo(fullPath, bytes.LongLength, created, counts);
+        }
+
+        /// <summary>Builds the gzip bytes for archive-form documents read from a database.</summary>
+        public static byte[] Compose(DateTime createdAt, IReadOnlyDictionary<string, List<BsonDocument>> collections)
+        {
+            var rows = new JsonObject();
+            foreach (var name in ExportCollections)
+            {
+                var list = new JsonArray();
+                if (collections.TryGetValue(name, out var documents))
+                {
+                    foreach (var document in documents)
+                    {
+                        list.Add(JsonBson.ToJson(document));
+                    }
+                }
+                rows[name] = list;
             }
 
             var payload = new JsonObject
             {
                 ["format"] = Format,
                 ["version"] = Version,
-                ["created_at"] = created.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture),
-                ["collections"] = collections
+                ["created_at"] = createdAt.ToUniversalTime().ToString(
+                    "yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture),
+                ["collections"] = rows
             };
-            var bytes = Gzip(Encoding.UTF8.GetBytes(payload.ToJsonString()));
-
-            var partPath = fullPath + ".part";
-            File.WriteAllBytes(partPath, bytes);
-            File.Move(partPath, fullPath, overwrite: true);
-            return new BackupInfo(fullPath, bytes.LongLength, created, counts);
+            return Gzip(Encoding.UTF8.GetBytes(payload.ToJsonString()));
         }
 
         /// <summary>
@@ -242,6 +275,11 @@ namespace database_seed
                     database.DropCollection(name);
                 }
             }
+        }
+
+        private static string FileStamp(DateTime createdAt)
+        {
+            return createdAt.ToUniversalTime().ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
         }
 
         private static byte[] Gzip(byte[] bytes)

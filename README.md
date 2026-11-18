@@ -150,6 +150,12 @@ Compose). Each is `backup-YYYYMMDD-HHmmss.json.gz`, the newest 10 are kept, and 
 includes password hashes for `user`, so treat it as sensitive. A restore replaces the catalog
 only.
 
+`db_control backup` writes the same `backup-YYYYMMDD-HHmmss.json.gz` name (UTC) in the current
+directory unless `--out` names another file, and the Windows console offers that name too. The
+admin page lists only that pattern inside `BACKUP_DIR`, so copy an archive made elsewhere into
+`BACKUP_DIR` (`server/backups` locally, `/app/backups` in Compose) before restoring it from
+`/admin`; an explicit `--out` keeps the name the operator chose.
+
 ## Offline repair kit
 
 `db_control` is the command line repair kit. It needs only MongoDB; the API server may be down.
@@ -160,8 +166,8 @@ Health, Operations and Log. Every destructive action there writes a backup first
 dotnet build db_control/db_control/db_control.csproj
 dotnet run --project db_control/db_control -- health
 dotnet run --project db_control/db_control -- init --yes
-dotnet run --project db_control/db_control -- backup --out backups/backup.json.gz
-dotnet run --project db_control/db_control -- restore --file backups/backup.json.gz --yes
+dotnet run --project db_control/db_control -- backup
+dotnet run --project db_control/db_control -- restore --file backup-20261118-090232.json.gz --yes
 dotnet run --project db_control/db_control -- recalc-best-post <ingredient_id>
 ```
 

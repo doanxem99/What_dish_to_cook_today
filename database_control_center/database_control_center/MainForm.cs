@@ -163,7 +163,8 @@ namespace database_control_center
 
             layout.Controls.Add(SectionTitle("Backup"));
             layout.Controls.Add(SectionHint(
-                "Writes the same gzip archive the admin page restores: six catalog collections plus users."));
+                "Writes the same gzip archive the admin page restores: six catalog collections plus users. "
+                + "The admin page lists only backup-YYYYMMDD-HHmmss.json.gz files inside BACKUP_DIR."));
             var backupButton = new Button { Text = "Write backup to file...", AutoSize = true, Padding = new Padding(10, 2, 10, 2) };
             backupButton.Click += (_, _) => Run("Backup", BackupToFile);
             layout.Controls.Add(backupButton);
@@ -292,7 +293,10 @@ namespace database_control_center
                 return "Backup cancelled.";
             }
             var info = BackupArchive.Write(OpenDatabase(), path);
-            MessageBox.Show(this, $"Backup written.\n\n{info.File}\n{info.Bytes} bytes",
+            MessageBox.Show(this,
+                $"Backup written.\n\n{info.File}\n{info.Bytes} bytes\n\n"
+                + "Restore from /admin: copy it into " + RestoreDirectory()
+                + " keeping a backup-YYYYMMDD-HHmmss.json.gz name.",
                 "Backup complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return "Backup written to " + info.File + ".";
         }
@@ -333,14 +337,25 @@ namespace database_control_center
             return message;
         }
 
+        private static string RestoreDirectory()
+        {
+            var configured = Environment.GetEnvironmentVariable("BACKUP_DIR");
+            return string.IsNullOrWhiteSpace(configured)
+                ? "the server BACKUP_DIR (server\\backups locally, /app/backups in Compose)"
+                : configured;
+        }
+
         private string? ChooseBackupPath(string prefix)
         {
             var stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+            //The operator-facing backup must keep the name /admin lists; safety copies may not.
             using var dialog = new SaveFileDialog
             {
                 Title = "Choose the backup file",
                 Filter = "Backup archive (*.json.gz)|*.json.gz|All files (*.*)|*.*",
-                FileName = $"{prefix}-{stamp}.json.gz",
+                FileName = prefix == "backup"
+                    ? BackupArchive.DefaultFileName(DateTime.UtcNow)
+                    : $"{prefix}-{stamp}.json.gz",
                 InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 OverwritePrompt = true
             };
