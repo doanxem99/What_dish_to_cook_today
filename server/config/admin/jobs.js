@@ -78,4 +78,19 @@ const markInterruptedJobs = async function() {
     return result.modifiedCount;
 };
 
+//Destructive operations run through the queue; their detail names the backup file they wrote.
+const backups = require('./backups');
+const resetOps = require('./reset');
+
+const jobActor = function(job) {
+    return { id: job.actor_id, name: job.actor_name };
+};
+
+registerHandler('backup', async (job) => {
+    const backup = await backups.createBackup({ trigger: 'job', actor: jobActor(job) });
+    return `backup ${backup.file}`;
+});
+registerHandler('reset', async (job) => resetOps.resetCatalog(jobActor(job)));
+registerHandler('restore', async (job) => resetOps.restoreBackup(job.payload && job.payload.id, jobActor(job)));
+
 module.exports = { enqueueJob, runNextJob, markInterruptedJobs, registerHandler };
