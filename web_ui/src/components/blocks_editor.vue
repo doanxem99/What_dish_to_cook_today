@@ -1,7 +1,10 @@
 <script>
 import { useI18n } from '../i18n'
 import { api } from '../api'
-import { translationFailure } from './translation_error.js'
+import { shouldApplyTranslation, translationFailureFor } from './translation_error.js'
+
+let blockSeq = 0
+const newBlockId = () => 'block-' + (++blockSeq)
 
 export default {
   props: {
@@ -10,15 +13,25 @@ export default {
   },
   emits: ['update:modelValue'],
   data() {
-    return { uploading: false, uploadError: false, translateError: null }
+    return { uploading: false, uploadError: false, translateErrors: {}, blockIds: [] }
   },
   computed: {
     t() { return useI18n().t }
   },
   watch: {
-    autoTranslate(on) { if (!on) this.translateError = null }
+    autoTranslate(on) { if (!on) this.translateErrors = {} },
+    modelValue(blocks) { this.syncIds(blocks) }
+  },
+  created() {
+    this.syncIds(this.modelValue)
   },
   methods: {
+    //shortcut: ids rebuild when the parent replaces the list with a different length, upgrade if a second surface edits the same list
+    syncIds(blocks) {
+      if (this.blockIds.length === blocks.length) return
+      this.blockIds = blocks.map(() => newBlockId())
+      this.translateErrors = {}
+    },
     copy() { return this.modelValue.map(block => ({ ...block })) },
     emit(blocks) { this.$emit('update:modelValue', blocks) },
     updateText(index, key, value) {
@@ -28,8 +41,12 @@ export default {
     },
     async translateBlock(index, fromKey, toKey) {
       if (!this.autoTranslate) return
-      const source = this.modelValue[index][fromKey]
-      const target = this.modelValue[index][toKey]
+      const block = this.modelValue[index]
+      if (!block) return
+      const id = this.blockIds[index]
+      const source = block[fromKey]
+      const target = block[toKey]
+      const direction = fromKey === 'text' ? 'enToVi' : 'viToEn'
       if (!source || !source.trim() || (target && target.trim())) return
       try {
         const response = await api.post('/api/translate', {
@@ -37,16 +54,25 @@ export default {
           source: fromKey === 'text' ? 'en' : 'vi',
           target: fromKey === 'text' ? 'vi' : 'en'
         })
+        if (!this.autoTranslate) return
         //The block can be edited, reordered or removed while the request runs
-        const current = this.modelValue[index]
-        if (!current || current[fromKey] !== source || (current[toKey] && current[toKey].trim())) return
+        const currentIndex = this.blockIds.indexOf(id)
+        if (currentIndex < 0) return
+        const current = this.modelValue[currentIndex]
+        if (!current || !shouldApplyTranslation({
+          currentSource: current[fromKey],
+          requestSource: source,
+          currentTarget: current[toKey]
+        })) return
         const blocks = this.copy()
-        blocks[index][toKey] = response.text
-        this.translateError = null
+        blocks[currentIndex][toKey] = response.text
+        delete this.translateErrors[id]
         this.emit(blocks)
       } catch (error) {
         //Leave the target empty; the editor still saves what was typed
-        this.translateError = { index, reason: 'edit.translate.' + translationFailure(error && error.status) }
+        const reason = translationFailureFor(id, this.blockIds, error && error.status)
+        if (!this.autoTranslate || !reason) return
+        this.translateErrors[id] = { reason, direction }
       }
     },
     setStyle(index, key, value) {
@@ -60,6 +86,7 @@ export default {
       this.emit(blocks)
     },
     addText() {
+      this.blockIds.push(newBlockId())
       this.emit([...this.copy(), {
         type: 'text', text: '', text_vi: '', font_size: 14, color: 'black',
         font_weight: 'normal', font_style: 'normal', text_align: 'left'
@@ -79,6 +106,7 @@ export default {
           const data = await response.json()
           if (data && data.isSuccess) {
             blocks.push({ type: 'image', src: data.path, text: '', text_vi: '', font_size: 14, color: 'black' })
+            this.blockIds.push(newBlockId())
           } else {
             this.uploadError = true
           }
@@ -94,7 +122,8 @@ export default {
     remove(index) {
       const blocks = this.copy()
       blocks.splice(index, 1)
-      this.translateError = null
+      const [id] = this.blockIds.splice(index, 1)
+      delete this.translateErrors[id]
       this.emit(blocks)
     },
     move(index, delta) {
@@ -103,7 +132,8 @@ export default {
       const blocks = this.copy()
       const [row] = blocks.splice(index, 1)
       blocks.splice(target, 0, row)
-      this.translateError = null
+      const [id] = this.blockIds.splice(index, 1)
+      this.blockIds.splice(target, 0, id)
       this.emit(blocks)
     },
     imageSrc(src) {
@@ -115,7 +145,7 @@ export default {
 
 <template>
   <div class="grid gap-3">
-    <div v-for="(block, index) in modelValue" :key="index" class="ruled p-3">
+    <div v-for="(block, index) in modelValue" :key="blockIds[index] || index" class="ruled p-3">
       <template v-if="block.type === 'text'">
         <div class="block-toolbar">
           <button
@@ -163,7 +193,9 @@ export default {
           <span class="eyebrow">{{ t('edit.blockTextVi') }}</span>
           <textarea class="textarea" rows="2" :value="block.text_vi" @input="updateText(index, 'text_vi', $event.target.value)" @blur="translateBlock(index, 'text_vi', 'text')"></textarea>
         </label>
-        <p v-if="translateError && translateError.index === index" class="text-sm mt-1" role="alert" style="color: var(--board-danger)">{{ t(translateError.reason) }}</p>
+        <p v-if="translateErrors[blockIds[index]]" class="text-sm mt-2" role="alert" style="color: var(--board-danger)">
+          {{ t('edit.translate.' + translateErrors[blockIds[index]].direction) }}: {{ t(translateErrors[blockIds[index]].reason) }}
+        </p>
       </template>
 
       <template v-else>

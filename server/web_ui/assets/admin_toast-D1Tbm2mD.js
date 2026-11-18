@@ -1,1 +1,0 @@
-import{y as o}from"./index-CJmgDnH3.js";const s=o([]);let u=0;function f(t,e="ok"){if(!t)return;const i=++u;s.value.push({id:i,text:t,kind:e}),setTimeout(()=>n(i),6e3)}function n(t){s.value=s.value.filter(e=>e.id!==t)}function a(){return{items:s,dismiss:n}}export{f as n,a as u};

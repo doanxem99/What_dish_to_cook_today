@@ -4,7 +4,7 @@ import { useI18n } from '../i18n'
 import { useAuthStore } from '../assets/store/auth_store'
 import ingredientPickerEdit from '../components/ingredient_picker_edit.vue'
 import blocksEditor from '../components/blocks_editor.vue'
-import { translationFailure } from '../components/translation_error.js'
+import { shouldApplyTranslation, translationFailureKey } from '../components/translation_error.js'
 
 export default {
   components: { ingredientPickerEdit, blocksEditor },
@@ -14,7 +14,7 @@ export default {
       loading: true,
       saving: false,
       error: '',
-      translateError: '',
+      translateErrors: {},
       autoTranslate: false,
       dragging: false,
       model: {
@@ -56,7 +56,7 @@ export default {
     }
   },
   watch: {
-    autoTranslate(on) { if (!on) this.translateError = '' }
+    autoTranslate(on) { if (!on) this.translateErrors = {} }
   },
   mounted() {
     this.dishId = this.$route.query.dish_id || null
@@ -160,16 +160,24 @@ export default {
     },
     async translateField(field) {
       if (!this.autoTranslate) return
-      const sourceValue = this.model[field]
-      if (!sourceValue || !sourceValue.trim()) return
+      const requestSource = this.model[field]
+      if (!requestSource || !requestSource.trim()) return
       const viField = field === 'name' ? 'name_vi' : 'short_detail_vi'
       if (this.model[viField] && this.model[viField].trim()) return
       try {
-        const response = await api.post('/api/translate', { text: sourceValue, source: 'en', target: 'vi' })
+        const response = await api.post('/api/translate', { text: requestSource, source: 'en', target: 'vi' })
+        if (!this.autoTranslate) return
+        if (!shouldApplyTranslation({
+          currentSource: this.model[field],
+          requestSource,
+          currentTarget: this.model[viField]
+        })) return
         this.model[viField] = response.text
-        this.translateError = ''
+        delete this.translateErrors[field]
       } catch (error) {
-        this.translateError = this.t('edit.translate.' + translationFailure(error && error.status))
+        //A result for text the user already changed no longer describes what is on screen
+        if (!this.autoTranslate || this.model[field] !== requestSource) return
+        this.translateErrors[field] = translationFailureKey(error && error.status)
       }
     },
     async save() {
@@ -242,13 +250,15 @@ export default {
             <input type="checkbox" v-model="autoTranslate" />
             <span>{{ t('edit.autoTranslate') }}</span>
           </label>
-          <p v-if="translateError" class="text-sm mt-1" role="alert" style="color: var(--board-danger)">{{ translateError }}</p>
         </div>
 
         <div class="grid gap-3 sm:grid-cols-2">
           <label class="field">
             <span class="eyebrow">{{ t('edit.nameEn') }}</span>
             <input v-model="model.name" class="input" @blur="translateField('name')" />
+            <span v-if="translateErrors.name" class="block text-sm mt-1" role="alert" style="color: var(--board-danger)">
+              {{ t('edit.translate.enToVi') }}: {{ t(translateErrors.name) }}
+            </span>
           </label>
           <label class="field">
             <span class="eyebrow">{{ t('edit.nameVi') }}</span>
@@ -257,6 +267,9 @@ export default {
           <label class="field">
             <span class="eyebrow">{{ t('edit.shortEn') }}</span>
             <input v-model="model.short_detail" class="input" @blur="translateField('short_detail')" />
+            <span v-if="translateErrors.short_detail" class="block text-sm mt-1" role="alert" style="color: var(--board-danger)">
+              {{ t('edit.translate.enToVi') }}: {{ t(translateErrors.short_detail) }}
+            </span>
           </label>
           <label class="field">
             <span class="eyebrow">{{ t('edit.shortVi') }}</span>
