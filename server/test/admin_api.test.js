@@ -553,7 +553,11 @@ test('a read-only backup directory is not reported writable', async () => {
         assert.strictEqual(response.body.backup.dir_writable, false);
     } finally {
         fs.writeFile = original;
-        process.env.BACKUP_DIR = originalDir;
+        if (originalDir === undefined) {
+            delete process.env.BACKUP_DIR;
+        } else {
+            process.env.BACKUP_DIR = originalDir;
+        }
     }
 });
 

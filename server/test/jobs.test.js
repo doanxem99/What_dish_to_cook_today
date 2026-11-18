@@ -290,13 +290,15 @@ test('two concurrent runner calls run one job only', async () => {
         await new Promise((resolve) => setTimeout(resolve, 50));
         return 'once done';
     });
+    //Two queued jobs: the overlap bug this guards against would run both handlers at once.
+    await jobs.enqueueJob('once_type', null, {});
     await jobs.enqueueJob('once_type', null, {});
 
     const results = await Promise.all([jobs.runNextJob(), jobs.runNextJob()]);
 
     assert.strictEqual(results.filter(Boolean).length, 1);
     assert.strictEqual(started, 1);
-    assert.strictEqual((await collections.AdminJob.countDocuments({ status: 'queued' })), 0);
+    assert.strictEqual((await collections.AdminJob.countDocuments({ status: 'queued' })), 1);
 });
 
 test('markInterruptedJobs fails stale queued and running rows only', async () => {

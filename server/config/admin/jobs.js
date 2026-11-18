@@ -8,7 +8,7 @@ const registerHandler = function(type, handler) {
     handlers[type] = handler;
 };
 
-//A handler that never settles must not hold the queue; a restore rewrites whole collections.
+//A timeout bounds the bookkeeping, not the handler: the queue and the flag wait for it to settle.
 const DEFAULT_HANDLER_TIMEOUT = 60 * 1000;
 const HANDLER_TIMEOUTS = { restore: 10 * 60 * 1000 };
 
@@ -65,6 +65,8 @@ const runNextJob = async function(timeoutMs) {
     if (busy) {
         return null;
     }
+    //Set before the first await: two overlapping calls must not both pass this gate.
+    busy = true;
     //A flag whose job already ended is retried on every tick; a failed write must not stop the tick.
     try {
         await releaseStaleMaintenance();
@@ -72,7 +74,6 @@ const runNextJob = async function(timeoutMs) {
         console.error(`Cannot clear a stale maintenance flag: ${error.message}`);
     }
 
-    busy = true;
     let job;
     try {
         job = await collections.AdminJob.findOneAndUpdate(
