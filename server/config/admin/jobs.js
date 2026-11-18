@@ -1,11 +1,36 @@
 const { collections } = require('../database/connection');
-const { setMaintenance } = require('./maintenance');
+const { releaseMaintenance, setMaintenance, setRunningJob } = require('./maintenance');
 
 //Type -> handler(job) returning a detail string. Task 4 registers the destructive operations.
 const handlers = {};
 
 const registerHandler = function(type, handler) {
     handlers[type] = handler;
+};
+
+//A handler that never settles must not hold the queue; a restore rewrites whole collections.
+const DEFAULT_HANDLER_TIMEOUT = 60 * 1000;
+const HANDLER_TIMEOUTS = { restore: 10 * 60 * 1000 };
+
+const timeoutFor = function(type) {
+    return HANDLER_TIMEOUTS[type] || DEFAULT_HANDLER_TIMEOUT;
+};
+
+const withTimeout = function(promise, ms) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('handler timed out')), ms);
+        timer.unref();
+        promise.then(
+            (value) => {
+                clearTimeout(timer);
+                resolve(value);
+            },
+            (error) => {
+                clearTimeout(timer);
+                reject(error);
+            }
+        );
+    });
 };
 
 const actorFields = function(actor) {
@@ -30,7 +55,8 @@ const enqueueJob = async function(type, actor, payload) {
 let busy = false;
 
 //Claims one queued job atomically, runs it and records the outcome.
-const runNextJob = async function() {
+//timeoutMs overrides the per-type bound, which is what the tests use.
+const runNextJob = async function(timeoutMs) {
     if (busy) {
         return null;
     }
@@ -50,16 +76,24 @@ const runNextJob = async function() {
             if (!handler) {
                 throw new Error(`No handler for job type ${job.type}`);
             }
-            job.detail = (await handler(job)) || '';
+            setRunningJob(job._id);
+            job.detail = (await withTimeout(handler(job), timeoutMs || timeoutFor(job.type))) || '';
             job.status = 'done';
         } catch (error) {
             job.status = 'failed';
             job.error = error.message;
         } finally {
+            setRunningJob(null);
             job.finished_at = new Date();
-            await job.save();
-            //A destructive job owns the flag; the job ending always releases the site
-            await setMaintenance(false, `job ${job.type} ${job.status}`, null);
+            try {
+                await job.save();
+            } catch (error) {
+                //The row stays running until the database recovers; the site must not stay blocked.
+                console.error(`Cannot save job ${job._id} outcome: ${error.message}`);
+            } finally {
+                //Only the job that switched the flag on releases it, and always runs.
+                await releaseMaintenance(job._id, `job ${job.type} ${job.status}`);
+            }
         }
         return job;
     } finally {

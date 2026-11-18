@@ -107,9 +107,11 @@ app.listen("3000", async () => {
   }
 
   //A row left queued or running by the previous process can never finish
-  adminJobs.markInterruptedJobs().catch((error) => {
+  try {
+    await adminJobs.markInterruptedJobs();
+  } catch (error) {
     console.error('Cannot recover interrupted jobs: ' + error.message);
-  });
+  }
 
   //Promote ADMIN_USERNAME (default moonshine@gmail.com) when the account exists.
   //It logs one line for promoted, already admin and skipped.

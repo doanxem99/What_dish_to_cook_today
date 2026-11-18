@@ -213,6 +213,11 @@ const Setting = mongoose.model('setting', {
         ref: 'user'
     },
     actor_name : String,
+    //The job that switched maintenance on; only it may switch the flag off
+    owner_job_id : {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'admin_job'
+    },
     updated_at : Date
 },'settings');
 
