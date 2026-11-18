@@ -96,7 +96,7 @@ after(async () => {
 });
 
 test('sign-in returns roles and must_change_password', async () => {
-    await createUser({ username: 'ana' });
+    const user = await createUser({ username: 'ana' });
 
     const result = await signin('ana', 'demo1234');
 
@@ -105,6 +105,8 @@ test('sign-in returns roles and must_change_password', async () => {
     assert.strictEqual(result.body.must_change_password, false);
     //Existing fields stay
     assert.strictEqual(result.body.user.username, 'ana');
+    //The admin user table needs the id to mark the signed-in account.
+    assert.strictEqual(String(result.body.user.id), String(user._id));
     assert.ok(result.cookie);
 });
 

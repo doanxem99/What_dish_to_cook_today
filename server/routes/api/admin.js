@@ -136,7 +136,7 @@ let translationCache = { base: null, at: 0, value: null };
 const probeTranslation = async function() {
     const base = translationBase();
     if (!base) {
-        return { ok: false, error: 'TRANSLATE_URL is not set' };
+        return { ok: false, configured: false, error: 'TRANSLATE_URL is not set' };
     }
     if (translationCache.base === base && Date.now() - translationCache.at < TRANSLATION_CACHE_MS) {
         return translationCache.value;
@@ -145,13 +145,13 @@ const probeTranslation = async function() {
     try {
         const response = await fetch(`${base}/languages`, { signal: AbortSignal.timeout(3000) });
         if (!response.ok) {
-            value = { ok: false, error: `translation answered ${response.status}` };
+            value = { ok: false, configured: true, error: `translation answered ${response.status}` };
         } else {
             const languages = await response.json();
-            value = { ok: true, languages: Array.isArray(languages) ? languages.length : 0 };
+            value = { ok: true, configured: true, languages: Array.isArray(languages) ? languages.length : 0 };
         }
     } catch (error) {
-        value = { ok: false, error: error.message };
+        value = { ok: false, configured: true, error: error.message };
     }
     translationCache = { base, at: Date.now(), value };
     return value;

@@ -8,6 +8,7 @@ import {
   hasActiveJobs,
   jobStatusLabel,
   jobTypeLabel,
+  maintenanceReason,
   rowGuard,
   typedWordMatches
 } from './admin_format.js'
@@ -146,5 +147,24 @@ describe('hasActiveJobs', () => {
     expect(hasActiveJobs([{ status: 'queued' }])).toBe(true)
     expect(hasActiveJobs([{ status: 'done' }, { status: 'failed' }])).toBe(false)
     expect(hasActiveJobs([])).toBe(false)
+  })
+})
+
+describe('maintenanceReason', () => {
+  const reasons = {
+    'admin.maintenance.reason.catalogReset': 'Reset in progress',
+    'admin.maintenance.reason.catalogRestore': 'Restore in progress'
+  }
+  const translate = key => reasons[key] || key
+
+  it('translates the reasons the server writes', () => {
+    expect(maintenanceReason('catalog reset', translate)).toBe('Reset in progress')
+    expect(maintenanceReason('catalog restore', translate)).toBe('Restore in progress')
+  })
+
+  it('keeps an unknown sentence and an empty value readable', () => {
+    expect(maintenanceReason('some new job', translate)).toBe('some new job')
+    expect(maintenanceReason('', translate)).toBe('')
+    expect(maintenanceReason(null, translate)).toBe('')
   })
 })

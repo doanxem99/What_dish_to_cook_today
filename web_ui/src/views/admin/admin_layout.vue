@@ -5,7 +5,7 @@ import adminApi from '../../api/admin'
 import { useAuthStore } from '../../assets/store/auth_store'
 import { useI18n } from '../../i18n'
 import AdminToast from '../../components/admin/admin_toast.vue'
-import { errorKind } from '../../components/admin/admin_format.js'
+import { errorKind, maintenanceReason } from '../../components/admin/admin_format.js'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -91,10 +91,19 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="board admin-page py-6">
-    <div v-if="!auth.isAdmin" class="ruled admin-forbidden" role="alert">
+    <div v-if="!auth.isAdmin && auth.isLogin" class="ruled admin-forbidden" role="alert">
       <h1 class="board-title">{{ t('admin.forbidden.title') }}</h1>
       <p class="measure">{{ t('admin.forbidden.body') }}</p>
       <router-link class="btn btn-primary" to="/">{{ t('admin.forbidden.home') }}</router-link>
+    </div>
+
+    <!--A 401 signs the user out: the sign-in link must stay reachable and return here.-->
+    <div v-else-if="!auth.isAdmin" class="ruled admin-forbidden" role="alert">
+      <h1 class="board-title">{{ t('admin.status.signInLink') }}</h1>
+      <p class="measure">{{ t('admin.forbidden.signInBody') }}</p>
+      <router-link class="btn btn-primary" to="/signin" @click="auth.jumpPage = route.fullPath">
+        {{ t('admin.status.signInLink') }}
+      </router-link>
     </div>
 
     <template v-else>
@@ -116,7 +125,7 @@ onBeforeUnmount(() => {
 
       <p v-if="maintenance" class="maintenance-banner" role="status">
         <strong>{{ t('admin.maintenance.title') }}</strong>
-        <span>{{ maintenance.reason || t('admin.maintenance.unknown') }}</span>
+        <span>{{ maintenanceReason(maintenance.reason, t) || t('admin.maintenance.unknown') }}</span>
         <span v-if="maintenance.job_id" class="maintenance-job">{{ t('admin.maintenance.job', { id: shortId(maintenance.job_id) }) }}</span>
         <span v-if="maintenance.updated_at" class="maintenance-at">
           {{ t('admin.maintenance.since', { when: when(maintenance.updated_at) }) }}

@@ -95,6 +95,7 @@ const signin = async function(req, res) {
         return res.status(200).send({
             message: "Login successfully!",
             user: {
+                id: user._id,
                 username: user.username || user.email,
             },
             roles: roles.map(role => role.name),

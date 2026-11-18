@@ -26,9 +26,17 @@ const dialogError = ref('')
 const selectedId = ref('')
 
 const selected = computed(() => rows.value.find(row => row.id === selectedId.value) || null)
-const hasSource = computed(() => rows.value.some(row => row.trigger || row.actor_name))
 const busy = computed(() => busyJob.value !== null)
 const dialogWord = computed(() => (dialog.value === 'restore' ? 'RESTORE' : 'RESET'))
+
+//A destructive job reports the file it wrote; the id is the download endpoint's key.
+const writtenBackup = computed(() => {
+  const detail = (result.value && result.value.detail) || ''
+  if (!detail) {
+    return null
+  }
+  return rows.value.find(row => detail.includes(row.file)) || null
+})
 
 const failure = computed(() => {
   const kind = errorKind(error.value)
@@ -74,6 +82,11 @@ async function load(quiet = false) {
 
 //One poll: the newest page holds a job created seconds ago; a finished row stops the timer.
 let timer = null
+//A job pushed off page 1 by newer rows is gone; three misses mean the poll can stop.
+const MISSES_TO_STOP = 3
+let misses = 0
+//A 2 s interval can fire before a slow read lands; one request at a time keeps the misses honest.
+let polling = false
 
 function stopPoll() {
   if (timer) {
@@ -85,20 +98,31 @@ function stopPoll() {
 function watchJob(job) {
   busyJob.value = job
   result.value = null
+  misses = 0
   stopPoll()
   timer = setInterval(pollJob, POLL_MS)
 }
 
 async function pollJob() {
   const job = busyJob.value
-  if (!job || document.hidden) {
+  if (!job || document.hidden || polling) {
     return
   }
+  polling = true
   try {
     const answer = await adminApi.jobs({ page: 1 })
     const found = (answer && Array.isArray(answer.rows) ? answer.rows : [])
       .find(row => String(row._id || row.id) === String(job._id || job.id))
-    if (!found || found.status === 'queued' || found.status === 'running') {
+    if (!found) {
+      misses += 1
+      if (misses >= MISSES_TO_STOP) {
+        stopPoll()
+        busyJob.value = null
+      }
+      return
+    }
+    misses = 0
+    if (found.status === 'queued' || found.status === 'running') {
       return
     }
     stopPoll()
@@ -111,7 +135,11 @@ async function pollJob() {
       found.status === 'done' ? 'ok' : 'error'
     )
   } catch (caught) {
-    //A transient read keeps the timer alive; the job row is still the source of truth.
+    //A read that keeps failing would poll forever; the job row is still readable on the jobs page.
+    stopPoll()
+    busyJob.value = null
+  } finally {
+    polling = false
   }
 }
 
@@ -206,7 +234,8 @@ async function download(row) {
     document.body.appendChild(link)
     link.click()
     link.remove()
-    URL.revokeObjectURL(url)
+    //Revoking in the same tick can cancel the download in some browsers; let it start first.
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
   } catch (caught) {
     if (errorKind(caught) === 'unauthorized') {
       await auth.signOut()
@@ -246,12 +275,21 @@ onBeforeUnmount(stopPoll)
         </span>
         <span v-if="result.detail" class="admin-job-detail">{{ result.detail }}</span>
         <router-link class="link" to="/admin/jobs">{{ t('admin.backups.jobLink') }}</router-link>
+        <button
+          v-if="writtenBackup"
+          class="btn"
+          type="button"
+          @click="download(writtenBackup)"
+        >{{ t('admin.backups.downloadBackup') }}</button>
       </p>
 
       <div v-if="error" class="ruled admin-failure" role="alert">
         <p>{{ failure }}</p>
         <router-link v-if="errorKind(error) === 'unauthorized'" class="link" to="/signin">
           {{ t('admin.status.signInLink') }}
+        </router-link>
+        <router-link v-else-if="errorKind(error) === 'forbidden'" class="link" to="/">
+          {{ t('admin.forbidden.home') }}
         </router-link>
         <button v-else class="btn" type="button" @click="load()">{{ t('admin.common.retry') }}</button>
       </div>
@@ -266,7 +304,6 @@ onBeforeUnmount(stopPoll)
               <th scope="col">{{ t('admin.backups.createdAt') }}</th>
               <th scope="col">{{ t('admin.backups.file') }}</th>
               <th scope="col" class="is-num">{{ t('admin.backups.size') }}</th>
-              <th v-if="hasSource" scope="col">{{ t('admin.backups.source') }}</th>
               <th scope="col" class="admin-actions-col">{{ t('admin.common.actions') }}</th>
             </tr>
           </thead>
@@ -275,9 +312,6 @@ onBeforeUnmount(stopPoll)
               <td class="is-num" :data-label="t('admin.backups.createdAt')">{{ when(row.created_at) }}</td>
               <td class="admin-file" :data-label="t('admin.backups.file')" :title="row.file">{{ row.file }}</td>
               <td class="is-num" :data-label="t('admin.backups.size')">{{ formatBytes(row.bytes) }}</td>
-              <td v-if="hasSource" :data-label="t('admin.backups.source')">
-                {{ row.trigger || row.actor_name || '—' }}
-              </td>
               <td class="admin-actions-col" :data-label="t('admin.common.actions')">
                 <button class="btn" type="button" @click="download(row)">{{ t('admin.backups.download') }}</button>
               </td>

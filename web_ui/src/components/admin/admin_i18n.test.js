@@ -26,4 +26,10 @@ describe('admin catalogue parity', () => {
     expect(empty).toEqual([])
     expect(copied).toEqual([])
   })
+
+  it('uses one actor term and the plain success label', () => {
+    expect(vi['admin.jobs.actor']).toBe(vi['admin.audit.actor'])
+    expect(vi['admin.audit.resultOk']).toBe('Thành công')
+    expect(vi['admin.backups.dangerBody']).not.toContain('ghi lại')
+  })
 })

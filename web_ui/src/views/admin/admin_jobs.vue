@@ -37,11 +37,14 @@ const failure = computed(() => {
 })
 
 const failureKind = computed(() => errorKind(error.value))
+//A polled read must not overlap the next tick, or two answers can land out of order.
+let inFlight = false
 
 async function load(quiet = false) {
   if (!quiet) {
     loading.value = rows.value.length === 0
   }
+  inFlight = true
   try {
     const answer = await adminApi.jobs(filterQuery({
       type: filters.value.type,
@@ -56,12 +59,17 @@ async function load(quiet = false) {
       page.value = pages.value
       await load(true)
     }
+    //A successful retry after a stopped poll must start the live updates again.
+    syncPoll()
   } catch (caught) {
     error.value = caught
+    //A failed poll would retry forever; the panel offers the next step instead.
+    stopPoll()
     if (errorKind(caught) === 'unauthorized') {
       await auth.signOut()
     }
   } finally {
+    inFlight = false
     loading.value = false
   }
 }
@@ -108,7 +116,7 @@ function stopPoll() {
 function syncPoll() {
   if (active.value && !timer) {
     timer = setInterval(() => {
-      if (!document.hidden) load(true)
+      if (!document.hidden && !inFlight) load(true)
     }, POLL_MS)
   }
   if (!active.value) {
@@ -163,6 +171,9 @@ onBeforeUnmount(() => {
       <router-link v-if="failureKind === 'unauthorized'" class="link" to="/signin">
         {{ t('admin.status.signInLink') }}
       </router-link>
+      <router-link v-else-if="failureKind === 'forbidden'" class="link" to="/">
+        {{ t('admin.forbidden.home') }}
+      </router-link>
       <button v-else class="btn" type="button" @click="load()">{{ t('admin.common.retry') }}</button>
     </div>
 
@@ -174,6 +185,7 @@ onBeforeUnmount(() => {
       :show-detail="true"
       :expandable="true"
       :retryable="true"
+      :empty-key="filters.type || filters.status ? 'admin.jobs.emptyFiltered' : 'admin.jobs.empty'"
       caption-key="admin.nav.jobs"
       @retry="retry"
     />

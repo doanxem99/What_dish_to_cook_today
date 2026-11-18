@@ -55,7 +55,9 @@ const probes = computed(() => {
       t('admin.probe.translation'),
       translation.ok ? 'ok' : 'missing',
       translation.ok ? t('admin.probe.languages', { n: translation.languages ?? 0 }) : t('admin.probe.failed'),
-      t('admin.probe.translationAction'),
+      translation.configured
+        ? t('admin.probe.translationUnreachable')
+        : t('admin.probe.translationAction'),
       translation.error || ''
     ),
     probe(

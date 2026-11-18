@@ -61,6 +61,9 @@ onMounted(load)
       <router-link v-if="errorKind(error) === 'unauthorized'" class="link" to="/signin">
         {{ t('admin.status.signInLink') }}
       </router-link>
+      <router-link v-else-if="errorKind(error) === 'forbidden'" class="link" to="/">
+        {{ t('admin.forbidden.home') }}
+      </router-link>
       <button v-else class="btn" type="button" @click="load">{{ t('admin.common.retry') }}</button>
     </div>
 

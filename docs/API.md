@@ -147,11 +147,14 @@ hash, token or AI prompt text is ever returned.
 - `version`, `uptime_s`.
 - `database`: `{ok, latency_ms}` from a ping.
 - `counts`: `{users, ingredients, dishes, dish_posts, comments, votes}`.
-- `translation`: `{ok, languages}` or `{ok:false, error}`. The base URL is derived from
-  `TRANSLATE_URL` by stripping `/translate`; the probe caches for 30 s and never runs on the
-  15 s page poll.
+- `translation`: `{ok, configured, languages}` or `{ok:false, configured, error}`. The base URL is
+  derived from `TRANSLATE_URL` by stripping `/translate`; `configured` is false when the variable is
+  unset, so the page names the right fix. The probe caches for 30 s and never runs on the 15 s page
+  poll.
 - `ai`: `{configured}`, from `AI_ENABLED` only.
 - `backup`: `{dir_writable, dir, last, error}`.
+- `maintenance`: `{on, reason, job_id, updated_at}`. `reason` is the server's sentence (`catalog
+  reset` or `catalog restore`) and `job_id` is the job that owns the flag.
 - `last_reset`: the newest reset job summary or `null`.
 
 Every mutation writes an `audit_log` row with the acting admin from `req.current_user`.

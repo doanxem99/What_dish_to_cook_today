@@ -85,6 +85,18 @@ export function hasActiveJobs(rows) {
   return (rows || []).some(row => row && (row.status === 'queued' || row.status === 'running'))
 }
 
+//The server writes an English sentence; known ones get a catalogue key, unknown ones stay readable.
+const MAINTENANCE_REASON_KEYS = {
+  'catalog reset': 'admin.maintenance.reason.catalogReset',
+  'catalog restore': 'admin.maintenance.reason.catalogRestore'
+}
+
+export function maintenanceReason(reason, translate) {
+  const text = String(reason || '')
+  const key = MAINTENANCE_REASON_KEYS[text]
+  return key ? translate(key) : text
+}
+
 const isAdminRow = row => Boolean(row && Array.isArray(row.roles) && row.roles.includes('admin'))
 
 //The server owns the real guard; this only stops the page from offering a request it must reject.

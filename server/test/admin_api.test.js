@@ -320,6 +320,22 @@ test('an unreachable translation service is a failed probe, not a 500', async ()
         const response = await call('/api/admin/health', tokenFor(admin));
         assert.strictEqual(response.status, 200);
         assert.strictEqual(response.body.translation.ok, false);
+        //The page tells "not configured" from "configured but silent" with this boolean.
+        assert.strictEqual(response.body.translation.configured, true);
+    } finally {
+        process.env.TRANSLATE_URL = saved;
+    }
+});
+
+test('an unset translation service reports itself as not configured', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    const saved = process.env.TRANSLATE_URL;
+    delete process.env.TRANSLATE_URL;
+    try {
+        const response = await call('/api/admin/health', tokenFor(admin));
+        assert.strictEqual(response.status, 200);
+        assert.strictEqual(response.body.translation.ok, false);
+        assert.strictEqual(response.body.translation.configured, false);
     } finally {
         process.env.TRANSLATE_URL = saved;
     }

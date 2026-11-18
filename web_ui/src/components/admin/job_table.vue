@@ -12,7 +12,8 @@ const props = defineProps({
   showDetail: { type: Boolean, default: false },
   expandable: { type: Boolean, default: false },
   retryable: { type: Boolean, default: false },
-  captionKey: { type: String, default: 'admin.recent.title' }
+  captionKey: { type: String, default: 'admin.recent.title' },
+  emptyKey: { type: String, default: 'admin.jobs.empty' }
 })
 
 const emit = defineEmits(['retry'])
@@ -47,7 +48,7 @@ function when(value) {
   <div class="ruled job-table">
     <p v-if="loading" class="state text-sm">{{ t('admin.jobs.loading') }}</p>
     <p v-else-if="failed" class="state text-sm" role="alert">{{ t('admin.jobs.error') }}</p>
-    <p v-else-if="rows.length === 0" class="state text-sm">{{ t('admin.jobs.empty') }}</p>
+    <p v-else-if="rows.length === 0" class="state text-sm">{{ t(emptyKey) }}</p>
 
     <table v-else>
       <caption class="sr-only">{{ t(captionKey) }}</caption>

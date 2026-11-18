@@ -30,7 +30,7 @@ const passwordDialog = ref(null)
 
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 const me = computed(() => ({
-  id: '',
+  id: (auth.user && auth.user.id) || '',
   username: (auth.user && auth.user.username) || ''
 }))
 
@@ -258,6 +258,9 @@ onMounted(load)
       <p>{{ failure }}</p>
       <router-link v-if="errorKind(error) === 'unauthorized'" class="link" to="/signin">
         {{ t('admin.status.signInLink') }}
+      </router-link>
+      <router-link v-else-if="errorKind(error) === 'forbidden'" class="link" to="/">
+        {{ t('admin.forbidden.home') }}
       </router-link>
       <button v-else class="btn" type="button" @click="load">{{ t('admin.common.retry') }}</button>
     </div>

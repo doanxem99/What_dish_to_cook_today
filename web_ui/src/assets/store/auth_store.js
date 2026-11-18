@@ -31,6 +31,7 @@ const accountFrom = function(response) {
     const account = response.data.user || {};
     return {
         ...account,
+        id: account.id ? String(account.id) : '',
         roles: Array.isArray(response.data.roles) ? response.data.roles : [],
         mustChange: response.data.must_change_password === true,
     };
@@ -82,6 +83,7 @@ export const useAuthStore = defineStore("auth", {
                 const account = data.user || {};
                 this.user = {
                     ...this.user,
+                    id: account.id ? String(account.id) : this.user.id,
                     roles: Array.isArray(account.roles) ? account.roles : [],
                     mustChange: data.must_change_password === true,
                 };
