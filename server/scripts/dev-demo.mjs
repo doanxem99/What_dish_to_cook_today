@@ -1,27 +1,10 @@
 //Local demo stack: in-memory MongoDB, seeded catalog, then the real server.
 //For UI verification only. Never used in production.
 import { MongoMemoryServer } from 'mongodb-memory-server'
-import fs from 'node:fs/promises'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { INGREDIENTS } from './seed-catalog.mjs'
-import { DISHES } from './seed-dishes.mjs'
-import nutritionData from './nutrition.json' with { type: 'json' }
+import { loadCatalog } from '../config/catalog/index.js'
 
-const here = path.dirname(fileURLToPath(import.meta.url))
-let ingredientImages = {}
-try {
-    ingredientImages = JSON.parse(await fs.readFile(path.join(here, 'seed-ingredient-images.json'), 'utf8'))
-} catch (error) {
-    ingredientImages = {}
-}
-
-let images = {}
-try {
-    images = JSON.parse(await fs.readFile(path.join(here, 'seed-images.json'), 'utf8'))
-} catch (error) {
-    images = {}
-}
+const catalog = loadCatalog()
+const nutritionData = catalog.nutrition
 
 const mongod = await MongoMemoryServer.create({
     instance: { port: 27017, dbName: 'what_dish_to_cook_today' }
@@ -46,23 +29,6 @@ const user = await User.create({
 })
 const userId = user._id.toString()
 
-//House recipe quantities in grams; nutrition is computed from the USDA table.
-const DISH_AMOUNTS = {
-    'Beef noodle soup': { servings: 4, amounts: { Beef: 400, 'Rice noodle': 400, Ginger: 30, Onion: 150, 'Star anise': 5, 'Fish sauce': 40, Salt: 8 } },
-    'Grilled pork with noodles': { servings: 2, amounts: { Pork: 300, 'Rice vermicelli': 200, Garlic: 10, 'Fish sauce': 30, Sugar: 20, Carrot: 80, Cilantro: 15 } },
-    'Grilled pork vermicelli bowl': { servings: 2, amounts: { Pork: 300, 'Rice vermicelli': 200, Cucumber: 100, Carrot: 80, 'Bean sprouts': 100, 'Fish sauce': 30, Cilantro: 15 } },
-    'Broken rice with pork': { servings: 2, amounts: { Rice: 200, Pork: 250, Egg: 60, Carrot: 60, Daikon: 60, 'Fish sauce': 25 } },
-    'Fresh spring rolls': { servings: 3, amounts: { 'Rice paper': 60, Shrimp: 200, Pork: 200, Cucumber: 80, Cilantro: 15, 'Fish sauce': 25 } },
-    'Vietnamese sandwich': { servings: 2, amounts: { Baguette: 200, Pork: 200, Carrot: 60, Daikon: 60, Cucumber: 60, Cilantro: 10, 'Soy sauce': 15 } },
-    'Sour fish soup': { servings: 4, amounts: { Fish: 500, Tamarind: 40, Pineapple: 150, Tomato: 200, Okra: 150, 'Bean sprouts': 100, 'Fish sauce': 30 } },
-    'Caramelised fish': { servings: 3, amounts: { Fish: 500, 'Fish sauce': 40, Sugar: 30, 'Black pepper': 3, Garlic: 15, 'Cooking oil': 20 } },
-    'Water spinach with garlic': { servings: 2, amounts: { 'Water spinach': 400, Garlic: 15, 'Cooking oil': 20, 'Fish sauce': 15 } },
-    'Egg fried rice': { servings: 2, amounts: { Rice: 200, Egg: 120, Scallion: 20, 'Soy sauce': 15, 'Cooking oil': 20 } },
-    'Lemongrass chicken': { servings: 3, amounts: { Chicken: 600, Lemongrass: 30, Garlic: 15, 'Fish sauce': 30, Sugar: 15, 'Black pepper': 2 } },
-    'Mung bean sweet soup': { servings: 4, amounts: { 'Mung bean': 200, Sugar: 100, 'Coconut milk': 200 } },
-    'Sizzling rice pancake': { servings: 3, amounts: { 'Rice flour': 200, Turmeric: 5, 'Coconut milk': 200, Shrimp: 150, Pork: 150, 'Bean sprouts': 100, Scallion: 20 } }
-}
-
 const round = (value, digits) => {
     const factor = 10 ** digits
     return Math.round(value * factor) / factor
@@ -74,7 +40,7 @@ const recipeNutrition = function(recipe) {
     }
     const total = { calories: 0, protein: 0, fat: 0, carbs: 0, fiber: 0, sodium: 0 }
     for (const [name, grams] of Object.entries(recipe.amounts)) {
-        const per100 = nutritionData.ingredients[name]?.per_100g
+        const per100 = nutritionData[name]?.per_100g
         if (!per100) {
             continue
         }
@@ -94,8 +60,8 @@ const recipeNutrition = function(recipe) {
 }
 
 const ingredientIds = {}
-for (const [name, nameVi, type, detail, detailVi] of INGREDIENTS) {
-    const nutrition = nutritionData.ingredients[name] || null
+for (const row of catalog.ingredients) {
+    const { name, name_vi: nameVi, type, short_detail: detail, short_detail_vi: detailVi, nutrition } = row
     const ingredient = await Ingredient.create({ name, name_vi: nameVi, best_post_id: '', nutrition, is_need_update: false })
     const post = await IngredientPost.create({
         name,
@@ -110,7 +76,7 @@ for (const [name, nameVi, type, detail, detailVi] of INGREDIENTS) {
         nutrition,
         short_detail: detail,
         short_detail_vi: detailVi,
-        profile_image: ingredientImages[name] ? ingredientImages[name].file : '',
+        profile_image: row.image || '',
         display_blocks: [
             {
                 type: 'text',
@@ -127,16 +93,17 @@ for (const [name, nameVi, type, detail, detailVi] of INGREDIENTS) {
 }
 
 let featuredPostId = null
-for (const dish of DISHES) {
+for (const dish of catalog.dishes) {
     const dishDoc = await Dish.create({
         name: dish.name,
-        name_vi: dish.nameVi,
+        name_vi: dish.name_vi,
         best_post_id: '',
         is_need_update: false
     })
+    const amounts = { servings: dish.servings, amounts: dish.amounts }
     const post = await DishPost.create({
         name: dish.name,
-        name_vi: dish.nameVi,
+        name_vi: dish.name_vi,
         user_id: userId,
         dish_id: dishDoc._id.toString(),
         unique_id: `${dishDoc._id}_${userId}`,
@@ -146,15 +113,13 @@ for (const dish of DISHES) {
         views: 0,
         comments: 0,
         ingredients: dish.ingredients.map(name => ingredientIds[name]).filter(Boolean),
-        short_detail: dish.detail,
-        short_detail_vi: dish.detailVi,
-        profile_image: images[dish.name] ? images[dish.name].file : '',
-        servings: DISH_AMOUNTS[dish.name]?.servings || null,
-        nutrition: recipeNutrition(DISH_AMOUNTS[dish.name]),
-        ingredient_amounts: DISH_AMOUNTS[dish.name]
-            ? Object.entries(DISH_AMOUNTS[dish.name].amounts).map(([name, grams]) => ({ ingredient_id: ingredientIds[name], grams }))
-            : [],
-        display_blocks: dish.steps.map(([text, textVi]) => ({ type: 'text', text, text_vi: textVi, font_size: 14, color: 'black' }))
+        short_detail: dish.short_detail,
+        short_detail_vi: dish.short_detail_vi,
+        profile_image: dish.image || '',
+        servings: dish.servings || null,
+        nutrition: recipeNutrition(amounts),
+        ingredient_amounts: Object.entries(dish.amounts).map(([name, grams]) => ({ ingredient_id: ingredientIds[name], grams })),
+        display_blocks: dish.steps.map(step => ({ type: 'text', text: step.text, text_vi: step.text_vi, font_size: 14, color: 'black' }))
     })
     dishDoc.best_post_id = post._id.toString()
     await dishDoc.save()

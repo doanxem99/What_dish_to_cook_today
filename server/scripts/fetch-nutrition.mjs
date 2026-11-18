@@ -3,9 +3,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const root = path.resolve(import.meta.dirname, '..');
-const outFile = path.join(root, 'scripts', 'nutrition.json');
-const { INGREDIENTS } = await import('./seed-catalog.mjs');
+const catalogDir = path.resolve(import.meta.dirname, '..', '..', 'catalog');
+const outFile = path.join(catalogDir, 'nutrition.json');
+const ingredientNames = JSON.parse(fs.readFileSync(path.join(catalogDir, 'ingredients.json'), 'utf8')).map(row => row.name);
 
 const NUTRIENTS = {
   calories: 208,
@@ -39,7 +39,7 @@ async function search(name) {
 }
 
 const result = {};
-for (const [name] of INGREDIENTS) {
+for (const name of ingredientNames) {
   try {
     result[name] = await search(name);
     console.log(`${name}: ${result[name] ? 'ok' : 'none'}`);
@@ -50,5 +50,8 @@ for (const [name] of INGREDIENTS) {
   await new Promise(resolve => setTimeout(resolve, 250));
 }
 
-fs.writeFileSync(outFile, JSON.stringify(result, null, 2));
+fs.writeFileSync(outFile, JSON.stringify({
+  source: 'USDA FoodData Central, SR Legacy, per 100 g (hand-entered; generic API keys rate-limit and mis-resolve)',
+  ingredients: result
+}, null, 2));
 console.log(`Wrote ${outFile}`);

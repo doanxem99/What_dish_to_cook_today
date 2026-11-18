@@ -1,12 +1,12 @@
 //Fetch a freely licensed photo per dish from Wikimedia Commons.
-//Writes server/public/pictures/dishes/<slug>.jpg and seed-images.json with provenance.
+//Writes server/public/pictures/dishes/<slug>.jpg and dishes images in catalog/images.json with provenance.
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const outDir = path.join(here, '../public/pictures/dishes')
-const creditsPath = path.join(here, 'seed-images.json')
+const creditsPath = path.join(here, '../../catalog/images.json')
 
 const DISHES = [
     ['Beef noodle soup', 'pho-bo', ['pho bo', 'phở bò']],
@@ -53,7 +53,8 @@ async function search(term) {
 }
 
 await fs.mkdir(outDir, { recursive: true })
-const credits = {}
+const images = JSON.parse(await fs.readFile(creditsPath, 'utf8'))
+const credits = images.dishes
 
 for (const [name, slug, terms] of DISHES) {
     const existing = path.join(outDir, `${slug}.jpg`)
@@ -101,5 +102,5 @@ for (const [name, slug, terms] of DISHES) {
     await new Promise(resolve => setTimeout(resolve, 600))
 }
 
-await fs.writeFile(creditsPath, JSON.stringify(credits, null, 2) + '\n')
+await fs.writeFile(creditsPath, JSON.stringify({ ...images, dishes: credits }, null, 2) + '\n')
 console.log(`Wrote ${Object.keys(credits).length} credits to ${creditsPath}`)
