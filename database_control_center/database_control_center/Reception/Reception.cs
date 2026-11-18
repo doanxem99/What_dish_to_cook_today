@@ -1,4 +1,4 @@
-﻿
+
 using System;
 using System.Threading;
 using Websocket.Client;
@@ -51,11 +51,11 @@ namespace database_control_center
         }
 
         //One client is enough for the whole process
-        private static readonly MongoClient dbClient = new MongoClient("mongodb://localhost:27017");
+        private static readonly MongoClient dbClient = new MongoClient(database_seed.DatabaseSeed.ConnectionString());
 
         private static IMongoCollection<BsonDocument> GetJobCollection()
         {
-            IMongoDatabase mongoDatabase = dbClient.GetDatabase("what_dish_to_cook_today");
+            IMongoDatabase mongoDatabase = dbClient.GetDatabase(database_seed.DatabaseSeed.DatabaseName);
             return mongoDatabase.GetCollection<BsonDocument>("database_worker_job");
         }
     }
@@ -101,7 +101,7 @@ namespace database_control_center
             {
                 AppLog.Log(AppLogType.Comment, "Connect server");
 
-                var url = new Uri("ws://localhost:3000/worker");
+                var url = new Uri(database_seed.DatabaseSeed.WorkerUrl());
                 client = new WebsocketClient(url);
                 client.ReconnectTimeout = TimeSpan.FromSeconds(30);
 

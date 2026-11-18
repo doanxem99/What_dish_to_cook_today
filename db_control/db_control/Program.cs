@@ -13,7 +13,7 @@ namespace db_control
 
                 if (action == "--init_data")
                 {
-                    InitData.Init();
+                    database_seed.DatabaseSeed.Init(database_seed.DatabaseSeed.ConnectionString());
                 }
                 else if(action == "--update_ingredient_vote_best_post")
                 {

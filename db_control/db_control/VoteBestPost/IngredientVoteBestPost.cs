@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using MongoDB.Bson;
@@ -12,9 +12,9 @@ namespace db_control.VoteBestPost
 
         public static void Update()
         {
-            MongoClient dbClient = new MongoClient("mongodb://localhost:27017");
+            MongoClient dbClient = new MongoClient(database_seed.DatabaseSeed.ConnectionString());
             //Get DB(Create new if not aready exist)
-            IMongoDatabase mongoDatabase = dbClient.GetDatabase("what_dish_to_cook_today");
+            IMongoDatabase mongoDatabase = dbClient.GetDatabase(database_seed.DatabaseSeed.DatabaseName);
             string collectionName = "ingredient";
             IMongoCollection<BsonDocument> ingredientCollection = mongoDatabase.GetCollection<BsonDocument>(collectionName);
             IMongoCollection<BsonDocument> ingredientPostCollection = mongoDatabase.GetCollection<BsonDocument>("ingredient_post");

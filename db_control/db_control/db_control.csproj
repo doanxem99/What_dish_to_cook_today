@@ -13,4 +13,8 @@
     <PackageReference Include="MongoDB.Driver" Version="3.2.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\..\shared\DatabaseSeed.cs" Link="DatabaseSeed.cs" />
+  </ItemGroup>
+
 </Project>

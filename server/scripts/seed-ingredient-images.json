@@ -254,5 +254,13 @@
     "source": "https://www.flickr.com/photos/11949088@N00/256189794",
     "license": "by-nc-nd 2.0",
     "artist": "Allan Reyes"
+  },
+  "Orange": {
+    "slug": "orange",
+    "term": "orange fruit",
+    "file": "public/pictures/ingredients/Orange.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Ambersweet_oranges.jpg",
+    "license": "Public domain",
+    "artist": "unknown"
   }
 }

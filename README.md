@@ -30,7 +30,9 @@ npm start                   # http://localhost:3000
 ```
 
 Environment variables (all optional except the secret): `JWT_SECRET`, `MONGODB_URI`,
-`CORS_ORIGINS`, `TRANSLATE_URL`, `DATABASE_WORKER_EXE`, `TRUST_PROXY=1` behind a reverse proxy.
+`CORS_ORIGINS`, `TRANSLATE_URL`, `DATABASE_WORKER_EXE`, `WORKER_WS_URL`, `TRUST_PROXY=1` behind a
+reverse proxy. The .NET worker and `db_control` read `MONGODB_URI`; the worker reads
+`WORKER_WS_URL` (default `ws://localhost:3000/worker`).
 
 Optional translation for the editor: run a LibreTranslate-compatible service and point
 `TRANSLATE_URL` at it. For example:

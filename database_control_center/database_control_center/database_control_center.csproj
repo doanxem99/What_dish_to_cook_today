@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -16,6 +16,10 @@
     <PackageReference Include="MongoDB.Driver" Version="3.2.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Websocket.Client" Version="4.4.43" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\shared\DatabaseSeed.cs" Link="DatabaseSeed.cs" />
   </ItemGroup>
 
 </Project>

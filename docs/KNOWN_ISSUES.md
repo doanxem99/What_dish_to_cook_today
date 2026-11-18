@@ -84,3 +84,7 @@ can be picked up without re-reading the codebase.
 
 19. **Flutter editors are new and lightly exercised.** Phase 3 adds dish and ingredient create/edit, uploads, drag-and-drop, blocks and the translation toggle. The file picker and drag-and-drop were not exercised in a real browser; only unit and widget tests cover the upload path.
 20. **Flutter layout is untested in a real browser.** The build is served at /flutter/ and all widget tests pass, but no browser render was captured for this pass. Check /flutter/ at 320 px and 1440 px before claiming parity.
+
+## Data tools
+
+21. **C# data tools seed a minimal catalog.** `db_control --init_data` and the worker's `ResetData` share `shared/DatabaseSeed.cs` and write nine ingredients and one spaghetti dish, which is smaller and older than `server/scripts` (38 ingredients, 13 dishes). Reset requires the admin user `moonshine@gmail.com` and fails safely without it. Do not run ResetData on a catalog you want to keep.

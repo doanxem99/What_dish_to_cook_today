@@ -55,7 +55,9 @@ README mentioned MySQL.
 ## Worker protocol
 
 The server spawns `database_control_center.exe` when no worker is connected
-(`server/config/worker/database_worker.js`). The worker connects to `ws://localhost:3000/worker`.
+(`server/config/worker/database_worker.js`). The worker connects to
+`WORKER_WS_URL` (default `ws://localhost:3000/worker`) and both tools read
+`MONGODB_URI` (default `mongodb://localhost:27017`) before opening a database.
 
 Messages are JSON:
 
@@ -68,10 +70,15 @@ Messages are JSON:
 Jobs are documents in `database_worker_job`: `{data, time_request}`.
 `data` is a colon-separated command: `ResetData` or `VoteBestPostIngredient:<ingredientId>`.
 The worker polls the collection every second, runs the command, and deletes the job only when it
-succeeded; failed jobs stay for a retry after a 10 s pause.
+succeeded; failed jobs stay for a retry after a 5 s pause and are dropped after five attempts.
+
+`ResetData` calls the shared seed in `shared/DatabaseSeed.cs`, the same one `db_control --init_data`
+uses. It requires the admin user `moonshine@gmail.com`; when the admin is missing the job fails
+before any collection is dropped, so the catalog stays intact. The shared seed writes the minimal
+demo catalog (nine ingredients, spaghetti), not the larger `server/scripts` catalog.
 
 `database_control_center/MainForm` has a text box that inserts new jobs, which is how an admin
-triggers a data reset without the API.
+triggers a data reset without the API; `ResetData` asks for confirmation first.
 
 ## Clients
 

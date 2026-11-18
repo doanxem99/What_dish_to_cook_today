@@ -105,9 +105,22 @@ namespace database_control_center
         private void ApplyCommentInsert()
         {
             string requestText = commentInsertTextBox.Text;
-            foreach(string request in requestText.Split(" "))
+            foreach(string rawRequest in requestText.Split(" ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
-                Reception.AddRequest(request);
+                //Reset drops the catalog, so ask before queuing it.
+                if (rawRequest == "ResetData")
+                {
+                    var confirm = MessageBox.Show(
+                        "ResetData drops the ingredient, dish, vote and comment collections and reseeds the minimal catalog. Continue?",
+                        "Confirm reset",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning);
+                    if (confirm != DialogResult.Yes)
+                    {
+                        continue;
+                    }
+                }
+                Reception.AddRequest(rawRequest);
             }
 
             //Remove text

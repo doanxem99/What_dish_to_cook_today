@@ -1,4 +1,4 @@
-﻿using MongoDB.Bson;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using System;
 using System.Collections;
@@ -45,9 +45,9 @@ namespace database_control_center
             try
             {
                 //Create connect to DB
-                MongoClient dbClient = new("mongodb://localhost:27017");
+                MongoClient dbClient = new(database_seed.DatabaseSeed.ConnectionString());
                 //Get DB(Create new if not aready exist)
-                IMongoDatabase mongoDatabase = dbClient.GetDatabase("what_dish_to_cook_today");
+                IMongoDatabase mongoDatabase = dbClient.GetDatabase(database_seed.DatabaseSeed.DatabaseName);
                 //Get database_worker_job collection
                 IMongoCollection<BsonDocument> jobCollection = mongoDatabase.GetCollection<BsonDocument>("database_worker_job");
 

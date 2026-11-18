@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text;
@@ -23,11 +23,11 @@ namespace database_control_center
                 {
                     if(dbClient == null)
                     {
-                        dbClient = new MongoClient("mongodb://localhost:27017");
+                        dbClient = new MongoClient(database_seed.DatabaseSeed.ConnectionString());
                     }
                     if (mongoDatabase == null)
                     {
-                        mongoDatabase = dbClient.GetDatabase("what_dish_to_cook_today");
+                        mongoDatabase = dbClient.GetDatabase(database_seed.DatabaseSeed.DatabaseName);
                     }
                     IMongoCollection<BsonDocument> ingredientCollection = mongoDatabase.GetCollection<BsonDocument>(collectionName);
                     IMongoCollection<BsonDocument> ingredientPostCollection = mongoDatabase.GetCollection<BsonDocument>("ingredient_post");

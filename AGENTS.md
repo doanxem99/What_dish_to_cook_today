@@ -19,7 +19,7 @@ Five parts, one repository:
 | `server/` | Main API, static file host, job queue, WebSocket worker endpoint | Node 22, Express 4, Mongoose 6 | port 3000 |
 | `web_ui/` | Current web client | Vue 3, Vite 6, Pinia, Tailwind 4 | port 5173 (dev) |
 | `flutter_web_dev/` | Older Flutter client; its build is copied to `server/web` | Flutter 3.32 / Dart 3 | built into `server/web` |
-| `database_control_center/` | Windows tray/worker app. Seeded UI adds job strings; a background thread runs them | .NET 9 WinForms | spawned by server |
+| `database_control_center/` | Windows worker window. Its text box queues job strings; a background thread runs them over the worker WebSocket | .NET 9 WinForms | spawned by server |
 | `db_control/` | Command line data tool | .NET 9 console | manual |
 
 `server/web/` is **generated** Flutter output served at `/flutter`.
