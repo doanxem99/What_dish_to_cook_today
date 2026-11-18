@@ -10,8 +10,9 @@ if (problems.length > 0) {
 }
 const nutritionData = catalog.nutrition
 
+//No fixed port: a real MongoDB or an orphaned memory server on 27017 would be reused and seeded.
 const mongod = await MongoMemoryServer.create({
-    instance: { port: 27017, dbName: 'what_dish_to_cook_today' }
+    instance: { dbName: 'what_dish_to_cook_today' }
 })
 process.env.MONGODB_URI = mongod.getUri('what_dish_to_cook_today')
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'dev-demo-secret'
