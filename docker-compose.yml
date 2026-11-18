@@ -1,0 +1,63 @@
+name: what-dish-to-cook-today
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    restart: unless-stopped
+    environment:
+      LT_LOAD_ONLY: en,vi
+      LT_UPDATE_MODELS: "false"
+    volumes:
+      - translate-models:/home/libretranslate/.local
+
+  server:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      libretranslate:
+        condition: service_started
+    ports:
+      #Change the host side with SERVER_PORT when 3000 is taken; the container keeps 3000.
+      - "${SERVER_PORT:-3000}:3000"
+    environment:
+      #Compose reads the same variables from a root .env file; see .env.example.
+      #The fallback is for a first run only: set a real secret before exposing the site.
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
+      #No directConnection: the driver resolves the container name.
+      MONGODB_URI: mongodb://mongo:27017/what_dish_to_cook_today
+      #Must include this site's own public origin: the built assets send an Origin header.
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-moonshine@gmail.com}
+      BACKUP_DIR: /app/backups
+      TRANSLATE_URL: ${TRANSLATE_URL:-http://libretranslate:5000/translate}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      MAINTENANCE_DISABLED: ${MAINTENANCE_DISABLED:-0}
+    volumes:
+      - backup-data:/app/backups
+      #Only gallery: mounting all of /app/public hides pictures, templates and the defaults.
+      - gallery:/app/public/gallery
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  mongo-data:
+  backup-data:
+  gallery:
+  translate-models:

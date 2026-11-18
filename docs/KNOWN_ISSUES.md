@@ -22,7 +22,9 @@ can be picked up without re-reading the codebase.
 
 ## Vue UI gaps (plan 2, current state)
 
-- **The C# seed tools still hold the small original catalog.** The local demo now seeds 30 ingredients and 13 dishes from `server/scripts/seed-catalog.mjs`; `db_control --init_data` and the worker reseed still create their older short lists. Unify the seeds when the worker is touched next.
+- **One catalog, no split left.** The older note about the C# tools holding a small catalog is
+  gone: `catalog/*.json` feeds the server reset and both .NET tools. The count is 38 ingredients
+  and 13 dishes everywhere.
 
 - **Editor screens are still on the old styling and have no Vietnamese fields.**
   `dish_edit_view.vue`, `ingredient_edit_view.vue`, the generate dialogs and `edit_box` predate the
@@ -46,9 +48,10 @@ can be picked up without re-reading the codebase.
     the path helper and `ingredient_profile.routes.test.js` guards the removed PATCH endpoint;
     nothing fails when `verifyToken` stops overwriting `req.body.userid`, or when a create route
     loses its middleware. Add a token test with a stubbed user collection.
-9. **Both seed tools are hand-written and diverge.** `db_control/InitData.cs` seeds 9
-    ingredients; `database_control_center/Workspace/Reset/ResetData.cs` seeds 6. A change in one
-    never reaches the other. Consider one seed implementation called by both.
+9. **One seed path, three callers.** `catalog/*.json` plus `shared/Catalog.cs` and
+    `shared/DatabaseSeed.cs` feed `db_control init`, the offline console and the admin reset, so
+    a new field reaches all three. The remaining risk is a stale binary: an older `db_control`
+    build still writes its own short list. Rebuild the tools after changing the catalog.
 10. **Git history still contains build output.** The index is clean and `bin/`, `obj/`, `.vs/`,
     `.cxx/` are ignored, but old commits still carry hundreds of megabytes. Use
     `git filter-repo` if the repository must shrink.
@@ -59,22 +62,40 @@ can be picked up without re-reading the codebase.
     `template_ingredient.js` are near-copies; so are `dish_profile.js` and
     `ingredient_profile.js`. They must change together today.
 12. **Reserved fields that nothing uses:** `ingredient.is_need_update`,
-    `dish.is_need_update`, `WorkerStatus` in the worker module, and `role.description`.
+    `dish.is_need_update`, the `ai` job type and its metric columns, and `role.description`.
 13. **`web_ui/src/views/homemade_dishes_view.vue`, `about_view.vue`, `profile_view.vue` are
     placeholders** ("Hello", "About"). They are linked from the header, so users can reach an
     empty page.
 
 ## Deployment notes
 
-14. **CORS allows localhost only by default.** Set `CORS_ORIGINS` (comma separated) for any real
-    domain, otherwise the browser client is blocked.
-15. **The server spawns the worker from a Debug build path.** Set `DATABASE_WORKER_EXE` to the
-    Release executable, or the API logs "Cannot start database worker" and jobs stay queued.
-16. **Port 3000 is hardcoded** in `server/app.js`; there is no `PORT` variable yet.
+14. **CORS still needs the real origins.** The server accepts an origin equal to the request's
+    own host, so the built site works on any host. The Vite dev client on 5173, or a client on a
+    different host, must be listed in `CORS_ORIGINS` (comma separated). Behind a TLS proxy also
+    set `TRUST_PROXY=1`, or the own-origin check compares `http`.
+15. **`public/gallery` is a volume in Compose, not a copy.** Existing uploads in a local
+    `server/public/gallery` are not carried into the `gallery` volume. Copy them in or restore a
+    backup before switching a live install to Compose.
+16. **Port 3000 is fixed inside the server.** `server/app.js` listens on 3000, and Compose
+    publishes `3000:3000`. Changing the host port is fine; add the new origin to
+    `CORS_ORIGINS` at the same time. There is no `PORT` variable.
 17. **The old JWT secret is in git history.** Commit `f3738d6` contains
     `JWT_SECRET = 'what-dish-to-cook-today'`. Anyone with a clone can forge tokens if a
     deployment reuses that value. Generate a fresh random secret; never restore the old one.
     History is not rewritten here.
+
+22. **`must_change_password` is enforced by the client guard only.** The server reports the flag
+    at signin and `/api/auth/me` and clears it on `POST /api/auth/password`; it does not refuse
+    other API calls from a session that has not changed its password yet. A script that keeps the
+    temporary password can use the account. Enforce the flag in `verifyToken` if that matters.
+23. **The Vite dev server cannot serve `/public/i18n/*.json`.** Those catalogs live in
+    `server/public`, and `/public` belongs to Express, so `npm run dev` renders interface keys
+    instead of translations unless a proxy or a copied folder supplies them. The build served by
+    Express at `/` is correct.
+24. **An unlisted origin on a different host is still refused.** The own-origin rule compares the
+    request's `Host`, which a reverse proxy may rewrite. When the site is reached through
+    another domain, list it in `CORS_ORIGINS`; the error is a 403 on every asset, which looks
+    like a blank page.
 
 ## Responsive layout
 
@@ -87,4 +108,9 @@ can be picked up without re-reading the codebase.
 
 ## Data tools
 
-21. **C# data tools seed a minimal catalog.** `db_control --init_data` and the worker's `ResetData` share `shared/DatabaseSeed.cs` and write nine ingredients and one spaghetti dish, which is smaller and older than `server/scripts` (38 ingredients, 13 dishes). Reset requires the admin user `moonshine@gmail.com` and fails safely without it. Do not run ResetData on a catalog you want to keep.
+21. **The C# catalog reader mirrors a JSON shape the server does not validate strictly.**
+    `shared/Catalog.cs` and `server/config/catalog/validate.js` both read `catalog/*.json`; the
+    Node side only checks the shape it uses (`validateCatalog` is not wired into the reset).
+    A malformed file fails the reset job after the backup, never before it, and the C# tools fail
+    on their own parse. Add a catalog check to the reset path if the files start being edited by
+    hand.

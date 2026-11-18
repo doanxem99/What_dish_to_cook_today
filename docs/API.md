@@ -11,10 +11,12 @@ and the server overwrites the user id from the token.
 
 | Method | Path | Body | Answer |
 |---|---|---|---|
-| POST | `/signin` | `{username, password}` (username may be the email) | `{message, user:{username}}` and the `token` cookie |
+| POST | `/signin` | `{username, password}` (username may be the email) | `{message, user:{id, username}, roles, must_change_password}` and the `token` cookie; 401 for a wrong password or a disabled account |
 | POST | `/signup` | `{username, email, password}` | `{message}`; 400 when a name/email is taken, 500 on other errors |
 | POST | `/verifytoken` | – (cookie) | `{message, userid, roles}`; 401 when the cookie is missing or bad |
-| GET | `/me` | – (cookie) | `{message, user:{id, username, email, created_at, roles}}`; `created_at` is null for users created before the field existed |
+| GET | `/me` | – (cookie) | `{message, user:{id, username, email, background_image, created_at, roles}, must_change_password}`; `created_at` is null for users created before the field existed |
+| POST | `/password` (auth) | `{current_password, new_password}` | `{message}`; 400 for a wrong current password or an empty new one, 403 for a disabled account. Clears `must_change_password`. |
+| POST | `/background` (auth) | `{background_image}` | `{message, background_image}`; 400 unless the value starts with `public/gallery/` |
 | POST | `/signout` | – | `{message}` and clears the cookie |
 
 ## Dishes — `/api/dish`
@@ -165,12 +167,10 @@ answers 503 and `/api/health`, `/api/auth/*` and `/api/admin/*` keep working.
 
 | Method | Path | Answer |
 |---|---|---|
-| GET | `/` | Vue build (`server/web_ui/index.html`) with SPA fallback |
-| GET | `/flutter` | Flutter build (`server/web/index.html`) and its assets |
+| GET | `/` | Vue build (`server/web_ui/index.html`) with SPA fallback; `/admin` and `/change-password` are client routes of that build |
+| GET | `/flutter` | Flutter build (`server/web/index.html`) and its assets, with a shell fallback for deep links |
 | GET | `/web`, `/web/*` | 301 redirect to `/flutter/` |
-| GET | `/web` | same |
-| GET | `/web/:page` | redirect to `/` |
-| GET | `/public/*` | uploaded images |
+| GET | `/public/*` | uploaded images and `i18n/en.json`, `i18n/vi.json` |
 
 The `/worker` WebSocket endpoint was removed: admin operations run in-process through the job
 queue, and the desktop tools are an offline repair kit.

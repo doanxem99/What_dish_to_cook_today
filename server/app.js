@@ -27,18 +27,32 @@ const defaultOrigins = ['http://localhost:5173', 'http://localhost:3000', 'http:
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
   : defaultOrigins;
-app.use(cors({
-  origin: (origin, callback) => {
-    //Same-origin and non-browser requests send no Origin header
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    const error = new Error('Not allowed by CORS');
-    error.status = 403;
-    return callback(error);
-  },
-  credentials: true,
-}));
+//A same-origin request is always allowed. The built Vue assets carry crossorigin, so asset
+//requests send an Origin header even from the site's own host; the allowlist alone would 403 them.
+const isOwnOrigin = function(req, origin) {
+  if (!origin || !req.headers.host) {
+    return false;
+  }
+  //Behind a proxy this needs TRUST_PROXY=1, or req.secure stays false on an HTTPS site
+  return origin === `${req.secure ? 'https' : 'http'}://${req.headers.host}`;
+};
+
+const corsForRequest = function(req) {
+  return cors({
+    origin: (origin, callback) => {
+      //Same-origin and non-browser requests send no Origin header
+      if (!origin || allowedOrigins.includes(origin) || isOwnOrigin(req, origin)) {
+        return callback(null, true);
+      }
+      const error = new Error('Not allowed by CORS');
+      error.status = 403;
+      return callback(error);
+    },
+    credentials: true,
+  });
+};
+
+app.use((req, res, next) => corsForRequest(req)(req, res, next));
 
 //Max upload size is 5 MB
 app.use(busboy({ limits: { fileSize: 5 * 1024 * 1024 } }));
