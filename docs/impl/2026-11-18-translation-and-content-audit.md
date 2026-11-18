@@ -56,6 +56,13 @@ New audit actions: `dish.create`, `dish_post.create`, `ingredient.create`, `ingr
 - `cd web_ui; npx vitest run` → all pass, count above 53; `npm run build` succeeds.
 - Live: dish creates appear in `/admin/audit`; a stopped translation service shows the inline error and keeps the text.
 
+## Final state
+
+- Server: 145 tests pass. Web: 59 tests pass. Build green.
+- Live audit check on the demo: `POST /api/dish/profile/create_dish` wrote one row, `action=dish.create`, `target=Audit probe dish`, `actor=demo`, visible through `GET /api/admin/audit`.
+- Bug found while running that check: `dev-demo.mjs` pinned the in-memory Mongo to port 27017, so an orphaned memory server from an earlier run was reused and the fresh seed collided on `role.name`. Fixed in `be2ac70`: the memory server now takes a free port. Consequence to note: killing the orphan dropped the demo data created in the preview.
+
+
 ## Accepted risks
 
 - Audit rows have no TTL; content edits grow the collection. Retention is a separate task.
