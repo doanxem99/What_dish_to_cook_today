@@ -54,6 +54,9 @@ if (!process.env.JWT_SECRET) {
 //*Init
 appDebug.init();
 
+//Promote ADMIN_USERNAME (default moonshine@gmail.com) when the account exists
+require('./routes/api/auth').promoteAdmin();
+
 //*Set public folder
 const rootPath = __dirname;
 app.use("/public", express.static(path.join(rootPath, 'public')));

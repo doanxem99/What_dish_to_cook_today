@@ -5,6 +5,15 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { verifyToken } = require('./verifyToken');
 
+const default_admin_username = function() {
+    return process.env.ADMIN_USERNAME || 'moonshine@gmail.com';
+};
+
+//Registration, sign-in and password change share one rule: a password is a non-empty string.
+const isValidPassword = function(value) {
+    return typeof value === 'string' && value.length > 0;
+};
+
 const checkDuplicate = async function(req, res, next) {
     try {
         let [username, email] = await Promise.all([
@@ -50,6 +59,11 @@ const signin = async function(req, res) {
                 message: "User/email or password is not correct!"
             });
         }
+        if (user.is_disabled) {
+            return res.status(401).send({
+                message: "This account is disabled!"
+            });
+        }
         let token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
             expiresIn: 86400 // 24 hours
         });
@@ -61,11 +75,16 @@ const signin = async function(req, res) {
             maxAge: 86400 * 1000
         });
 
+        const roles = await database.collections.Role.find({ _id: { $in: user.roles } });
+
         return res.status(200).send({
             message: "Login successfully!",
             user: {
                 username: user.username || user.email,
             },
+            roles: roles.map(role => role.name),
+            //Users created before the field existed have no flag
+            must_change_password: user.must_change_password === true,
         });
     } catch (err) {
         return res.status(500).send({
@@ -76,7 +95,7 @@ const signin = async function(req, res) {
 
 const signup = async function(req, res) {
     try {
-        if (!req.body.username || !req.body.email || !req.body.password) {
+        if (!req.body.username || !req.body.email || !isValidPassword(req.body.password)) {
             return res.status(400).send({
                 message: "Username, email and password are required!"
             });
@@ -109,6 +128,41 @@ router.get('/', function(req, res, next){
     next();
 });
 
+//Create the roles the server needs and promote the configured account once per boot.
+//A missing account is not an error.
+const promoteAdmin = async function(username = default_admin_username()) {
+    try {
+        const roles = {};
+        for (const seed of database.default_roles) {
+            roles[seed.name] = await database.collections.Role.findOneAndUpdate(
+                { name: seed.name },
+                { $setOnInsert: seed },
+                { new: true, upsert: true }
+            );
+        }
+        const user = await database.collections.User.findOne({
+            $or: [{ username: username }, { email: username }]
+        });
+        if (!user) {
+            console.log(`Admin promotion skipped: no account for ${username}.`);
+            return false;
+        }
+        const adminId = roles.admin._id.toString();
+        const isAdmin = (user.roles || []).some(id => id.toString() === adminId);
+        if (isAdmin) {
+            console.log(`${username} is already an admin.`);
+            return true;
+        }
+        user.roles = [...(user.roles || []), roles.admin._id];
+        await user.save();
+        console.log(`Promoted ${username} to admin.`);
+        return true;
+    } catch (err) {
+        console.error(`Admin promotion failed: ${err.message || err}`);
+        return false;
+    }
+};
+
 router.post('/signin',
     signin);
 
@@ -127,6 +181,28 @@ router.post('/verifytoken',
         });
     }
 )
+
+router.post('/password', verifyToken, async function(req, res) {
+    try {
+        const user = await database.collections.User.findOne({ _id: req.body.userid });
+        if (!user) {
+            return res.status(404).send({ message: "User not found!" });
+        }
+        if (!isValidPassword(req.body.current_password)
+            || !bcrypt.compareSync(req.body.current_password, user.password)) {
+            return res.status(400).send({ message: "Current password is not correct!" });
+        }
+        if (!isValidPassword(req.body.new_password)) {
+            return res.status(400).send({ message: "New password is required!" });
+        }
+        user.password = bcrypt.hashSync(req.body.new_password, 10);
+        user.must_change_password = false;
+        await user.save();
+        return res.status(200).send({ message: "Password updated!" });
+    } catch (err) {
+        return res.status(500).send({ message: err.toString() });
+    }
+})
 
 router.get('/me', verifyToken, async function(req, res){
     try {
@@ -176,3 +252,4 @@ router.post('/signout', function(req, res){
 })
 
 module.exports = router;
+module.exports.promoteAdmin = promoteAdmin;

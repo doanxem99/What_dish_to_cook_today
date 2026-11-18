@@ -30,6 +30,8 @@ const verifyToken = async function (req, res, next) {
                 message: "User not found!"
             });
         }
+        //Hand the loaded user to later middleware without a second query
+        req.current_user = user;
         
         const roles = await database.collections.Role.find({ _id: { $in: user.roles } });
         req.roles = roles.map(role => role.name);

@@ -19,6 +19,12 @@ const Role = mongoose.model('role', {
     description: String
 },'role');
 
+//Roles the server needs; created on boot when missing
+const default_roles = [
+    { name: 'user', description: 'User role' },
+    { name: 'admin', description: 'Admin role' }
+];
+
 const User = mongoose.model('user', { 
     username: {
         type: String,
@@ -45,6 +51,14 @@ const User = mongoose.model('user', {
     },
     profile_image: {
         type: Buffer
+    },
+    is_disabled: {
+        type: Boolean,
+        default: false
+    },
+    must_change_password: {
+        type: Boolean,
+        default: false
     }
 },'user'); 
 
@@ -142,6 +156,7 @@ Vote.schema.index({ user_id: 1, dish_post_id: 1 }, { unique: true });
 
 module.exports = {
     "mongoose" : mongoose,
+    "default_roles" : default_roles,
     "collections" : {
         Role,
         User,
