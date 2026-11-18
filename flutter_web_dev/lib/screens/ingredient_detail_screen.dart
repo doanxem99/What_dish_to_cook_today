@@ -81,7 +81,7 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
     return AppShell(
       active: '/ingredients',
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (_loading)
             Text(state.t('common.loading'), style: TextStyle(fontSize: 13, color: tokens.dim))

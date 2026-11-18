@@ -259,7 +259,7 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
     return AppShell(
       active: '/dishes',
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(_creating ? state.t('edit.createTitle') : state.t('edit.titleEditDish'),
               style: Theme.of(context).textTheme.titleLarge),

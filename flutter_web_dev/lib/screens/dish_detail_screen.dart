@@ -312,7 +312,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
     return AppShell(
       active: '/dishes',
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (_loading)
             Text(state.t('common.loading'), style: TextStyle(fontSize: 13, color: tokens.dim))
@@ -336,7 +336,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
 
   Widget _body(AppState state, BoardTokens tokens, DishPost post) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         BoardCard(
           child: Column(

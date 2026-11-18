@@ -234,7 +234,7 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
     return AppShell(
       active: '/ingredients',
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(_creating ? state.t('edit.createIngredientTitle') : state.t('edit.titleEditIngredient'),
               style: Theme.of(context).textTheme.titleLarge),
