@@ -33,8 +33,8 @@ Design: [spec](../superpowers/specs/2026-11-18-admin-operations-design.md) · [p
 
 | Check | Before | After |
 |---|---|---|
-| Server tests | 34 | 131 |
-| Web tests | 8 | 51 |
+| Server tests | 34 | 137 |
+| Web tests | 8 | 53 |
 | Flutter tests | 75 | 75 (untouched) |
 | .NET builds | 1 warning | 0 warnings, both projects |
 | C# self-check | none | `db_seed_tests` all pass |
@@ -57,3 +57,5 @@ Design: [spec](../superpowers/specs/2026-11-18-admin-operations-design.md) · [p
 - `npm run dev` cannot serve `/public/i18n/*.json`, so raw keys render under Vite; the Express-served build is correct.
 - AI metrics have no producer yet; the tab stays hidden until `AI_ENABLED`.
 - Container image tags for mongo and LibreTranslate are pinned to major/minor, not digests.
+- The admin mutation guard is an in-process mutex: correct for one server process, and a multi-instance deployment needs a database transaction.
+- A handler that exceeds its timeout stays counted as running until it actually settles, so a truly hung handler blocks the queue instead of overlapping with it. That is the safe trade-off.
