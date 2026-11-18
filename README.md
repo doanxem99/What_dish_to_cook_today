@@ -4,6 +4,30 @@ Pick the ingredients you have at home and the site shows dishes that use them.
 Signed-in users can create dishes and ingredients and write their detail pages. Admins get a
 guarded `/admin` area for jobs, backups, users and audit history.
 
+## Admin area
+
+The operations board is one glance: four live probes, real counts, and the most recent work. No
+decorative charts, no fabricated uptime — each probe names its own fix when it fails.
+
+![Admin overview: status probes, catalog counts and recent jobs](docs/images/admin-overview.jpg)
+
+Backups and the two destructive actions live together, separated from normal work. Reset and
+Restore both require the word to be typed, and both write a backup first.
+
+![Backups list and the danger zone with restore and reset](docs/images/admin-backups.jpg)
+
+What the area does:
+
+- **Jobs** are background admin operations only: `backup`, `reset`, `restore`, `recalc_best_post`.
+  Each row moves queued → running → done/failed within seconds. Creating a dish is not a job.
+- **Audit** is the record of who did what: admin actions plus content creation and comment
+  removal (`dish.create`, `dish_post.edit`, `ingredient.create`, `comment.delete`, …), with a
+  readable target, not a raw id.
+- **Users** manages admins, disabled accounts and one-time temporary passwords. The last admin
+  and your own role cannot be removed.
+- **AI** stays hidden until a provider exists; when it ships the tab shows model, latency, tokens
+  and cost, never prompt text.
+
 ## Parts
 
 | Folder | What it is |
@@ -52,6 +76,21 @@ inside the container) and add `http://localhost:3100` to `CORS_ORIGINS`. An orig
 listed is refused, so the site's own public origin always belongs in that list.
 
 `docker compose down -v` removes the stack **and its data**. Use `docker compose down` to keep it.
+
+## Try it locally in one command
+
+No Docker, no database install: an in-memory MongoDB, the seeded catalog and the real server.
+
+```bash
+cd server
+npm install
+node scripts/dev-demo.mjs        # http://localhost:3000
+```
+
+Sign in with `demo` / `demo1234`. Start it with `ADMIN_USERNAME=demo` (PowerShell:
+`$env:ADMIN_USERNAME='demo'; node scripts/dev-demo.mjs`) to give that account the admin role and
+open `/admin`. Data lives in memory and is gone when the process stops; the memory server takes a
+free port, so it never touches a local MongoDB.
 
 ## Environment
 
@@ -118,7 +157,8 @@ docker run -d --name libretranslate -p 5000:5000 \
 ```
 
 Without it the editor's auto-translate toggle reports that translation is unavailable and you
-enter both languages yourself.
+enter both languages yourself. A failure keeps what you typed and says whether the service is not
+configured or simply not answering; saving is never blocked.
 
 ## Run the Vue client for development
 
