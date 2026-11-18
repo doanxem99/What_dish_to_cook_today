@@ -38,6 +38,10 @@ class AppState extends ChangeNotifier {
         _locale = locale,
         _isLight = isLight {
     _restoreBasket();
+    final savedView = AppStorage.read('dishes-view');
+    if (savedView == 'grid' || savedView == 'list') {
+      _view = savedView!;
+    }
   }
 
   final Map<String, I18n> catalogues;

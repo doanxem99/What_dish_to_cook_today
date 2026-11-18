@@ -75,6 +75,7 @@ const createIngredientPost = async function(_postData)
         'date_time' : new Date().toJSON(),
         'points' : 0,
         'type' : type,
+        'nutrition' : _postData.data.nutrition || null,
         'short_detail' : short_detail,
         'short_detail_vi' : short_detail_vi,
         'profile_image' : profile_image,
@@ -174,6 +175,7 @@ const createIngredient = async function(_postData){
                 'data': {
                     'user_id' : user_id,
                     'name_vi' : _postData.name_vi || "",
+                    'nutrition' : _postData.nutrition || null,
                     'type' : type,
                     'short_detail' : short_detail,
                     'short_detail_vi' : _postData.short_detail_vi || "",

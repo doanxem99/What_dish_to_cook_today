@@ -61,7 +61,7 @@ class BoardButton extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(BoardTokens.radius),
         child: Container(
-          height: dense ? 26 : 32,
+          height: dense ? 30 : 36,
           padding: EdgeInsets.symmetric(horizontal: dense ? 8 : 10),
           decoration: BoxDecoration(
             color: primary ? tokens.red : Colors.transparent,
@@ -136,7 +136,7 @@ class BoardChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(999),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 28),
+          constraints: const BoxConstraints(minHeight: 34),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
             color: tokens.raised,

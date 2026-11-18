@@ -24,6 +24,8 @@ ThemeData boardTheme(BoardTokens tokens) {
     cardColor: tokens.raised,
     dividerColor: tokens.line,
     splashFactory: NoSplash.splashFactory,
+    focusColor: tokens.amber.withValues(alpha: 0.24),
+    hoverColor: tokens.amber.withValues(alpha: 0.12),
     highlightColor: Colors.transparent,
     textTheme: textTheme,
     colorScheme: ColorScheme.fromSeed(

@@ -26,6 +26,15 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
   final _nameVi = TextEditingController();
   final _short = TextEditingController();
   final _shortVi = TextEditingController();
+  final _nutritionDescription = TextEditingController();
+  final Map<String, TextEditingController> _nutrition = {
+    'calories': TextEditingController(),
+    'protein': TextEditingController(),
+    'fat': TextEditingController(),
+    'carbs': TextEditingController(),
+    'fiber': TextEditingController(),
+    'sodium': TextEditingController(),
+  };
   final List<EditorBlock> _blocks = [];
   String _type = 'Other';
   bool _autoTranslate = false;
@@ -96,6 +105,14 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
           _blocks
             ..clear()
             ..addAll(parsed.blocks.map((block) => EditorBlock.fromJson(block.toJson())));
+          final nutrition = (post is Map ? post['nutrition'] : null);
+          if (nutrition is Map) {
+            _nutritionDescription.text = '${nutrition['description'] ?? ''}';
+            final per = nutrition['per_100g'] is Map ? nutrition['per_100g'] as Map : nutrition;
+            for (final entry in _nutrition.entries) {
+              entry.value.text = per[entry.key] == null ? '' : '${per[entry.key]}';
+            }
+          }
         }
       }
     } catch (_) {
@@ -136,6 +153,13 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
         'short_detail_vi': _shortVi.text,
         'profile_image': _image,
         'display_blocks': _blocks.map((block) => block.toJson()).toList(),
+        'nutrition': {
+          'description': _nutritionDescription.text,
+          'per_100g': {
+            for (final entry in _nutrition.entries)
+              entry.key: double.tryParse(entry.value.text) ?? 0,
+          },
+        },
       };
       if (_creating) {
         final response = await state.api.postJson('/api/ingredient/profile/create_ingredient', payload);
@@ -223,6 +247,10 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
     _nameVi.dispose();
     _short.dispose();
     _shortVi.dispose();
+    _nutritionDescription.dispose();
+    for (final controller in _nutrition.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -301,6 +329,33 @@ class _IngredientEditorScreenState extends State<IngredientEditorScreen> {
                       setState(() => _image = path);
                     },
                     onError: _handleImageError,
+                  ),
+                  const SizedBox(height: 14),
+                  Text('${state.t('edit.nutrition')} (100 g)'.toUpperCase(), style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: tokens.dim)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    key: const ValueKey('ing-nutrition-description'),
+                    controller: _nutritionDescription,
+                    style: TextStyle(fontSize: 13, color: tokens.ink),
+                    decoration: const InputDecoration(labelText: 'USDA description'),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final entry in _nutrition.entries)
+                        SizedBox(
+                          width: 140,
+                          child: TextField(
+                            key: ValueKey('ing-nutrition-${entry.key}'),
+                            controller: entry.value,
+                            keyboardType: TextInputType.number,
+                            style: TextStyle(fontSize: 13, color: tokens.ink),
+                            decoration: InputDecoration(labelText: entry.key),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 14),
                   Text(state.t('edit.blocks').toUpperCase(), style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: tokens.dim)),

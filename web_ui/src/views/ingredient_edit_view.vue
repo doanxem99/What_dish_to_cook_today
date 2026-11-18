@@ -19,6 +19,7 @@ export default {
         short_detail: '',
         short_detail_vi: '',
         profile_image: '',
+        nutrition: { description: '', per_100g: { calories: 0, protein: 0, fat: 0, carbs: 0, fiber: 0, sodium: 0 } },
         blocks: []
       }
     }
@@ -57,6 +58,7 @@ export default {
             this.model.short_detail_vi = post.short_detail_vi || ''
             this.model.profile_image = post.profile_image || ''
             this.model.blocks = Array.isArray(post.display_blocks) ? post.display_blocks : []
+            this.model.nutrition = post.nutrition || this.model.nutrition
           }
         }
       } catch (error) {
@@ -96,6 +98,7 @@ export default {
           type: this.model.type,
           short_detail: this.model.short_detail,
           short_detail_vi: this.model.short_detail_vi,
+          nutrition: this.model.nutrition,
           profile_image: this.model.profile_image
         }
         if (this.creating) {
@@ -174,6 +177,40 @@ export default {
             <span class="eyebrow">{{ t('edit.shortVi') }}</span>
             <input v-model="model.short_detail_vi" class="input" />
           </label>
+        </div>
+
+        <div>
+          <h2 class="eyebrow mb-2">{{ t('edit.nutrition') }} (100 g)</h2>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="field sm:col-span-2">
+              <span class="eyebrow">USDA description</span>
+              <input v-model="model.nutrition.description" class="input" />
+            </label>
+            <label class="field">
+              <span class="eyebrow">kcal</span>
+              <input v-model.number="model.nutrition.per_100g.calories" class="input" type="number" />
+            </label>
+            <label class="field">
+              <span class="eyebrow">protein (g)</span>
+              <input v-model.number="model.nutrition.per_100g.protein" class="input" type="number" step="0.1" />
+            </label>
+            <label class="field">
+              <span class="eyebrow">fat (g)</span>
+              <input v-model.number="model.nutrition.per_100g.fat" class="input" type="number" step="0.1" />
+            </label>
+            <label class="field">
+              <span class="eyebrow">carbs (g)</span>
+              <input v-model.number="model.nutrition.per_100g.carbs" class="input" type="number" step="0.1" />
+            </label>
+            <label class="field">
+              <span class="eyebrow">fiber (g)</span>
+              <input v-model.number="model.nutrition.per_100g.fiber" class="input" type="number" step="0.1" />
+            </label>
+            <label class="field">
+              <span class="eyebrow">sodium (mg)</span>
+              <input v-model.number="model.nutrition.per_100g.sodium" class="input" type="number" />
+            </label>
+          </div>
         </div>
 
         <div>
