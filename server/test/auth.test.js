@@ -237,3 +237,28 @@ test('boot promotion ignores a missing account', async () => {
     assert.strictEqual(await authRouter.promoteAdmin(), false);
     delete process.env.ADMIN_USERNAME;
 });
+
+test('an admin sign-in writes an audit row without password material', async () => {
+    const user = await createUser({ username: 'audit-admin', roles: ['admin'] });
+
+    const result = await signin('audit-admin', 'demo1234');
+
+    assert.strictEqual(result.status, 200);
+    const row = await collections.AuditLog.findOne({ action: 'admin.signin', target_id: String(user._id) });
+    assert.ok(row);
+    assert.strictEqual(row.actor_name, 'audit-admin');
+    assert.strictEqual(JSON.stringify(row.toObject()).includes('demo1234'), false);
+    assert.strictEqual(JSON.stringify(row.toObject()).includes('$2a$'), false);
+});
+
+test('a normal sign-in writes no admin audit row', async () => {
+    const user = await createUser({ username: 'audit-cook' });
+
+    const result = await signin('audit-cook', 'demo1234');
+
+    assert.strictEqual(result.status, 200);
+    assert.strictEqual(
+        await collections.AuditLog.countDocuments({ action: 'admin.signin', target_id: String(user._id) }),
+        0
+    );
+});

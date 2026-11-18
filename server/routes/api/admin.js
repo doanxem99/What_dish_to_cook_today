@@ -159,11 +159,15 @@ const probeTranslation = async function() {
 
 const probeBackupDir = async function() {
     const dir = backups.backupDir();
+    const probe = path.join(dir, `.probe-${crypto.randomBytes(6).toString('hex')}`);
     try {
         await fs.mkdir(dir, { recursive: true });
-        await fs.access(dir);
+        //Actually create and remove a file: a read-only directory still passes an access check.
+        await fs.writeFile(probe, '');
+        await fs.unlink(probe);
         return { dir_writable: true, dir };
     } catch (error) {
+        await fs.unlink(probe).catch(() => {});
         return { dir_writable: false, dir, error: error.message };
     }
 };
@@ -180,7 +184,7 @@ router.get('/health', wrap(async function(req, res) {
 
     const [
         users, ingredients, dishes, dish_posts, comments, votes,
-        translation, backupDir, lastBackupRows, lastReset
+        translation, backupDir, lastBackupRows, lastReset, maintenanceDoc
     ] = await Promise.all([
         collections.User.countDocuments({}),
         collections.Ingredient.countDocuments({}),
@@ -191,7 +195,8 @@ router.get('/health', wrap(async function(req, res) {
         probeTranslation(),
         probeBackupDir(),
         backups.listBackups(),
-        collections.AdminJob.findOne({ type: 'reset' }).sort({ created_at: -1 })
+        collections.AdminJob.findOne({ type: 'reset' }).sort({ created_at: -1 }),
+        collections.Setting.findOne({ key: 'maintenance' })
     ]);
 
     const lastBackup = lastBackupRows.length > 0 ? lastBackupRows[0] : null;
@@ -209,6 +214,11 @@ router.get('/health', wrap(async function(req, res) {
             dir: backupDir.dir,
             last: lastBackup,
             error: backupDir.error
+        },
+        maintenance: {
+            on: Boolean(maintenanceDoc && maintenanceDoc.enabled),
+            reason: maintenanceDoc ? maintenanceDoc.reason || '' : '',
+            updated_at: maintenanceDoc ? maintenanceDoc.updated_at || null : null
         },
         last_reset: lastReset ? {
             id: String(lastReset._id),
@@ -266,7 +276,7 @@ router.post('/backup', wrap(async function(req, res) {
 
 router.get('/backups', wrap(async function(req, res) {
     const rows = await backups.listBackups();
-    return res.status(200).send({ rows, total: rows.length });
+    return res.status(200).send({ rows, total: rows.length, page: 1 });
 }));
 
 router.get('/backups/:id', wrap(async function(req, res) {
@@ -276,11 +286,25 @@ router.get('/backups/:id', wrap(async function(req, res) {
     if (!row) {
         return fail(res, 404, 'not_found', 'Backup not found');
     }
-    await audit(req, 'backup.download', 'backup', row.id, row.file);
-    return res.download(path.join(backups.backupDir(), row.file), row.file, (error) => {
-        if (error && !res.headersSent) {
-            fail(res, 500, 'download_failed', error.message);
+    return res.download(path.join(backups.backupDir(), row.file), row.file, function(error) {
+        //The row records the outcome, so a broken stream is not reported as a download.
+        if (error) {
+            recordAudit({
+                actorId: req.current_user._id,
+                actorName: req.current_user.username || req.current_user.email || '',
+                action: 'backup.download',
+                targetType: 'backup',
+                targetId: row.id,
+                result: 'failed',
+                detail: error.message,
+                ip: req.ip || ''
+            }).catch(() => {});
+            if (!res.headersSent) {
+                fail(res, 500, 'download_failed', error.message);
+            }
+            return;
         }
+        audit(req, 'backup.download', 'backup', row.id, row.file).catch(() => {});
     });
 }));
 
@@ -354,7 +378,12 @@ router.post('/users/:id/role', wrap(async function(req, res) {
     );
     const wasAdmin = isAdmin(user, adminRole._id);
 
-    if (!req.body.admin && wasAdmin) {
+    //Nothing to change: no save and no audit row for a no-op.
+    if (req.body.admin === wasAdmin) {
+        return res.status(200).send(await userRowWithRoles(user));
+    }
+
+    if (!req.body.admin) {
         if (String(user._id) === String(req.current_user._id)) {
             return fail(res, 409, 'self', 'An admin cannot demote themselves');
         }
@@ -363,7 +392,13 @@ router.post('/users/:id/role', wrap(async function(req, res) {
         }
         user.roles = (user.roles || []).filter(id => String(id) !== String(adminRole._id));
         await user.save();
-    } else if (req.body.admin && !wasAdmin) {
+        //Two concurrent demotions can both pass the check above; the recount owns the final word.
+        if ((await enabledAdminCount(adminRole._id)) === 0) {
+            user.roles = [...user.roles, adminRole._id];
+            await user.save();
+            return fail(res, 409, 'last_admin', 'The last admin cannot be demoted');
+        }
+    } else {
         user.roles = [...(user.roles || []), adminRole._id];
         await user.save();
     }
@@ -385,14 +420,20 @@ router.post('/users/:id/disabled', wrap(async function(req, res) {
         return fail(res, 409, 'self', 'An admin cannot disable themselves');
     }
     const adminRole = await collections.Role.findOne({ name: 'admin' });
-    if (req.body.disabled && adminRole && isAdmin(user, adminRole._id) && !user.is_disabled) {
-        if ((await enabledAdminCount(adminRole._id)) <= 1) {
-            return fail(res, 409, 'last_admin', 'The last admin cannot be disabled');
-        }
+    const disablingAdmin = req.body.disabled && adminRole && isAdmin(user, adminRole._id) && !user.is_disabled;
+    if (disablingAdmin && (await enabledAdminCount(adminRole._id)) <= 1) {
+        return fail(res, 409, 'last_admin', 'The last admin cannot be disabled');
     }
 
     user.is_disabled = req.body.disabled;
     await user.save();
+
+    //Two concurrent disables can both pass the check above; the recount owns the final word.
+    if (disablingAdmin && (await enabledAdminCount(adminRole._id)) === 0) {
+        user.is_disabled = false;
+        await user.save();
+        return fail(res, 409, 'last_admin', 'The last admin cannot be disabled');
+    }
 
     await audit(req, 'user.disabled', 'user', user._id, req.body.disabled ? 'account disabled' : 'account enabled');
     return res.status(200).send(await userRowWithRoles(user));

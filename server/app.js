@@ -17,6 +17,7 @@ app.set('trust proxy', process.env.TRUST_PROXY === '1' ? 1 : false);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(require('./config/body_error'));
 
 app.use(cookieParser());
 

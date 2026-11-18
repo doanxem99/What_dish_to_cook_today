@@ -4,6 +4,7 @@ const database = require('../../config/database/connection');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { verifyToken } = require('./verifyToken');
+const { recordAudit } = require('../../config/admin/audit');
 
 const default_admin_username = function() {
     return process.env.ADMIN_USERNAME || 'moonshine@gmail.com';
@@ -76,6 +77,20 @@ const signin = async function(req, res) {
         });
 
         const roles = await database.collections.Role.find({ _id: { $in: user.roles } });
+
+        //Admin entry is audited at sign-in; the row never carries password material.
+        if (roles.some(role => role.name === 'admin')) {
+            await recordAudit({
+                actorId: user._id,
+                actorName: user.username || user.email || '',
+                action: 'admin.signin',
+                targetType: 'user',
+                targetId: user._id,
+                result: 'ok',
+                detail: 'admin signed in',
+                ip: req.ip || ''
+            }).catch(() => {});
+        }
 
         return res.status(200).send({
             message: "Login successfully!",

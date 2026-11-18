@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const express = require('express');
 const cookieParser = require('cookie-parser');
+const fs = require('node:fs/promises');
+const path = require('node:path');
 const { once } = require('node:events');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
@@ -56,6 +58,30 @@ const call = async function(path, token, method = 'GET', body) {
     return { status: response.status, body: text ? JSON.parse(text) : null, headers: response.headers };
 };
 
+const BACKUP_FILE = 'backup-20260101-000000.json.gz';
+
+//The listing comes from the directory, so a test needs a real file with a valid name.
+const writeBackupFixture = async function() {
+    await fs.mkdir(process.env.BACKUP_DIR, { recursive: true });
+    await fs.writeFile(path.join(process.env.BACKUP_DIR, BACKUP_FILE), 'fixture');
+    return BACKUP_FILE.replace(/\.json\.gz$/, '');
+};
+
+//res.download runs its callback after the response, so an audit row can arrive just after.
+const waitFor = async function(check, ms = 2000) {
+    const until = Date.now() + ms;
+    for (;;) {
+        const value = await check();
+        if (value) {
+            return value;
+        }
+        if (Date.now() > until) {
+            return null;
+        }
+        await new Promise(resolve => setTimeout(resolve, 20));
+    }
+};
+
 before(async () => {
     mongod = await MongoMemoryServer.create();
     process.env.MONGODB_URI = mongod.getUri('admin_api_test');
@@ -68,6 +94,7 @@ before(async () => {
 
     const app = express();
     app.use(express.json());
+    app.use(require('../config/body_error'));
     app.use(cookieParser());
     app.use('/api/health', require('../routes/api/health'));
     app.use('/api/admin', require('../routes/api/admin'));
@@ -89,6 +116,7 @@ after(async () => {
 });
 
 beforeEach(async () => {
+    await fs.rm(process.env.BACKUP_DIR, { recursive: true, force: true });
     await Promise.all([
         collections.User.deleteMany({}),
         collections.Role.deleteMany({}),
@@ -357,4 +385,138 @@ test('a temporary password is returned once and stored hashed', async () => {
     const audit = await collections.AuditLog.findOne({ action: 'user.password' });
     assert.ok(audit);
     assert.strictEqual(audit.detail.includes(response.body.password), false);
+});
+
+test('backup listing is admin-only', async () => {
+    const response = await call('/api/admin/backups');
+
+    assert.strictEqual(response.status, 401);
+    assert.strictEqual(response.body.error.code, 'unauthorized');
+});
+
+test('a backup download streams the file and audits the successful stream', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    const id = await writeBackupFixture();
+
+    const response = await fetch(`${baseUrl}/api/admin/backups/${id}`, {
+        headers: { cookie: `token=${tokenFor(admin)}` }
+    });
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(await response.text(), 'fixture');
+    const audit = await waitFor(() => collections.AuditLog.findOne({ action: 'backup.download', target_id: id }));
+    assert.ok(audit);
+    assert.strictEqual(audit.result, 'ok');
+});
+
+test('restore is 409 while another job is queued', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    const id = await writeBackupFixture();
+    await collections.AdminJob.create({ type: 'backup', status: 'queued', created_at: new Date() });
+
+    const response = await call('/api/admin/restore', tokenFor(admin), 'POST', {
+        backup_id: id,
+        confirm: 'RESTORE'
+    });
+
+    assert.strictEqual(response.status, 409);
+    assert.strictEqual(response.body.error.code, 'busy');
+    assert.strictEqual(await collections.AdminJob.countDocuments({ type: 'restore' }), 0);
+});
+
+test('admin health reports the maintenance flag from settings', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    const updated = new Date('2026-02-03T04:05:06.000Z');
+    await collections.Setting.create({
+        key: 'maintenance',
+        enabled: true,
+        reason: 'restore',
+        updated_at: updated
+    });
+
+    const response = await call('/api/admin/health', tokenFor(admin));
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.maintenance.on, true);
+    assert.strictEqual(response.body.maintenance.reason, 'restore');
+    assert.strictEqual(response.body.maintenance.updated_at, updated.toISOString());
+});
+
+test('a read-only backup directory is not reported writable', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    const original = fs.writeFile;
+    fs.writeFile = async function(target, ...rest) {
+        if (String(target).includes('.probe-')) {
+            const error = new Error('EACCES: permission denied');
+            error.code = 'EACCES';
+            throw error;
+        }
+        return original.call(this, target, ...rest);
+    };
+    try {
+        const response = await call('/api/admin/health', tokenFor(admin));
+        assert.strictEqual(response.status, 200);
+        assert.strictEqual(response.body.backup.dir_writable, false);
+    } finally {
+        fs.writeFile = original;
+    }
+});
+
+test('demoting a user who is not an admin writes nothing', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    const cook = await createUser({ username: 'cook' });
+    const originalSave = collections.User.prototype.save;
+    let saves = 0;
+    collections.User.prototype.save = function(...args) {
+        saves += 1;
+        return originalSave.apply(this, args);
+    };
+    try {
+        const response = await call(`/api/admin/users/${cook._id}/role`, tokenFor(admin), 'POST', { admin: false });
+        assert.strictEqual(response.status, 200);
+        assert.deepStrictEqual(response.body.roles, ['user']);
+        assert.strictEqual(saves, 0);
+    } finally {
+        collections.User.prototype.save = originalSave;
+    }
+    assert.strictEqual(await collections.AuditLog.countDocuments({ action: 'user.role' }), 0);
+});
+
+test('a demotion that empties the admins is rolled back', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    const second = await createUser({ username: 'second', roles: ['user', 'admin'] });
+    const original = collections.User.countDocuments;
+    let calls = 0;
+    collections.User.countDocuments = async function(filter) {
+        //First check sees a healthy pair; the post-update recount sees the race result.
+        if (filter && filter.roles) {
+            calls += 1;
+            return calls === 1 ? 2 : 0;
+        }
+        return original.call(this, filter);
+    };
+    try {
+        const response = await call(`/api/admin/users/${second._id}/role`, tokenFor(admin), 'POST', { admin: false });
+        assert.strictEqual(response.status, 409);
+        assert.strictEqual(response.body.error.code, 'last_admin');
+    } finally {
+        collections.User.countDocuments = original;
+    }
+
+    const stored = await collections.User.findById(second._id);
+    assert.strictEqual(stored.roles.length, 2);
+    assert.strictEqual(await collections.AuditLog.countDocuments({ action: 'user.role' }), 0);
+});
+
+test('a malformed JSON body answers the documented error envelope', async () => {
+    const response = await fetch(`${baseUrl}/api/admin/reset`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{not json'
+    });
+
+    assert.strictEqual(response.status, 400);
+    const body = await response.json();
+    assert.strictEqual(body.error.code, 'invalid_json');
+    assert.strictEqual(typeof body.error.message, 'string');
 });
