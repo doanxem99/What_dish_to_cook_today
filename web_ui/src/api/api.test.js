@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { api } from './index.js'
+import { api, serverBase } from './index.js'
 
 function stubFetch(response) {
     globalThis.fetch = vi.fn(async () => response)
@@ -32,5 +32,11 @@ describe('api', () => {
         expect(options.credentials).toBe('include')
         expect(options.method).toBe('POST')
         expect(options.body).toBe('{"a":1}')
+    })
+
+    it('normalises the server base with or without a trailing slash', () => {
+        expect(serverBase('https://api.example')).toBe('https://api.example')
+        expect(serverBase('https://api.example/')).toBe('https://api.example')
+        expect(serverBase('https://api.example/') + '/api/x').toBe('https://api.example/api/x')
     })
 })

@@ -177,3 +177,12 @@ export function errorKind(error) {
   }
   return status ? 'request' : 'network'
 }
+
+//The admin health poll ends the session on 401 and the role on 403; every other failure retries.
+export function healthFailure(error) {
+  const kind = errorKind(error)
+  if (kind === 'unauthorized') {
+    return 'signout'
+  }
+  return kind === 'forbidden' ? 'demoted' : 'retry'
+}

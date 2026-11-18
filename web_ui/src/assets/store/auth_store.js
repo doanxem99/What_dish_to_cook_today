@@ -99,6 +99,18 @@ export const useAuthStore = defineStore("auth", {
                 Cookie.set('user', JSON.stringify(this.user));
             }
         },
+        //A 403 from an admin endpoint means the role is gone but the session is alive: keep the
+        //account and drop only the admin role, so the layout renders the forbidden panel.
+        roleLost() {
+            if (this.user) {
+                this.user = {
+                    ...this.user,
+                    roles: (Array.isArray(this.user.roles) ? this.user.roles : [])
+                        .filter(role => role !== 'admin'),
+                };
+                Cookie.set('user', JSON.stringify(this.user));
+            }
+        },
         async signOut() {
             try {
                 await authAction.signout()

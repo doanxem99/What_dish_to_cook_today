@@ -5,7 +5,7 @@ import adminApi from '../../api/admin'
 import { useAuthStore } from '../../assets/store/auth_store'
 import { useI18n } from '../../i18n'
 import AdminToast from '../../components/admin/admin_toast.vue'
-import { errorKind, maintenanceReason } from '../../components/admin/admin_format.js'
+import { healthFailure, maintenanceReason } from '../../components/admin/admin_format.js'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -20,6 +20,11 @@ const healthLoading = ref(false)
 const checkedAt = ref('')
 const failedAt = ref('')
 let timer = null
+
+function stopPoll() {
+  if (timer) clearInterval(timer)
+  timer = null
+}
 
 function when(value) {
   if (!value) return ''
@@ -37,9 +42,14 @@ async function loadHealth() {
   } catch (error) {
     healthError.value = error
     failedAt.value = when(new Date().toISOString())
-    //A 401 means the session is gone: clear the stale account so the sign-in link is reachable.
-    if (errorKind(error) === 'unauthorized') {
+    //401 ends the session; 403 means only the role is gone. Neither can recover by polling.
+    const failure = healthFailure(error)
+    if (failure === 'signout') {
+      stopPoll()
       await auth.signOut()
+    } else if (failure === 'demoted') {
+      stopPoll()
+      auth.roleLost()
     }
   } finally {
     healthLoading.value = false
@@ -88,7 +98,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  if (timer) clearInterval(timer)
+  stopPoll()
   document.removeEventListener('visibilitychange', onVisible)
 })
 </script>

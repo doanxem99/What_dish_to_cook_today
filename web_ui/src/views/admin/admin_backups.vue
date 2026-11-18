@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import adminApi from '../../api/admin'
-import serverInfo from '../../assets/js/server_info.js'
+import { serverBase } from '../../api/index.js'
 import { useAuthStore } from '../../assets/store/auth_store'
 import { useI18n } from '../../i18n'
 import ConfirmDialog from '../../components/admin/confirm_dialog.vue'
@@ -224,7 +224,7 @@ async function submitDialog() {
 async function download(row) {
   try {
     const response = await fetch(
-      serverInfo.serverUrl + 'api/admin/backups/' + encodeURIComponent(row.id),
+      serverBase() + '/api/admin/backups/' + encodeURIComponent(row.id),
       { credentials: 'include' }
     )
     if (!response.ok) {

@@ -8,6 +8,7 @@ import {
   formatCost,
   formatTokens,
   hasActiveJobs,
+  healthFailure,
   jobStatusLabel,
   jobTypeLabel,
   maintenanceReason,
@@ -141,6 +142,15 @@ describe('errorKind', () => {
     expect(errorKind({ status: 502 })).toBe('server')
     expect(errorKind({ status: 400 })).toBe('request')
     expect(errorKind({})).toBe('network')
+  })
+})
+
+describe('healthFailure', () => {
+  it('ends the session on 401, the role on 403, and retries the rest', () => {
+    expect(healthFailure({ status: 401 })).toBe('signout')
+    expect(healthFailure({ status: 403 })).toBe('demoted')
+    expect(healthFailure({ status: 502 })).toBe('retry')
+    expect(healthFailure({})).toBe('retry')
   })
 })
 

@@ -104,6 +104,21 @@ namespace db_seed_tests
                 dishPost["ingredients"].AsBsonArray.Count == 7);
             Check("dish post display blocks come from the steps",
                 dishPost["display_blocks"].AsBsonArray.Count == 5);
+
+            var previousAdmin = Environment.GetEnvironmentVariable("ADMIN_USERNAME");
+            try
+            {
+                Environment.SetEnvironmentVariable("ADMIN_USERNAME", " other@example.com ");
+                Check("reset owner follows ADMIN_USERNAME",
+                    DatabaseSeed.AdminUsername == "other@example.com");
+                Environment.SetEnvironmentVariable("ADMIN_USERNAME", "");
+                Check("reset owner falls back to the seed admin",
+                    DatabaseSeed.AdminUsername == DatabaseSeed.DefaultAdminUsername);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("ADMIN_USERNAME", previousAdmin);
+            }
         }
 
         private static void CheckArchive()
@@ -220,6 +235,19 @@ namespace db_seed_tests
             Check("restore confirms before it checks the file",
                 ExitCode("restore --file definitely-missing.json.gz") == 2);
 
+            //BACKUP_DIR pointing at a file cannot hold the pre-reset archive, so init must refuse.
+            var blocker = Path.Combine(Path.GetTempPath(), "db_seed_tests-blocked-" + Guid.NewGuid().ToString("N"));
+            File.WriteAllText(blocker, "");
+            try
+            {
+                Check("init aborts when the pre-reset backup cannot be written",
+                    ExitCode("init --yes", ("BACKUP_DIR", blocker)) == 1);
+            }
+            finally
+            {
+                File.Delete(blocker);
+            }
+
             Check("non-TTY without --yes must not run",
                 !db_control.Program.CanProceed(yes: false, interactive: false));
             Check("TTY without --yes may prompt",
@@ -229,7 +257,7 @@ namespace db_seed_tests
         }
 
         //Runs the built CLI with stdin closed, so a destructive command must refuse with exit 2.
-        private static int ExitCode(string arguments)
+        private static int ExitCode(string arguments, params (string Name, string Value)[] environment)
         {
             var exe = Path.Combine(AppContext.BaseDirectory,
                 OperatingSystem.IsWindows() ? "db_control.exe" : "db_control");
@@ -241,6 +269,10 @@ namespace db_seed_tests
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            foreach (var (name, value) in environment)
+            {
+                start.Environment[name] = value;
+            }
             using var process = Process.Start(start)!;
             process.StandardInput.Close();
             process.StandardOutput.ReadToEnd();

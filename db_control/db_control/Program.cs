@@ -105,15 +105,31 @@ namespace db_control
             }
 
             var database = Connect(options).Database;
+            //A reset never runs without a backup; a failed write must leave every collection as it was.
+            var backupPath = BackupArchive.DefaultPath(BackupDirectory(), DateTime.UtcNow);
+            BackupInfo backup;
+            try
+            {
+                backup = BackupArchive.Write(database, backupPath);
+            }
+            catch (Exception error)
+            {
+                Console.Error.WriteLine("error: reset aborted, the pre-reset backup failed: " + error.Message);
+                return Failure;
+            }
+
             database_seed.DatabaseSeed.Init(options.UriOrDefault, options.DatabaseName);
             var counts = Counts(database);
 
             if (options.Json)
             {
-                PrintJson(Result("init", database.DatabaseNamespace.DatabaseName, counts));
+                var result = Result("init", database.DatabaseNamespace.DatabaseName, counts);
+                result["backup"] = backup.File;
+                PrintJson(result);
             }
             else
             {
+                Console.WriteLine($"Backed up {backup.File} ({backup.Bytes} bytes) before the reset.");
                 Console.WriteLine($"Seeded {database.DatabaseNamespace.DatabaseName} from the catalog.");
                 PrintCounts(counts);
             }
@@ -356,6 +372,12 @@ namespace db_control
             return arg == "--uri" || arg == "--db" || arg == "--out" || arg == "--file";
         }
 
+        private static string BackupDirectory()
+        {
+            var configured = Environment.GetEnvironmentVariable("BACKUP_DIR");
+            return string.IsNullOrWhiteSpace(configured) ? Environment.CurrentDirectory : configured!;
+        }
+
         private static string RestoreDirectory()
         {
             var configured = Environment.GetEnvironmentVariable("BACKUP_DIR");
@@ -395,6 +417,8 @@ Global options:
 
 Exit codes: 0 success, 1 failure, 2 usage error.
 init and restore are destructive: pass --yes or type RESET/RESTORE in a terminal.
+init first writes a backup into BACKUP_DIR (the current directory when unset) and aborts
+without dropping anything when that backup fails.
 backup writes backup-YYYYMMDD-HHmmss.json.gz in the current directory unless --out names a file.
 It uses the same gzip contract the admin page restores; copy it into BACKUP_DIR to list it there.");
         }

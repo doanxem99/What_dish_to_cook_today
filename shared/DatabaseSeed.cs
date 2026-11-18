@@ -30,11 +30,24 @@ namespace database_seed
     /// <summary>
     /// Shared catalog reset used by both database tools. It requires the admin user, checks it
     /// before dropping anything, and seeds the canonical catalog/*.json exactly like the JS reset.
+    /// The reset owner is ADMIN_USERNAME (the same variable the server promotes on boot), so a CLI
+    /// or console reset on a deployment with another admin stamps that account; unset or blank
+    /// falls back to the original seed account.
     /// </summary>
     public static class DatabaseSeed
     {
         public const string DatabaseName = "what_dish_to_cook_today";
-        public const string AdminUsername = "moonshine@gmail.com";
+        public const string DefaultAdminUsername = "moonshine@gmail.com";
+
+        /// <summary>The acting admin the reset requires and stamps on every seeded post.</summary>
+        public static string AdminUsername
+        {
+            get
+            {
+                var configured = (Environment.GetEnvironmentVariable("ADMIN_USERNAME") ?? string.Empty).Trim();
+                return configured.Length > 0 ? configured : DefaultAdminUsername;
+            }
+        }
 
         private static readonly string[] CatalogCollections =
         {
@@ -72,12 +85,13 @@ namespace database_seed
         /// <summary>Throws when the admin account is absent, before any destructive work.</summary>
         public static BsonDocument RequireAdmin(IMongoDatabase database)
         {
+            var username = AdminUsername;
             var admin = database.GetCollection<BsonDocument>("user")
-                .Find(Builders<BsonDocument>.Filter.Eq("username", AdminUsername))
+                .Find(Builders<BsonDocument>.Filter.Eq("username", username))
                 .FirstOrDefault();
             if (admin == null)
             {
-                throw new InvalidOperationException($"User {AdminUsername} must exist before data init.");
+                throw new InvalidOperationException($"User {username} must exist before data init.");
             }
             return admin;
         }
