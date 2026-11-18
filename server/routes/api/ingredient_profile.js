@@ -8,19 +8,28 @@ const profileEnum = require('../../config/enum/profile_enum');
 const { verifyToken } = require('./verifyToken');
 const { recordAudit } = require('../../config/admin/audit');
 
+const AUDIT_DETAIL_MAX = 80;
+
+const auditDetail = function(value) {
+    const text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+    return text.length > AUDIT_DETAIL_MAX ? text.slice(0, AUDIT_DETAIL_MAX) + '...' : text;
+};
+
 //A failed audit write must not undo a create that already succeeded.
 const auditContent = function(req, action, targetType, targetId, detail) {
     const user = req.current_user || {};
     return recordAudit({
-        actorId: user._id || req.body.userid || null,
+        actorId: user._id || null,
         actorName: user.username || user.email || '',
         action,
         targetType,
         targetId,
         result: 'ok',
-        detail,
+        detail: auditDetail(detail),
         ip: req.ip || ''
-    }).catch(() => {});
+    }).catch((err) => {
+        appDebug.writeLine(appDebug.DebugType.Exception, "Audit write failed : " + err);
+    });
 };
 
 const findFilePathsAndMoveAsync = (dishPostData, rootPath, tempFolder, dishFolder) => {
@@ -336,7 +345,9 @@ router.post('/create_ingredient_post', verifyToken, async function(req, res){
         || result.status === profileEnum.ProfileStatus_PostCreate.EditingSuccess;
     if (created && result.ingredient_post_id) {
         const detail = req.body.ingredient_name || req.body.data.name || '';
-        await auditContent(req, 'ingredient_post.create', 'ingredient_post', result.ingredient_post_id, detail);
+        const action = result.status === profileEnum.ProfileStatus_PostCreate.EditingSuccess
+            ? 'ingredient_post.edit' : 'ingredient_post.create';
+        await auditContent(req, action, 'ingredient_post', result.ingredient_post_id, detail);
     }
     res.status(result.status_code).send(result);
 });

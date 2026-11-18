@@ -5,6 +5,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const { once } = require('node:events');
 const { MongoMemoryServer } = require('mongodb-memory-server');
+const profileEnum = require('../config/enum/profile_enum');
 
 process.env.JWT_SECRET = 'test-secret';
 
@@ -215,6 +216,88 @@ test('a successful ingredient post create writes one ingredient_post.create row'
     assert.strictEqual(rows[0].detail, 'Beef');
 });
 
+test('a post edit writes the edit action, not a second create', async () => {
+    const cook = await createUser('cook');
+    const dish = await createDishFixture({ name: 'Pho' });
+    const postBody = {
+        dish_id: String(dish._id),
+        data: {
+            name: 'Pho',
+            ingredients: [],
+            short_detail: 'Beef noodle soup',
+            profile_image: '',
+            display_blocks: []
+        }
+    };
+
+    await call('/api/dish/profile/create_dish_post', tokenFor(cook), 'POST', postBody);
+    const second = await call('/api/dish/profile/create_dish_post', tokenFor(cook), 'POST', postBody);
+
+    assert.strictEqual(second.status, 200);
+    assert.strictEqual(second.body.status, profileEnum.ProfileStatus_PostCreate.EditingSuccess);
+    assert.strictEqual(await collections.AuditLog.countDocuments({ action: 'dish_post.create' }), 1);
+    const edits = await collections.AuditLog.find({ action: 'dish_post.edit' });
+    assert.strictEqual(edits.length, 1);
+    assert.strictEqual(edits[0].target_id, String(second.body.dish_post_id));
+});
+
+test('an ingredient post edit writes the edit action, not a second create', async () => {
+    const cook = await createUser('cook');
+    const ingredient = await collections.Ingredient.create({ name: 'Beef', best_post_id: '' });
+    const postBody = {
+        ingredient_id: String(ingredient._id),
+        ingredient_name: 'Beef',
+        data: {
+            type: 'meat',
+            short_detail: 'Red meat',
+            profile_image: '',
+            display_blocks: []
+        }
+    };
+
+    await call('/api/ingredient/profile/create_ingredient_post', tokenFor(cook), 'POST', postBody);
+    const second = await call('/api/ingredient/profile/create_ingredient_post', tokenFor(cook), 'POST', postBody);
+
+    assert.strictEqual(second.status, 200);
+    assert.strictEqual(second.body.status, profileEnum.ProfileStatus_PostCreate.EditingSuccess);
+    assert.strictEqual(await collections.AuditLog.countDocuments({ action: 'ingredient_post.create' }), 1);
+    const edits = await collections.AuditLog.find({ action: 'ingredient_post.edit' });
+    assert.strictEqual(edits.length, 1);
+    assert.strictEqual(edits[0].target_id, String(second.body.ingredient_post_id));
+});
+
+test('a failed audit write still answers the create with 200', async () => {
+    const cook = await createUser('cook');
+    const original = collections.AuditLog.create;
+    collections.AuditLog.create = async () => {
+        throw new Error('audit down');
+    };
+    try {
+        const dish = await call('/api/dish/profile/create_dish', tokenFor(cook), 'POST', {
+            name: 'Pho Bo',
+            ingredients: [],
+            short_detail: 'Beef noodle soup',
+            profile_image: '',
+            display_blocks: []
+        });
+        const ingredient = await call('/api/ingredient/profile/create_ingredient', tokenFor(cook), 'POST', {
+            name: 'Beef',
+            type: 'meat',
+            short_detail: 'Red meat',
+            profile_image: '',
+            display_blocks: []
+        });
+
+        assert.strictEqual(dish.status, 200);
+        assert.strictEqual(dish.body.status, 0);
+        assert.strictEqual(ingredient.status, 200);
+        assert.strictEqual(ingredient.body.status, 0);
+    } finally {
+        collections.AuditLog.create = original;
+    }
+    assert.strictEqual(await collections.AuditLog.countDocuments({}), 0);
+});
+
 test('a rejected create writes no audit row', async () => {
     const cook = await createUser('cook');
 
@@ -262,14 +345,14 @@ test('deleting a comment writes one comment.delete row with a short excerpt', as
     assert.strictEqual(rows[0].actor_name, 'cook');
     assert.strictEqual(rows[0].target_type, 'comment');
     assert.strictEqual(rows[0].target_id, String(comment._id));
-    assert.ok(rows[0].detail.length <= 80);
-    assert.ok(rows[0].detail.startsWith('This soup was great.'));
+    assert.ok(rows[0].detail.length <= 83);
+    assert.ok(rows[0].detail.startsWith('comment: This soup was great.'));
     assert.notStrictEqual(rows[0].detail, body);
 });
 
 test('the audit list paginates and lists the new actions', async () => {
     const admin = await createUser('boss', ['admin']);
-    const actions = ['dish.create', 'dish_post.create', 'ingredient.create', 'ingredient_post.create', 'comment.delete'];
+    const actions = ['dish.create', 'dish_post.create', 'dish_post.edit', 'ingredient.create', 'ingredient_post.create', 'ingredient_post.edit', 'comment.delete'];
     for (let index = 0; index < 30; index += 1) {
         await collections.AuditLog.create({
             actor_name: 'boss',
@@ -309,7 +392,7 @@ test('post and comment targets resolve to readable labels', async () => {
     const targets = [
         { target_type: 'dish_post', target_id: String(dishPost._id) },
         { target_type: 'ingredient_post', target_id: String(ingredientPost._id) },
-        { target_type: 'comment', target_id: deletedCommentId, detail: 'This soup was great' }
+        { target_type: 'comment', target_id: deletedCommentId, detail: 'comment: This soup was great' }
     ];
     for (const [index, target] of targets.entries()) {
         await collections.AuditLog.create({
@@ -327,5 +410,50 @@ test('post and comment targets resolve to readable labels', async () => {
     const labels = new Map(response.body.rows.map(row => [row.target_type + ':' + row.target_id, row.target_label]));
     assert.strictEqual(labels.get('dish_post:' + dishPost._id), 'Pho by cook');
     assert.strictEqual(labels.get('ingredient_post:' + ingredientPost._id), 'Beef by cook');
-    assert.strictEqual(labels.get('comment:' + deletedCommentId), 'This soup was great');
+    assert.strictEqual(labels.get('comment:' + deletedCommentId), 'comment: This soup was great');
+});
+
+test('a post whose parent is gone keeps its own name as the label', async () => {
+    const admin = await createUser('boss', ['admin']);
+    const cook = await createUser('cook');
+    const dish = await createDishFixture({ name: 'Pho' });
+    const dishPost = await createDishPostFixture(dish, cook, 'Pho');
+    await collections.Dish.deleteOne({ _id: dish._id });
+    const corruptIngredientPost = await collections.IngredientPost.create({
+        name: 'Beef',
+        ingredient_id: 'not-an-object-id',
+        user_id: cook._id,
+        unique_id: 'corrupt-parent',
+        date_time: new Date().toJSON(),
+        points: 0,
+        type: 'meat',
+        short_detail: 'fixture',
+        profile_image: '',
+        display_blocks: []
+    });
+    await collections.AuditLog.create([
+        {
+            actor_name: 'cook',
+            action: 'dish_post.create',
+            target_type: 'dish_post',
+            target_id: String(dishPost._id),
+            result: 'ok',
+            created_at: new Date()
+        },
+        {
+            actor_name: 'cook',
+            action: 'ingredient_post.create',
+            target_type: 'ingredient_post',
+            target_id: String(corruptIngredientPost._id),
+            result: 'ok',
+            created_at: new Date(Date.now() + 1000)
+        }
+    ]);
+
+    const response = await call('/api/admin/audit', tokenFor(admin));
+
+    assert.strictEqual(response.status, 200);
+    const labels = new Map(response.body.rows.map(row => [row.target_type + ':' + row.target_id, row.target_label]));
+    assert.strictEqual(labels.get('dish_post:' + dishPost._id), 'Pho by cook');
+    assert.strictEqual(labels.get('ingredient_post:' + corruptIngredientPost._id), 'Beef by cook');
 });

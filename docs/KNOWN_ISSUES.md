@@ -58,6 +58,10 @@ can be picked up without re-reading the codebase.
 
 - **`audit_log` has no TTL.** Every successful content create appends a row, so the collection
   grows with content; retention is a later task.
+- **A deleted comment's audit detail is not a live body.** The row stores `comment: <excerpt>`
+  capped at 80 characters plus an ellipsis, because the comment is deleted before the row is
+  read. The `comment: ` prefix is the only thing that separates it from a live body; the audit
+  page shows it as the target label.
 
 ## Lean
 

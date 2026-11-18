@@ -509,8 +509,10 @@ const postTargetLabels = async function(type, valid, labels) {
     const spec = POST_TARGETS[type];
     const posts = await collections[spec.collection].find({ _id: { $in: valid } })
         .select(`name ${spec.parent} user_id`);
-    const parentIds = [...new Set(posts.map(post => post[spec.parent]).filter(Boolean).map(String))];
-    const userIds = [...new Set(posts.map(post => post.user_id).filter(Boolean).map(String))];
+    const parentIds = [...new Set(posts.map(post => post[spec.parent]).filter(Boolean).map(String))]
+        .filter(id => mongoose.Types.ObjectId.isValid(id));
+    const userIds = [...new Set(posts.map(post => post.user_id).filter(Boolean).map(String))]
+        .filter(id => mongoose.Types.ObjectId.isValid(id));
     const [parents, users] = await Promise.all([
         collections[spec.parentCollection].find({ _id: { $in: parentIds } }).select('name'),
         collections.User.find({ _id: { $in: userIds } }).select('username')

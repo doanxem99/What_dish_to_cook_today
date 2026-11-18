@@ -162,9 +162,12 @@ hash, token or AI prompt text is ever returned.
 Every admin mutation writes an `audit_log` row with the acting admin from `req.current_user`.
 Content writes append the same log: a successful `create_dish`, `create_dish_post`,
 `create_ingredient` or `create_ingredient_post` writes one row (`dish.create`, `dish_post.create`,
-`ingredient.create`, `ingredient_post.create`) and a deleted comment writes `comment.delete`.
+`dish_post.edit`, `ingredient.create`, `ingredient_post.create`, `ingredient_post.edit`) and a
+deleted comment writes `comment.delete`. The edit actions mark a post upsert that updated an
+existing post. Every detail is capped at 80 characters plus `...`.
 A refused create writes no row; a comment row keeps the excerpt in `detail` because the comment
-is gone by the time the row is read.
+is gone by the time the row is read, and the excerpt is prefixed `comment: ` so it cannot be
+mistaken for a live body. A failed audit write is logged and does not fail the request.
 Reset and restore run in the job queue and write a backup first; while one runs, the public API
 answers 503 and `/api/health`, `/api/auth/*` and `/api/admin/*` keep working.
 
