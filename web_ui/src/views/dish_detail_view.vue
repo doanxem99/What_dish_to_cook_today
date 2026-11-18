@@ -42,7 +42,7 @@ export default {
   },
   mounted() { this.load() },
   methods: {
-    image(path) { return path ? serverInfo.getFullPath(path) : '' },
+    image(path) { return serverInfo.getImage(path, 'dish') },
     blockText(block) {
       return this.locale === 'vi' && block.text_vi ? block.text_vi : block.text
     },

@@ -144,7 +144,7 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
                     else if (block.type == 'image')
                       Padding(
                         padding: const EdgeInsets.only(bottom: 16),
-                        child: BoardImage(url: state.api.imageUrl(block.src), width: double.infinity, height: 220),
+                        child: BoardImage(url: state.api.imageUrl(block.src), width: double.infinity, height: 220, kind: 'ingredient'),
                       ),
                   ],
                   if (_post == null || _post!.blocks.isEmpty)

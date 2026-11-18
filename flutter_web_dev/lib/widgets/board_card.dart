@@ -201,22 +201,22 @@ class BoardImage extends StatelessWidget {
     this.width,
     this.height,
     this.fit = BoxFit.cover,
+    this.kind = 'dish',
   });
 
   final String url;
   final double? width;
   final double? height;
   final BoxFit fit;
+  final String kind;
 
   @override
   Widget build(BuildContext context) {
-    final tokens = BoardTokens.of(AppScope.of(context).isLight);
-    final placeholder = Container(
+    final placeholder = Image.asset(
+      kind == 'ingredient' ? 'assets/defaults/ingredient.png' : 'assets/defaults/dish.png',
       width: width,
       height: height,
-      color: tokens.bg,
-      alignment: Alignment.center,
-      child: Icon(Icons.restaurant_menu, size: 18, color: tokens.dim),
+      fit: fit,
     );
     if (url.isEmpty) {
       return ClipRRect(borderRadius: BorderRadius.circular(4), child: placeholder);

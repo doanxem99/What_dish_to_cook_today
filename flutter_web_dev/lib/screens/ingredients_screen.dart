@@ -158,7 +158,7 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
           padding: const EdgeInsets.all(8),
           child: Row(
             children: [
-              BoardImage(url: state.api.imageUrl(item.image), width: 44, height: 44),
+              BoardImage(url: state.api.imageUrl(item.image), width: 44, height: 44, kind: 'ingredient'),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

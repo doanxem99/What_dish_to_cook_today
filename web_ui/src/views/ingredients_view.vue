@@ -36,7 +36,7 @@ export default {
     localName(item) {
       return (this.locale === 'vi' && item.name_vi) ? item.name_vi : item.name
     },
-    image(path) { return path ? serverInfo.getFullPath(path) : '' },
+    image(path) { return serverInfo.getImage(path, 'ingredient') },
     async search() {
       this.loading = true
       this.failed = false

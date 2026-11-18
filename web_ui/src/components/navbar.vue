@@ -95,6 +95,7 @@ export default {
       </div>
 
       <nav class="header-nav" aria-label="Main">
+        <router-link to="/" class="link">{{ t('nav.home') }}</router-link>
         <router-link to="/dishes" class="link">{{ t('nav.dishes') }}</router-link>
         <router-link to="/homemade" class="link">{{ t('nav.homemade') }}</router-link>
         <router-link to="/ingredients" class="link">{{ t('nav.ingredients') }}</router-link>

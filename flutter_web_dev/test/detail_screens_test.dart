@@ -123,7 +123,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Canh cá'), findsOneWidget);
-    expect(find.byIcon(Icons.restaurant_menu), findsOneWidget);
+    expect(find.byWidgetPredicate((widget) => widget is Image && widget.image is AssetImage && (widget.image as AssetImage).assetName.contains('defaults')), findsWidgets);
   });
 
   testWidgets('empty homemade answer shows its own copy', (tester) async {

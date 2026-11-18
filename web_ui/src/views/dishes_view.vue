@@ -47,7 +47,7 @@ export default {
     detail(row) {
       return (this.locale === 'vi' && row.short_detail_vi) ? row.short_detail_vi : (row.short_detail || '')
     },
-    image(path) { return path ? serverInfo.getFullPath(path) : '' },
+    image(path) { return serverInfo.getImage(path, 'dish') },
     setView(view) {
       this.view = view
       try { localStorage.setItem(VIEW_KEY, view) } catch (error) { /* session only */ }
