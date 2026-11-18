@@ -54,6 +54,7 @@ const Ingredient = mongoose.model('ingredient', {
     },
     name_vi: String,
     best_post_id : String,
+    nutrition : Object,
     is_need_update: Boolean
 },'ingredient');
 
@@ -73,6 +74,7 @@ const IngredientPost = mongoose.model('ingredient_post', {
     },
     points: Number,
     type: String,
+    nutrition : Object,
     short_detail: String,
     short_detail_vi: String,
     profile_image : String,

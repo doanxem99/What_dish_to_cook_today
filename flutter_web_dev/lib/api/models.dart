@@ -17,8 +17,9 @@ class Nutrition {
     if (json is! Map) {
       return const Nutrition();
     }
+    final source = json['per_100g'] is Map ? json['per_100g'] as Map : json;
     double value(String key) {
-      final raw = json[key];
+      final raw = source[key];
       return raw is num ? raw.toDouble() : 0;
     }
 
