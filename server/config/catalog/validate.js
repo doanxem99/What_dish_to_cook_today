@@ -64,6 +64,40 @@ const validateCatalog = function(catalog)
         checkImage(problems, `ingredient "${ingredient.name}"`, ingredient.image)
     }
 
+    //nutrition.json is a second copy of the same numbers; keep the two in step
+    const nutritionRows = catalog.nutrition || {}
+    for (const ingredient of ingredients) {
+        const row = nutritionRows[ingredient.name]
+        if (!row) {
+            problems.push(`nutrition.json has no entry for ingredient "${ingredient.name}"`)
+            continue
+        }
+        if (!row.description) {
+            problems.push(`nutrition.json entry for "${ingredient.name}" has no description`)
+        }
+        const per100 = row.per_100g || {}
+        for (const key of NUTRIENTS) {
+            if (typeof per100[key] !== 'number') {
+                problems.push(`nutrition.json entry for "${ingredient.name}" is missing per_100g.${key}`)
+            } else if (ingredient.nutrition && ingredient.nutrition.per_100g && per100[key] !== ingredient.nutrition.per_100g[key]) {
+                problems.push(`nutrition.json ${key} for "${ingredient.name}" does not match the ingredient row (${per100[key]} vs ${ingredient.nutrition.per_100g[key]})`)
+            }
+        }
+    }
+    const ingredientNames = new Set(ingredients.map(row => row.name))
+    for (const name of Object.keys(nutritionRows)) {
+        if (!ingredientNames.has(name)) {
+            problems.push(`nutrition.json has values for unknown ingredient "${name}"`)
+        }
+    }
+
+    const dishNames = new Set(dishes.map(row => row.name))
+    for (const name of Object.keys(catalog.amounts || {})) {
+        if (!dishNames.has(name)) {
+            problems.push(`dish-amounts.json has amounts for unknown dish "${name}"`)
+        }
+    }
+
     for (const dish of dishes) {
         if (!(dish.servings > 0)) {
             problems.push(`dish "${dish.name}" has no servings`)

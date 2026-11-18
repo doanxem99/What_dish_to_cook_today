@@ -1,9 +1,13 @@
 //Local demo stack: in-memory MongoDB, seeded catalog, then the real server.
 //For UI verification only. Never used in production.
 import { MongoMemoryServer } from 'mongodb-memory-server'
-import { loadCatalog } from '../config/catalog/index.js'
+import { loadCatalog, validateCatalog } from '../config/catalog/index.js'
 
 const catalog = loadCatalog()
+const problems = validateCatalog(catalog)
+if (problems.length > 0) {
+    throw new Error(`Catalog is invalid:\n${problems.map(problem => `- ${problem}`).join('\n')}`)
+}
 const nutritionData = catalog.nutrition
 
 const mongod = await MongoMemoryServer.create({
