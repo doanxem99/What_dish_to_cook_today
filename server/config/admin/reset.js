@@ -1,11 +1,17 @@
 const { mongoose, collections } = require('../database/connection');
 const { loadCatalog } = require('../catalog');
 const { setMaintenance } = require('./maintenance');
-const { FORMAT, VERSION, CATALOG_COLLECTIONS, createBackup, readBackup, fromExportDoc } = require('./backups');
+const backups = require('./backups');
+const { FORMAT, VERSION, CATALOG_COLLECTIONS, fromExportDoc } = backups;
 
+//No actor means no owner for the seeded posts, so fail before anything is dropped.
 const actorIdOf = function(actor) {
     const source = actor || {};
-    return String(source.id || source._id || '');
+    const id = String(source.id || source._id || '');
+    if (!id) {
+        throw new Error('A reset needs an actor id');
+    }
+    return id;
 };
 
 const round = function(value, digits) {
@@ -124,11 +130,15 @@ const seedCatalog = async function(userId) {
     }
 };
 
-//Dropping a collection also drops its indexes; the four unique ones must come back.
+//Dropping a collection also drops its indexes; each model already declares the ones it needs.
 const recreateUniqueIndexes = async function() {
     await collections.User.createIndexes();
     await collections.Role.createIndexes();
     await collections.Vote.createIndexes();
+    await collections.Ingredient.createIndexes();
+    await collections.Dish.createIndexes();
+    await collections.IngredientPost.createIndexes();
+    await collections.DishPost.createIndexes();
 };
 
 const dropCollection = async function(name) {
@@ -141,14 +151,15 @@ const dropCollection = async function(name) {
 };
 
 const resetCatalog = async function(actor) {
-    //A backup first: a failed write aborts before anything is dropped.
-    const backup = await createBackup({ trigger: 'reset', actor });
+    const actorId = actorIdOf(actor);
+    //Public writes must stop before the backup, or they land in data the reset then destroys.
     await setMaintenance(true, 'catalog reset', actor);
     try {
+        const backup = await backups.createBackup({ trigger: 'reset', actor });
         for (const name of CATALOG_COLLECTIONS) {
             await dropCollection(name);
         }
-        await seedCatalog(actorIdOf(actor));
+        await seedCatalog(actorId);
         await recreateUniqueIndexes();
         return `reset complete, backup ${backup.file}`;
     } finally {
@@ -172,41 +183,101 @@ const validateArchive = function(archive) {
     return source;
 };
 
-const swapCollection = async function(name, rows) {
-    const db = mongoose.connection.db;
-    const docs = rows.map(fromExportDoc);
-    const temporary = `${name}_restore_${Date.now()}`;
-    await dropCollection(temporary);
-    await db.createCollection(temporary);
-    if (docs.length > 0) {
-        await db.collection(temporary).insertMany(docs);
-    }
-    try {
-        await db.admin().command({
-            renameCollection: `${db.databaseName}.${temporary}`,
-            to: `${db.databaseName}.${name}`,
-            dropTarget: true
-        });
-    } catch (error) {
-        //shortcut: renameCollection needs admin privileges; without them the target is empty between drop and insert.
-        await dropCollection(name);
-        if (docs.length > 0) {
-            await db.collection(name).insertMany(docs);
+const HEX_ID = /^[0-9a-fA-F]{24}$/;
+
+const isPlainObject = function(value) {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date);
+};
+
+//Every document of every collection is checked before the first write, so a bad row changes nothing.
+const validateDocuments = function(source) {
+    for (const name of CATALOG_COLLECTIONS) {
+        for (let index = 0; index < source[name].length; index += 1) {
+            const doc = source[name][index];
+            if (!isPlainObject(doc)) {
+                throw new Error(`Backup collection ${name} row ${index} is not an object`);
+            }
+            if (typeof doc._id !== 'string' || !HEX_ID.test(doc._id)) {
+                throw new Error(`Backup collection ${name} row ${index} has an invalid _id`);
+            }
         }
+    }
+};
+
+const STAGING_PATTERN = /_restore_\d+$/;
+
+//A crash between staging and swap leaves temp collections behind; clear them before staging again.
+const dropStaleStaging = async function() {
+    const db = mongoose.connection.db;
+    const rows = await db.listCollections({}, { nameOnly: true }).toArray();
+    for (const row of rows) {
+        if (STAGING_PATTERN.test(row.name)) {
+            await dropCollection(row.name);
+        }
+    }
+};
+
+//Stage all six first, so targets differ only for the short rename loop that follows.
+const stageCollections = async function(source) {
+    const db = mongoose.connection.db;
+    const suffix = Date.now();
+    const staged = [];
+    for (const name of CATALOG_COLLECTIONS) {
+        const docs = source[name].map(fromExportDoc);
+        const temporary = `${name}_restore_${suffix}`;
         await dropCollection(temporary);
+        await db.createCollection(temporary);
+        if (docs.length > 0) {
+            await db.collection(temporary).insertMany(docs);
+        }
+        staged.push({ name, temporary, docs });
+    }
+    return staged;
+};
+
+//13/26 is what MongoDB answers when the caller may not rename across namespaces.
+const isRenameRefused = function(error) {
+    return error.code === 13 || error.code === 26
+        || error.codeName === 'Unauthorized' || error.codeName === 'NamespaceNotFound';
+};
+
+//Staging is complete before this runs, so the fallback never drops a target for a partial copy.
+const swapCollections = async function(staged) {
+    const db = mongoose.connection.db;
+    for (const { name, temporary, docs } of staged) {
+        try {
+            await db.admin().command({
+                renameCollection: `${db.databaseName}.${temporary}`,
+                to: `${db.databaseName}.${name}`,
+                dropTarget: true
+            });
+        } catch (error) {
+            if (!isRenameRefused(error)) {
+                throw error;
+            }
+            //shortcut: without admin rights the target is empty between drop and insert.
+            await dropCollection(name);
+            if (docs.length > 0) {
+                await db.collection(name).insertMany(docs);
+            }
+            await dropCollection(temporary);
+        }
     }
 };
 
 const restoreBackup = async function(id, actor) {
-    //Current data first: even a rejected archive leaves a fresh backup behind.
-    const backup = await createBackup({ trigger: 'restore', actor });
+    //Public writes must stop before the backup as well.
     await setMaintenance(true, 'catalog restore', actor);
     try {
-        const source = validateArchive(await readBackup(id));
+        //Current data first: even a rejected archive leaves a fresh backup behind.
+        //keepId spares the archive being restored when the prune would otherwise reach it.
+        const backup = await backups.createBackup({ trigger: 'restore', actor, keepId: id });
+        const source = validateArchive(await backups.readBackup(id));
+        validateDocuments(source);
+        await dropStaleStaging();
+        const staged = await stageCollections(source);
+        await swapCollections(staged);
         //Only the six catalog collections are written; user, audit_log and admin_job are ignored.
-        for (const name of CATALOG_COLLECTIONS) {
-            await swapCollection(name, source[name]);
-        }
         await recreateUniqueIndexes();
         return `restored ${id}, previous data saved to ${backup.file}`;
     } finally {

@@ -23,6 +23,29 @@ const readArchiveFile = function(file) {
     return JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(backupDir, file))).toString('utf8'));
 };
 
+//A restore-ready archive with one comment, so tests can name the data they expect back.
+const archiveWith = function(commentBody) {
+    return {
+        format: 'wdtct-backup',
+        version: 1,
+        created_at: CREATED.toISOString(),
+        collections: {
+            ingredient: [],
+            ingredient_post: [],
+            dish: [],
+            dish_post: [],
+            vote: [],
+            comment: commentBody ? [{
+                _id: '64b0000000000000000000aa',
+                dish_post_id: '64b000000000000000000009',
+                user_id: '64b0000000000000000000bb',
+                body: commentBody,
+                date_time: CREATED.toISOString()
+            }] : []
+        }
+    };
+};
+
 const clearDatabase = async function() {
     for (const model of Object.values(collections)) {
         await model.deleteMany({});
@@ -253,6 +276,14 @@ test('reset leaves accounts and admin rows untouched and repopulates 38/13', asy
     assert.ok(userIndexes.some(index => index.unique && index.key.email === 1));
     const roleIndexes = await collections.Role.collection.indexes();
     assert.ok(roleIndexes.some(index => index.unique && index.key.name === 1));
+    const ingredientIndexes = await collections.Ingredient.collection.indexes();
+    assert.ok(ingredientIndexes.some(index => index.unique && index.key.name === 1));
+    const dishIndexes = await collections.Dish.collection.indexes();
+    assert.ok(dishIndexes.some(index => index.unique && index.key.name === 1));
+    const ingredientPostIndexes = await collections.IngredientPost.collection.indexes();
+    assert.ok(ingredientPostIndexes.some(index => index.unique && index.key.unique_id === 1));
+    const dishPostIndexes = await collections.DishPost.collection.indexes();
+    assert.ok(dishPostIndexes.some(index => index.unique && index.key.unique_id === 1));
 });
 
 test('reset writes the same catalog rows the demo seed does', async () => {
@@ -377,4 +408,104 @@ test('the backup job row names the archive it wrote', async () => {
     assert.ok(fs.existsSync(path.join(backupDir, (await backups.listBackups())[0].file)));
     assert.strictEqual(await maintenance.isMaintenance(), false);
     assert.ok(resetJob && resetDone);
+});
+
+test('restoring the oldest of ten archives survives the prune it triggers', async () => {
+    const { user } = await seedAccount();
+    for (let day = 1; day <= 10; day += 1) {
+        writeArchive(`backup-202601${String(day).padStart(2, '0')}-000001.json.gz`, archiveWith(`day ${day}`));
+    }
+
+    await catalogReset.restoreBackup('backup-20260101-000001', { id: user._id, name: 'boss' });
+
+    const restored = await collections.Comment.find({});
+    assert.strictEqual(restored.length, 1);
+    assert.strictEqual(restored[0].body, 'day 1');
+    assert.ok(fs.existsSync(path.join(backupDir, 'backup-20260101-000001.json.gz')));
+});
+
+test('reset switches maintenance on before it writes the backup', async () => {
+    const { user } = await seedAccount();
+    const realCreate = backups.createBackup;
+    let flagDuringBackup = null;
+    backups.createBackup = async (options) => {
+        flagDuringBackup = await maintenance.isMaintenance();
+        return realCreate(options);
+    };
+    try {
+        await catalogReset.resetCatalog({ id: user._id, name: 'boss' });
+    } finally {
+        backups.createBackup = realCreate;
+    }
+
+    assert.strictEqual(flagDuringBackup, true);
+    assert.strictEqual(await maintenance.isMaintenance(), false);
+});
+
+test('only known date fields become dates', () => {
+    const doc = backups.fromExportDoc({
+        body: '2026-03-04T05:06:07.890Z',
+        updated_at: '2026-03-04T05:06:07.890Z'
+    });
+
+    assert.strictEqual(typeof doc.body, 'string');
+    assert.strictEqual(doc.body, '2026-03-04T05:06:07.890Z');
+    assert.ok(doc.updated_at instanceof Date);
+    assert.strictEqual(doc.updated_at.toISOString(), '2026-03-04T05:06:07.890Z');
+});
+
+test('restore aborts on a malformed row before writing any collection', async () => {
+    const { user } = await seedAccount();
+    await collections.Ingredient.create({ name: 'Keep me', name_vi: 'Giữ tôi' });
+    writeArchive('backup-20260101-000004.json.gz', {
+        format: 'wdtct-backup',
+        version: 1,
+        created_at: CREATED.toISOString(),
+        collections: {
+            ingredient: [],
+            ingredient_post: [],
+            dish: ['not a document'],
+            dish_post: [],
+            vote: [],
+            comment: []
+        }
+    });
+
+    await assert.rejects(
+        () => catalogReset.restoreBackup('backup-20260101-000004', { id: user._id, name: 'boss' }),
+        /dish row 0 is not an object/
+    );
+
+    assert.strictEqual(await collections.Ingredient.countDocuments({}), 1);
+    assert.strictEqual(await maintenance.isMaintenance(), false);
+});
+
+test('a partial archive never appears in the listing', async () => {
+    const { user } = await seedAccount();
+    const created = await backups.createBackup({ trigger: 'test', actor: { id: user._id } });
+    assert.ok(!fs.existsSync(path.join(backupDir, `${created.file}.part`)));
+
+    fs.writeFileSync(path.join(backupDir, `${created.file}.part`), 'half');
+    fs.writeFileSync(path.join(backupDir, 'backup-20260101-000009.json.gz.part'), 'half');
+    const listed = await backups.listBackups();
+
+    assert.strictEqual(listed.length, 1);
+    assert.strictEqual(listed[0].file, created.file);
+});
+
+test('restore drops staging collections left behind by a crash', async () => {
+    const { user } = await seedAccount();
+    const db = require('../config/database/connection').mongoose.connection.db;
+    await db.createCollection('comment_restore_1');
+    writeArchive('backup-20260101-000005.json.gz', archiveWith('fresh'));
+
+    await catalogReset.restoreBackup('backup-20260101-000005', { id: user._id, name: 'boss' });
+
+    const names = (await db.listCollections({}, { nameOnly: true }).toArray()).map(row => row.name);
+    assert.ok(!names.some(name => /_restore_/.test(name)));
+});
+
+test('reset refuses to run without an actor id', async () => {
+    await assert.rejects(() => catalogReset.resetCatalog({}), /actor id/);
+    assert.strictEqual(await collections.Ingredient.countDocuments({}), 0);
 });
