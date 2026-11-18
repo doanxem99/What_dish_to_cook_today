@@ -119,15 +119,17 @@ Append-only: no route updates or deletes a row.
 |---|---|---|
 | `actor_id` | ObjectId → `user` | the admin who acted |
 | `actor_name` | String | username or email at the time of the action |
-| `action` | String | `admin.signin`, `job.backup`, `job.reset`, `job.restore`, `job.recalc_best_post`, `backup.download`, `user.role`, `user.disabled`, `user.password`, ... |
-| `target_type` | String | `user`, `ingredient`, `backup`, `job`, ... |
+| `action` | String | `admin.signin`, `job.backup`, `job.reset`, `job.restore`, `job.recalc_best_post`, `backup.download`, `user.role`, `user.disabled`, `user.password`, `dish.create`, `dish_post.create`, `ingredient.create`, `ingredient_post.create`, `comment.delete`, ... |
+| `target_type` | String | `user`, `ingredient`, `dish`, `dish_post`, `ingredient_post`, `comment`, `backup`, `job`, ... |
 | `target_id` | String | id of the target, empty when there is none |
 | `result` | String | `ok` or `failed` |
-| `detail` | String | one line of context, never password material |
+| `detail` | String | one line of context, never password material; a deleted comment leaves its excerpt here |
 | `ip` | String | request ip |
 | `created_at` | Date | |
 
 Indexes on `created_at` and `action`; `/api/admin/audit` reads newest first.
+Content creation now writes here too: one row per successful dish, dish post, ingredient or
+ingredient post create, and `comment.delete` for moderation. A refused create writes no row.
 
 ### `admin_job`
 

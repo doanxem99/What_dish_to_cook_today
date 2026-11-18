@@ -142,7 +142,7 @@ hash, token or AI prompt text is ever returned.
 | POST | `/users/:id/role` | `{admin: true\|false}` | user row, 200; 400 not a boolean, 404 unknown user, 409 self-demote or last admin |
 | POST | `/users/:id/disabled` | `{disabled: true\|false}` | user row, 200; 400 not a boolean, 404 unknown user, 409 self-disable or last admin |
 | POST | `/users/:id/password` | – | `{password, user}`, 200; the temporary password is shown once and `must_change_password` is set |
-| GET | `/audit` | `?action=&actor=&page=` | `{rows, total, page, actions}`, newest first, 25 per page; each row carries `target_label` resolved from `target_type`/`target_id`, `actions` is the distinct action list for the filter |
+| GET | `/audit` | `?action=&actor=&page=` | `{rows, total, page, actions}`, newest first, 25 per page; each row carries `target_label` resolved from `target_type`/`target_id` (`user`, `ingredient`, `dish`, `dish_post`, `ingredient_post`, `comment`, `backup`, `job`), `actions` is the distinct action list for the filter |
 
 `/health` answers:
 
@@ -159,7 +159,12 @@ hash, token or AI prompt text is ever returned.
   reset` or `catalog restore`) and `job_id` is the job that owns the flag.
 - `last_reset`: the newest reset job summary or `null`.
 
-Every mutation writes an `audit_log` row with the acting admin from `req.current_user`.
+Every admin mutation writes an `audit_log` row with the acting admin from `req.current_user`.
+Content writes append the same log: a successful `create_dish`, `create_dish_post`,
+`create_ingredient` or `create_ingredient_post` writes one row (`dish.create`, `dish_post.create`,
+`ingredient.create`, `ingredient_post.create`) and a deleted comment writes `comment.delete`.
+A refused create writes no row; a comment row keeps the excerpt in `detail` because the comment
+is gone by the time the row is read.
 Reset and restore run in the job queue and write a backup first; while one runs, the public API
 answers 503 and `/api/health`, `/api/auth/*` and `/api/admin/*` keep working.
 

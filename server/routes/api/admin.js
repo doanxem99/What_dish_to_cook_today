@@ -499,6 +499,34 @@ const AUDIT_TARGETS = {
     job: { collection: collections.AdminJob, field: 'type' }
 };
 
+//A post names its parent plus its author, so it needs the parent and user reads too.
+const POST_TARGETS = {
+    dish_post: { collection: 'DishPost', parent: 'dish_id', parentCollection: 'Dish' },
+    ingredient_post: { collection: 'IngredientPost', parent: 'ingredient_id', parentCollection: 'Ingredient' }
+};
+
+const postTargetLabels = async function(type, valid, labels) {
+    const spec = POST_TARGETS[type];
+    const posts = await collections[spec.collection].find({ _id: { $in: valid } })
+        .select(`name ${spec.parent} user_id`);
+    const parentIds = [...new Set(posts.map(post => post[spec.parent]).filter(Boolean).map(String))];
+    const userIds = [...new Set(posts.map(post => post.user_id).filter(Boolean).map(String))];
+    const [parents, users] = await Promise.all([
+        collections[spec.parentCollection].find({ _id: { $in: parentIds } }).select('name'),
+        collections.User.find({ _id: { $in: userIds } }).select('username')
+    ]);
+    const parentNames = new Map(parents.map(doc => [String(doc._id), doc.name]));
+    const usernames = new Map(users.map(doc => [String(doc._id), doc.username]));
+    posts.forEach((post) => {
+        const name = parentNames.get(String(post[spec.parent] || '')) || post.name || '';
+        const author = usernames.get(String(post.user_id || ''));
+        const label = [name, author ? `by ${author}` : ''].filter(Boolean).join(' ');
+        if (label) {
+            labels.set(`${type}:${String(post._id)}`, label);
+        }
+    });
+};
+
 //One read per target type for the whole page; a deleted target keeps its raw id.
 const auditTargetLabels = async function(rows) {
     const idsByType = new Map();
@@ -527,6 +555,22 @@ const auditTargetLabels = async function(rows) {
                     }
                 });
             }));
+            return;
+        }
+        if (POST_TARGETS[type]) {
+            const valid = [...ids].filter(id => mongoose.Types.ObjectId.isValid(id));
+            if (valid.length > 0) {
+                work.push(postTargetLabels(type, valid, labels));
+            }
+            return;
+        }
+        if (type === 'comment') {
+            //Deleting the comment removes the row, so the stored excerpt is the only label left.
+            rows.forEach((row) => {
+                if (row.target_type === 'comment' && row.target_id && row.detail) {
+                    labels.set(`comment:${String(row.target_id)}`, String(row.detail));
+                }
+            });
             return;
         }
         const target = AUDIT_TARGETS[type];

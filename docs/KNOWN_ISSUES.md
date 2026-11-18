@@ -56,6 +56,9 @@ can be picked up without re-reading the codebase.
     `.cxx/` are ignored, but old commits still carry hundreds of megabytes. Use
     `git filter-repo` if the repository must shrink.
 
+- **`audit_log` has no TTL.** Every successful content create appends a row, so the collection
+  grows with content; retention is a later task.
+
 ## Lean
 
 11. **Duplicate templates.** `server/config/template/template_dish.js` and
