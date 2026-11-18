@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 
 //Serves both built clients: Flutter under /flutter, Vue at the root with an SPA fallback.
-//API, public files and the worker socket belong to the app and are never rewritten here.
+//API and public files belong to the app and are never rewritten here.
 const createStaticSite = function({ vueRoot, flutterRoot }) {
     const router = express.Router();
 
@@ -31,7 +31,7 @@ const createStaticSite = function({ vueRoot, flutterRoot }) {
     //Only a browser navigation may receive the app shell; assets that are missing stay 404
     router.get('*', function(req, res, next) {
         const requestPath = '/' + req.path.replace(/^\/+/, '');
-        if (requestPath.startsWith('/api') || requestPath.startsWith('/public') || requestPath.startsWith('/worker')) {
+        if (requestPath.startsWith('/api') || requestPath.startsWith('/public')) {
             return next();
         }
         if (path.extname(requestPath) !== '') {

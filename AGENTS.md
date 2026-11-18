@@ -16,11 +16,13 @@ Five parts, one repository:
 
 | Path | What it is | Stack | Runs on |
 |---|---|---|---|
-| `server/` | Main API, static file host, job queue, WebSocket worker endpoint | Node 22, Express 4, Mongoose 6 | port 3000 |
-| `web_ui/` | Current web client | Vue 3, Vite 6, Pinia, Tailwind 4 | port 5173 (dev) |
+| `server/` | Main API, static file host, admin job queue (in-process), `/admin` API | Node 22, Express 4, Mongoose 6 | port 3000 |
+| `web_ui/` | Current web client, including `/admin` | Vue 3, Vite 6, Pinia, Tailwind 4 | port 5173 (dev) |
 | `flutter_web_dev/` | Older Flutter client; its build is copied to `server/web` | Flutter 3.32 / Dart 3 | built into `server/web` |
-| `database_control_center/` | Windows tray/worker app. Seeded UI adds job strings; a background thread runs them | .NET 9 WinForms | spawned by server |
+| `database_control_center/` | Windows offline console: reset, health, backup, restore (no API needed) | .NET 9 WinForms | manual |
 | `db_control/` | Command line data tool | .NET 9 console | manual |
+| `catalog/` | Canonical seed data shared by the server reset, `db_control` and the console | JSON | read by all three |
+| `shared/` | C# seeding, backup archive and catalog code used by both .NET tools | C# | compiled in |
 
 `server/web/` is **generated** Flutter output served at `/flutter`.
 `server/web_ui/` is the generated Vue build served at `/`. Do not hand-edit either.
@@ -29,6 +31,10 @@ Five parts, one repository:
 ## Commands
 
 ```bash
+# Whole stack: server, MongoDB and LibreTranslate (root .env from .env.example)
+docker compose up -d --build  # http://localhost:3000 and /admin
+docker compose down           # add -v to drop the volumes
+
 # API (needs MongoDB on localhost:27017)
 cd server && npm install
 npm run dev                 # nodemon, loads .env when present
@@ -51,13 +57,15 @@ dotnet build database_control_center/database_control_center/database_control_ce
 dotnet build db_control/db_control/db_control.csproj
 
 # Seed / reset data (drops collections, admin user must already exist)
-db_control --init_data
+dotnet run --project db_control/db_control -- init --yes
 ```
 
 ## Environment
 
 `server/.env` is local only (ignored by git, template in `server/.env.example`).
-Variables: `JWT_SECRET`, `MONGODB_URI`, `CORS_ORIGINS`, `DATABASE_WORKER_EXE`.
+Compose reads a root `.env` (template in `.env.example`) and sets the container values itself.
+Variables: `JWT_SECRET`, `MONGODB_URI`, `CORS_ORIGINS`, `ADMIN_USERNAME`, `BACKUP_DIR`,
+`TRANSLATE_URL`, `AI_ENABLED`, `MAINTENANCE_DISABLED`, `TRUST_PROXY`.
 If `JWT_SECRET` is missing the server generates a random one and warns; logins then die on restart.
 
 ## Rules

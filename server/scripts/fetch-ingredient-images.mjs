@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const outDir = path.join(here, '../public/pictures/ingredients')
-const creditsPath = path.join(here, 'seed-ingredient-images.json')
+const creditsPath = path.join(here, '../../catalog/images.json')
 const headers = { 'User-Agent': 'WhatDishToCookToday/1.0 (local demo seed)' }
 
 const TARGETS = [
@@ -50,12 +50,8 @@ const TARGETS = [
 ]
 
 await fs.mkdir(outDir, { recursive: true })
-let credits = {}
-try {
-    credits = JSON.parse(await fs.readFile(creditsPath, 'utf8'))
-} catch (error) {
-    credits = {}
-}
+const images = JSON.parse(await fs.readFile(creditsPath, 'utf8'))
+const credits = images.ingredients
 
 for (const [name, slug, query] of TARGETS) {
     if (credits[name]?.file) {
@@ -97,5 +93,5 @@ for (const [name, slug, query] of TARGETS) {
     await new Promise(resolve => setTimeout(resolve, 600))
 }
 
-await fs.writeFile(creditsPath, JSON.stringify(credits, null, 2))
+await fs.writeFile(creditsPath, JSON.stringify({ ...images, ingredients: credits }, null, 2))
 console.log(`Wrote ${creditsPath}`)

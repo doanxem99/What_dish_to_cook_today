@@ -1,0 +1,145 @@
+{
+  "Beef noodle soup": {
+    "servings": 4,
+    "amounts": {
+      "Beef": 400,
+      "Rice noodle": 400,
+      "Ginger": 30,
+      "Onion": 150,
+      "Star anise": 5,
+      "Fish sauce": 40,
+      "Salt": 8
+    }
+  },
+  "Grilled pork with noodles": {
+    "servings": 2,
+    "amounts": {
+      "Pork": 300,
+      "Rice vermicelli": 200,
+      "Garlic": 10,
+      "Fish sauce": 30,
+      "Sugar": 20,
+      "Carrot": 80,
+      "Cilantro": 15
+    }
+  },
+  "Grilled pork vermicelli bowl": {
+    "servings": 2,
+    "amounts": {
+      "Pork": 300,
+      "Rice vermicelli": 200,
+      "Cucumber": 100,
+      "Carrot": 80,
+      "Bean sprouts": 100,
+      "Fish sauce": 30,
+      "Cilantro": 15
+    }
+  },
+  "Broken rice with pork": {
+    "servings": 2,
+    "amounts": {
+      "Rice": 200,
+      "Pork": 250,
+      "Egg": 60,
+      "Carrot": 60,
+      "Daikon": 60,
+      "Fish sauce": 25
+    }
+  },
+  "Fresh spring rolls": {
+    "servings": 3,
+    "amounts": {
+      "Rice paper": 60,
+      "Shrimp": 200,
+      "Pork": 200,
+      "Cucumber": 80,
+      "Cilantro": 15,
+      "Fish sauce": 25
+    }
+  },
+  "Vietnamese sandwich": {
+    "servings": 2,
+    "amounts": {
+      "Baguette": 200,
+      "Pork": 200,
+      "Carrot": 60,
+      "Daikon": 60,
+      "Cucumber": 60,
+      "Cilantro": 10,
+      "Soy sauce": 15
+    }
+  },
+  "Sour fish soup": {
+    "servings": 4,
+    "amounts": {
+      "Fish": 500,
+      "Tamarind": 40,
+      "Pineapple": 150,
+      "Tomato": 200,
+      "Okra": 150,
+      "Bean sprouts": 100,
+      "Fish sauce": 30
+    }
+  },
+  "Caramelised fish": {
+    "servings": 3,
+    "amounts": {
+      "Fish": 500,
+      "Fish sauce": 40,
+      "Sugar": 30,
+      "Black pepper": 3,
+      "Garlic": 15,
+      "Cooking oil": 20
+    }
+  },
+  "Water spinach with garlic": {
+    "servings": 2,
+    "amounts": {
+      "Water spinach": 400,
+      "Garlic": 15,
+      "Cooking oil": 20,
+      "Fish sauce": 15
+    }
+  },
+  "Egg fried rice": {
+    "servings": 2,
+    "amounts": {
+      "Rice": 200,
+      "Egg": 120,
+      "Scallion": 20,
+      "Soy sauce": 15,
+      "Cooking oil": 20
+    }
+  },
+  "Lemongrass chicken": {
+    "servings": 3,
+    "amounts": {
+      "Chicken": 600,
+      "Lemongrass": 30,
+      "Garlic": 15,
+      "Fish sauce": 30,
+      "Sugar": 15,
+      "Black pepper": 2
+    }
+  },
+  "Mung bean sweet soup": {
+    "servings": 4,
+    "amounts": {
+      "Mung bean": 200,
+      "Sugar": 100,
+      "Coconut milk": 200
+    }
+  },
+  "Sizzling rice pancake": {
+    "servings": 3,
+    "amounts": {
+      "Rice flour": 200,
+      "Turmeric": 5,
+      "Coconut milk": 200,
+      "Shrimp": 150,
+      "Pork": 150,
+      "Bean sprouts": 100,
+      "Scallion": 20
+    }
+  }
+}

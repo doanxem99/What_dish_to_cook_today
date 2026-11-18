@@ -11,10 +11,12 @@ and the server overwrites the user id from the token.
 
 | Method | Path | Body | Answer |
 |---|---|---|---|
-| POST | `/signin` | `{username, password}` (username may be the email) | `{message, user:{username}}` and the `token` cookie |
+| POST | `/signin` | `{username, password}` (username may be the email) | `{message, user:{id, username}, roles, must_change_password}` and the `token` cookie; 401 for a wrong password or a disabled account |
 | POST | `/signup` | `{username, email, password}` | `{message}`; 400 when a name/email is taken, 500 on other errors |
 | POST | `/verifytoken` | – (cookie) | `{message, userid, roles}`; 401 when the cookie is missing or bad |
-| GET | `/me` | – (cookie) | `{message, user:{id, username, email, created_at, roles}}`; `created_at` is null for users created before the field existed |
+| GET | `/me` | – (cookie) | `{message, user:{id, username, email, background_image, created_at, roles}, must_change_password}`; `created_at` is null for users created before the field existed |
+| POST | `/password` (auth) | `{current_password, new_password}` | `{message}`; 400 for a wrong current password or an empty new one, 403 for a disabled account. Clears `must_change_password`. |
+| POST | `/background` (auth) | `{background_image}` | `{message, background_image}`; 400 unless the value starts with `public/gallery/` |
 | POST | `/signout` | – | `{message}` and clears the cookie |
 
 ## Dishes — `/api/dish`
@@ -110,17 +112,74 @@ folder and is moved to its final folder by the profile create/update routes.
 Proxies a LibreTranslate-compatible service set in `TRANSLATE_URL`. Without it the route answers
 503 with a clear message and the editor keeps translation off. Text is limited to 2000 characters.
 
+## Health — `/api/health`
+
+| Method | Path | Answer |
+|---|---|---|
+| GET | `/` | `{status:"ok", uptime_s}` |
+
+Public liveness only: no counts, no latency, no user data. The Docker and Compose healthchecks
+read it, and it keeps answering while maintenance mode is on.
+
+## Admin — `/api/admin`
+
+Every route runs `requireAdmin`: a valid `token` cookie, an existing account, not disabled, and
+the `admin` role. Authenticating failures answer 401 (`unauthorized`) and 403 (`forbidden`);
+errors always use `{error: {code, message}}`. Success bodies are plain objects. No password
+hash, token or AI prompt text is ever returned.
+
+| Method | Path | Body / query | Answer |
+|---|---|---|---|
+| GET | `/health` | – | probes and counts, see below; 200 |
+| GET | `/jobs` | `?type=&status=&page=` | `{rows, total, page}`, newest first, 25 per page |
+| POST | `/jobs/recalc-best-post` | `{ingredient_id}` | job row, 202; 400 bad id, 404 unknown ingredient |
+| POST | `/backup` | – | job row, 202 |
+| GET | `/backups` | – | `{rows, total}` newest first |
+| GET | `/backups/:id` | – | gzip archive download with its filename; 404 unknown id |
+| POST | `/restore` | `{backup_id, confirm:"RESTORE"}` | job row, 202; 400 wrong confirm, 404 unknown id, 409 a job is running |
+| POST | `/reset` | `{confirm:"RESET"}` | job row, 202; 400 wrong confirm, 409 a job is running |
+| GET | `/users` | `?q=&page=` | `{rows, total, page}`; rows hold `id, username, email, created_at, is_disabled, must_change_password, roles`, never the password hash |
+| POST | `/users/:id/role` | `{admin: true\|false}` | user row, 200; 400 not a boolean, 404 unknown user, 409 self-demote or last admin |
+| POST | `/users/:id/disabled` | `{disabled: true\|false}` | user row, 200; 400 not a boolean, 404 unknown user, 409 self-disable or last admin |
+| POST | `/users/:id/password` | – | `{password, user}`, 200; the temporary password is shown once and `must_change_password` is set |
+| GET | `/audit` | `?action=&actor=&page=` | `{rows, total, page, actions}`, newest first, 25 per page; each row carries `target_label` resolved from `target_type`/`target_id` (`user`, `ingredient`, `dish`, `dish_post`, `ingredient_post`, `comment`, `backup`, `job`), `actions` is the distinct action list for the filter |
+
+`/health` answers:
+
+- `version`, `uptime_s`.
+- `database`: `{ok, latency_ms}` from a ping.
+- `counts`: `{users, ingredients, dishes, dish_posts, comments, votes}`.
+- `translation`: `{ok, configured, languages}` or `{ok:false, configured, error}`. The base URL is
+  derived from `TRANSLATE_URL` by stripping `/translate`; `configured` is false when the variable is
+  unset, so the page names the right fix. The probe caches for 30 s and never runs on the 15 s page
+  poll.
+- `ai`: `{configured}`, from `AI_ENABLED` only.
+- `backup`: `{dir_writable, dir, last, error}`.
+- `maintenance`: `{on, reason, job_id, updated_at}`. `reason` is the server's sentence (`catalog
+  reset` or `catalog restore`) and `job_id` is the job that owns the flag.
+- `last_reset`: the newest reset job summary or `null`.
+
+Every admin mutation writes an `audit_log` row with the acting admin from `req.current_user`.
+Content writes append the same log: a successful `create_dish`, `create_dish_post`,
+`create_ingredient` or `create_ingredient_post` writes one row (`dish.create`, `dish_post.create`,
+`dish_post.edit`, `ingredient.create`, `ingredient_post.create`, `ingredient_post.edit`) and a
+deleted comment writes `comment.delete`. The edit actions mark a post upsert that updated an
+existing post. Every detail is capped at 80 characters plus `...`.
+A refused create writes no row; a comment row keeps the excerpt in `detail` because the comment
+is gone by the time the row is read, and the excerpt is prefixed `comment: ` so it cannot be
+mistaken for a live body. A failed audit write is logged and does not fail the request.
+Reset and restore run in the job queue and write a backup first; while one runs, the public API
+answers 503 and `/api/health`, `/api/auth/*` and `/api/admin/*` keep working.
+
 ## Web pages
 
 | Method | Path | Answer |
 |---|---|---|
-| GET | `/` | Vue build (`server/web_ui/index.html`) with SPA fallback |
-| GET | `/flutter` | Flutter build (`server/web/index.html`) and its assets |
+| GET | `/` | Vue build (`server/web_ui/index.html`) with SPA fallback; `/admin` and `/change-password` are client routes of that build |
+| GET | `/flutter` | Flutter build (`server/web/index.html`) and its assets, with a shell fallback for deep links |
 | GET | `/web`, `/web/*` | 301 redirect to `/flutter/` |
-| GET | `/web` | same |
-| GET | `/web/:page` | redirect to `/` |
-| GET | `/public/*` | uploaded images |
+| GET | `/public/*` | uploaded images and `i18n/en.json`, `i18n/vi.json` |
 
-## WebSocket
+The `/worker` WebSocket endpoint was removed: admin operations run in-process through the job
+queue, and the desktop tools are an offline repair kit.
 
-`ws://localhost:3000/worker` — .NET worker only. See `docs/ARCHITECTURE.md`.

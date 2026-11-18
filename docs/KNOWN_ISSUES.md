@@ -22,7 +22,9 @@ can be picked up without re-reading the codebase.
 
 ## Vue UI gaps (plan 2, current state)
 
-- **The C# seed tools still hold the small original catalog.** The local demo now seeds 30 ingredients and 13 dishes from `server/scripts/seed-catalog.mjs`; `db_control --init_data` and the worker reseed still create their older short lists. Unify the seeds when the worker is touched next.
+- **One catalog, no split left.** The older note about the C# tools holding a small catalog is
+  gone: `catalog/*.json` feeds the server reset and both .NET tools. The count is 38 ingredients
+  and 13 dishes everywhere.
 
 - **Editor screens are still on the old styling and have no Vietnamese fields.**
   `dish_edit_view.vue`, `ingredient_edit_view.vue`, the generate dialogs and `edit_box` predate the
@@ -46,12 +48,20 @@ can be picked up without re-reading the codebase.
     the path helper and `ingredient_profile.routes.test.js` guards the removed PATCH endpoint;
     nothing fails when `verifyToken` stops overwriting `req.body.userid`, or when a create route
     loses its middleware. Add a token test with a stubbed user collection.
-9. **Both seed tools are hand-written and diverge.** `db_control/InitData.cs` seeds 9
-    ingredients; `database_control_center/Workspace/Reset/ResetData.cs` seeds 6. A change in one
-    never reaches the other. Consider one seed implementation called by both.
+9. **One seed path, three callers.** `catalog/*.json` plus `shared/Catalog.cs` and
+    `shared/DatabaseSeed.cs` feed `db_control init`, the offline console and the admin reset, so
+    a new field reaches all three. The remaining risk is a stale binary: an older `db_control`
+    build still writes its own short list. Rebuild the tools after changing the catalog.
 10. **Git history still contains build output.** The index is clean and `bin/`, `obj/`, `.vs/`,
     `.cxx/` are ignored, but old commits still carry hundreds of megabytes. Use
     `git filter-repo` if the repository must shrink.
+
+- **`audit_log` has no TTL.** Every successful content create appends a row, so the collection
+  grows with content; retention is a later task.
+- **A deleted comment's audit detail is not a live body.** The row stores `comment: <excerpt>`
+  capped at 80 characters plus an ellipsis, because the comment is deleted before the row is
+  read. The `comment: ` prefix is the only thing that separates it from a live body; the audit
+  page shows it as the target label.
 
 ## Lean
 
@@ -59,28 +69,50 @@ can be picked up without re-reading the codebase.
     `template_ingredient.js` are near-copies; so are `dish_profile.js` and
     `ingredient_profile.js`. They must change together today.
 12. **Reserved fields that nothing uses:** `ingredient.is_need_update`,
-    `dish.is_need_update`, `WorkerStatus` in the worker module, and `role.description`.
+    `dish.is_need_update`, the `ai` job type and its metric columns, and `role.description`.
 13. **`web_ui/src/views/homemade_dishes_view.vue`, `about_view.vue`, `profile_view.vue` are
     placeholders** ("Hello", "About"). They are linked from the header, so users can reach an
     empty page.
 
 ## Deployment notes
 
-14. **CORS allows localhost only by default.** Set `CORS_ORIGINS` (comma separated) for any real
-    domain, otherwise the browser client is blocked.
-15. **The server spawns the worker from a Debug build path.** Set `DATABASE_WORKER_EXE` to the
-    Release executable, or the API logs "Cannot start database worker" and jobs stay queued.
-16. **Port 3000 is hardcoded** in `server/app.js`; there is no `PORT` variable yet.
+14. **CORS needs the real origins listed.** The server accepts only origins in `CORS_ORIGINS`
+    (comma separated). The site's own public origin must be there, because built Vue assets send
+    an `Origin` header even from the same host; anything unlisted gets 403 on the API and on asset
+    requests, which looks like a blank page. Behind a TLS proxy also set `TRUST_PROXY=1`.
+15. **`public/gallery` is a volume in Compose, not a copy.** Existing uploads in a local
+    `server/public/gallery` are not carried into the `gallery` volume. Copy them in or restore a
+    backup before switching a live install to Compose.
+16. **Port 3000 is fixed inside the server.** `server/app.js` listens on 3000, and Compose
+    publishes `3000:3000`. Changing the host port is fine; add the new origin to
+    `CORS_ORIGINS` at the same time. There is no `PORT` variable.
 17. **The old JWT secret is in git history.** Commit `f3738d6` contains
     `JWT_SECRET = 'what-dish-to-cook-today'`. Anyone with a clone can forge tokens if a
     deployment reuses that value. Generate a fresh random secret; never restore the old one.
     History is not rewritten here.
+18. **`must_change_password` is enforced by the client guard only.** `verifyToken` rejects a
+    disabled account with 401, but it does not refuse a session that only needs a password
+    change. The server reports the flag at signin and `/api/auth/me` and clears it on
+    `POST /api/auth/password`; other API calls still work. A script that keeps the temporary
+    password can use the account. Enforce the flag in `verifyToken` if that matters.
+19. **The Vite dev server cannot serve `/public/i18n/*.json`.** Those catalogs live in
+    `server/public`, and `/public` belongs to Express, so `npm run dev` renders interface keys
+    instead of translations unless a proxy or a copied folder supplies them. The build served by
+    Express at `/` is correct.
 
 ## Responsive layout
 
-18. **No automated guard for layout.** The 320-1440 px pass was verified with a temporary probe harness that measured header height, overflow and tap targets, then was deleted. Any CSS change can regress it silently; repeat the probe or add a Playwright-style check before touching theme.css media queries.
+20. **No automated guard for layout.** The 320-1440 px pass was verified with a temporary probe harness that measured header height, overflow and tap targets, then was deleted. Any CSS change can regress it silently; repeat the probe or add a Playwright-style check before touching theme.css media queries.
 
 ## Flutter client
 
-19. **Flutter editors are new and lightly exercised.** Phase 3 adds dish and ingredient create/edit, uploads, drag-and-drop, blocks and the translation toggle. The file picker and drag-and-drop were not exercised in a real browser; only unit and widget tests cover the upload path.
-20. **Flutter layout is untested in a real browser.** The build is served at /flutter/ and all widget tests pass, but no browser render was captured for this pass. Check /flutter/ at 320 px and 1440 px before claiming parity.
+21. **Flutter editors are new and lightly exercised.** Phase 3 adds dish and ingredient create/edit, uploads, drag-and-drop, blocks and the translation toggle. The file picker and drag-and-drop were not exercised in a real browser; only unit and widget tests cover the upload path.
+22. **Flutter layout is untested in a real browser.** The build is served at /flutter/ and all widget tests pass, but no browser render was captured for this pass. Check /flutter/ at 320 px and 1440 px before claiming parity.
+
+## Data tools
+
+23. **The C# catalog reader mirrors a JSON shape the server does not validate strictly.**
+    `shared/Catalog.cs` and `server/config/catalog/validate.js` both read `catalog/*.json`.
+    `POST /api/admin/reset` loads and validates the catalog before it sets maintenance or drops
+    a collection, but `shared/Catalog.cs` still fails on its own parse. A malformed file still
+    fails the C# tools before they write.

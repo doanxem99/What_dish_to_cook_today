@@ -6,6 +6,31 @@ const path = require('path');
 const appDebug = require('../../config/debug/app_debug');
 const profileEnum = require('../../config/enum/profile_enum');
 const { verifyToken } = require('./verifyToken');
+const { recordAudit } = require('../../config/admin/audit');
+
+const AUDIT_DETAIL_MAX = 80;
+
+const auditDetail = function(value) {
+    const text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+    return text.length > AUDIT_DETAIL_MAX ? text.slice(0, AUDIT_DETAIL_MAX) + '...' : text;
+};
+
+//A failed audit write must not undo a create that already succeeded.
+const auditContent = function(req, action, targetType, targetId, detail) {
+    const user = req.current_user || {};
+    return recordAudit({
+        actorId: user._id || null,
+        actorName: user.username || user.email || '',
+        action,
+        targetType,
+        targetId,
+        result: 'ok',
+        detail: auditDetail(detail),
+        ip: req.ip || ''
+    }).catch((err) => {
+        appDebug.writeLine(appDebug.DebugType.Exception, "Audit write failed : " + err);
+    });
+};
 
 const findFilePathsAndMoveAsync = (dishPostData, rootPath, tempFolder, dishFolder) => {
     return new Promise((resolve, reject) => {
@@ -298,6 +323,11 @@ router.get('/mine', verifyToken, async function(req, res){
 });
 router.post('/create_ingredient', verifyToken, async function(req, res){
     const result = await createIngredient(req.body);
+    if (result.status === profileEnum.ProfileStatus_Create.Success) {
+        const detail = (typeof req.body.name === 'string' ? req.body.name.trim() : '')
+            || (typeof req.body.name_vi === 'string' ? req.body.name_vi.trim() : '');
+        await auditContent(req, 'ingredient.create', 'ingredient', result.ingredient_id, detail);
+    }
     res.status(result.status_code).send(result);
 });
 router.post('/create_ingredient_post', verifyToken, async function(req, res){
@@ -311,6 +341,14 @@ router.post('/create_ingredient_post', verifyToken, async function(req, res){
     //Never trust the user id from the client
     req.body.data.user_id = req.body.userid;
     const result = await createIngredientPost(req.body);
+    const created = result.status === profileEnum.ProfileStatus_PostCreate.CreatingSuccess
+        || result.status === profileEnum.ProfileStatus_PostCreate.EditingSuccess;
+    if (created && result.ingredient_post_id) {
+        const detail = req.body.ingredient_name || req.body.data.name || '';
+        const action = result.status === profileEnum.ProfileStatus_PostCreate.EditingSuccess
+            ? 'ingredient_post.edit' : 'ingredient_post.create';
+        await auditContent(req, action, 'ingredient_post', result.ingredient_post_id, detail);
+    }
     res.status(result.status_code).send(result);
 });
 router.get('/get_ingredient/:ingredient_id', async function(req, res){

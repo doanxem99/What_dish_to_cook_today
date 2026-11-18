@@ -92,6 +92,7 @@ export default {
           {{ t('nav.signOut') }}
         </button>
         <router-link v-else to="/signup" class="btn btn-quiet account-signout">{{ t('nav.signUp') }}</router-link>
+        <router-link v-if="auth.isAdmin" to="/admin" class="btn btn-quiet admin-link" :title="t('admin.title')">{{ t('admin.title') }}</router-link>
       </div>
 
       <nav class="header-nav" aria-label="Main">

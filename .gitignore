@@ -40,3 +40,4 @@ build/
 # Local app logs
 **/Temporary/AppLog.txt
 server/config/debug/data/
+server/backups/

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const outDir = path.join(here, '../public/pictures/dishes')
-const creditsPath = path.join(here, 'seed-images.json')
+const creditsPath = path.join(here, '../../catalog/images.json')
 const headers = { 'User-Agent': 'WhatDishToCookToday/1.0 (local demo seed)' }
 
 const PICKS = [
@@ -15,7 +15,8 @@ const PICKS = [
     ['Lemongrass chicken', 'ga-nuong', 'File:Gà nướng muối ớt.jpg']
 ]
 
-const credits = JSON.parse(await fs.readFile(creditsPath, 'utf8'))
+const images = JSON.parse(await fs.readFile(creditsPath, 'utf8'))
+const credits = images.dishes
 
 for (const [name, slug, title] of PICKS) {
     const params = new URLSearchParams({
@@ -48,5 +49,5 @@ for (const [name, slug, title] of PICKS) {
     await new Promise(resolve => setTimeout(resolve, 1500))
 }
 
-await fs.writeFile(creditsPath, JSON.stringify(credits, null, 2) + '\n')
+await fs.writeFile(creditsPath, JSON.stringify({ ...images, dishes: credits }, null, 2) + '\n')
 console.log('updated credits')

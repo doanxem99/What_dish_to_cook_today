@@ -1,0 +1,724 @@
+[
+  {
+    "name": "Beef",
+    "name_vi": "Thịt bò",
+    "type": "Food",
+    "short_detail": "Red meat used in phở and stir-fries",
+    "short_detail_vi": "Thịt đỏ dùng cho phở và món xào",
+    "nutrition": {
+      "description": "Beef, ground, 85% lean meat, raw",
+      "per_100g": {
+        "calories": 215,
+        "protein": 18.6,
+        "fat": 15,
+        "carbs": 0,
+        "fiber": 0,
+        "sodium": 66
+      }
+    },
+    "image": ""
+  },
+  {
+    "name": "Pork",
+    "name_vi": "Thịt heo",
+    "type": "Food",
+    "short_detail": "Grilled, minced or braised in Vietnamese dishes",
+    "short_detail_vi": "Nướng, băm hoặc kho trong món Việt",
+    "nutrition": {
+      "description": "Pork, fresh, ground, raw",
+      "per_100g": {
+        "calories": 263,
+        "protein": 16.9,
+        "fat": 21.2,
+        "carbs": 0,
+        "fiber": 0,
+        "sodium": 56
+      }
+    },
+    "image": "public/pictures/ingredients/pork.jpg"
+  },
+  {
+    "name": "Chicken",
+    "name_vi": "Thịt gà",
+    "type": "Food",
+    "short_detail": "Poultry for soups, grills and braises",
+    "short_detail_vi": "Gia cầm cho canh, món nướng và món kho",
+    "nutrition": {
+      "description": "Chicken, broiler breast, meat only, raw",
+      "per_100g": {
+        "calories": 120,
+        "protein": 22.5,
+        "fat": 2.6,
+        "carbs": 0,
+        "fiber": 0,
+        "sodium": 45
+      }
+    },
+    "image": ""
+  },
+  {
+    "name": "Fish",
+    "name_vi": "Cá",
+    "type": "Food",
+    "short_detail": "Freshwater or sea fish for soups and braises",
+    "short_detail_vi": "Cá nước ngọt hoặc cá biển cho canh và kho",
+    "nutrition": {
+      "description": "Fish, catfish, channel, farmed, raw",
+      "per_100g": {
+        "calories": 144,
+        "protein": 14,
+        "fat": 8.9,
+        "carbs": 0,
+        "fiber": 0,
+        "sodium": 58
+      }
+    },
+    "image": "public/pictures/ingredients/fish.jpg"
+  },
+  {
+    "name": "Shrimp",
+    "name_vi": "Tôm",
+    "type": "Food",
+    "short_detail": "Used fresh in rolls, soups and pancakes",
+    "short_detail_vi": "Dùng tươi trong món cuốn, canh và bánh xèo",
+    "nutrition": {
+      "description": "Crustaceans, shrimp, raw",
+      "per_100g": {
+        "calories": 85,
+        "protein": 20.1,
+        "fat": 0.5,
+        "carbs": 0.9,
+        "fiber": 0,
+        "sodium": 148
+      }
+    },
+    "image": "public/pictures/ingredients/shrimp.jpg"
+  },
+  {
+    "name": "Egg",
+    "name_vi": "Trứng",
+    "type": "Food",
+    "short_detail": "Fried, boiled or used to bind",
+    "short_detail_vi": "Chiên, luộc hoặc dùng để kết dính",
+    "nutrition": {
+      "description": "Egg, whole, raw, fresh",
+      "per_100g": {
+        "calories": 143,
+        "protein": 12.6,
+        "fat": 9.5,
+        "carbs": 0.7,
+        "fiber": 0,
+        "sodium": 142
+      }
+    },
+    "image": "public/pictures/ingredients/egg.jpg"
+  },
+  {
+    "name": "Rice",
+    "name_vi": "Gạo",
+    "type": "Food",
+    "short_detail": "Staple grain, steamed or fried",
+    "short_detail_vi": "Ngũ cốc chính, nấu hoặc chiên",
+    "nutrition": {
+      "description": "Rice, white, long-grain, regular, raw",
+      "per_100g": {
+        "calories": 365,
+        "protein": 7.1,
+        "fat": 0.7,
+        "carbs": 80,
+        "fiber": 1.3,
+        "sodium": 5
+      }
+    },
+    "image": "public/pictures/ingredients/rice.jpg"
+  },
+  {
+    "name": "Rice noodle",
+    "name_vi": "Bánh phở",
+    "type": "Food",
+    "short_detail": "Flat rice noodles for phở",
+    "short_detail_vi": "Bánh phở dẹt dùng cho món phở",
+    "nutrition": {
+      "description": "Rice noodles, dry",
+      "per_100g": {
+        "calories": 364,
+        "protein": 6,
+        "fat": 0.6,
+        "carbs": 82,
+        "fiber": 1.6,
+        "sodium": 9
+      }
+    },
+    "image": ""
+  },
+  {
+    "name": "Rice vermicelli",
+    "name_vi": "Bún",
+    "type": "Food",
+    "short_detail": "Thin rice noodles for bún dishes",
+    "short_detail_vi": "Sợi bún nhỏ cho các món bún",
+    "nutrition": {
+      "description": "Rice vermicelli, dry",
+      "per_100g": {
+        "calories": 364,
+        "protein": 6,
+        "fat": 0.6,
+        "carbs": 82,
+        "fiber": 1.6,
+        "sodium": 9
+      }
+    },
+    "image": "public/pictures/ingredients/rice-vermicelli.jpg"
+  },
+  {
+    "name": "Rice paper",
+    "name_vi": "Bánh tráng",
+    "type": "Food",
+    "short_detail": "Sheets for fresh and fried rolls",
+    "short_detail_vi": "Bánh dùng để cuốn tươi hoặc chiên",
+    "nutrition": {
+      "description": "Rice paper, dry wrapper",
+      "per_100g": {
+        "calories": 330,
+        "protein": 7,
+        "fat": 0.5,
+        "carbs": 74,
+        "fiber": 1.5,
+        "sodium": 300
+      }
+    },
+    "image": "public/pictures/ingredients/rice-paper.jpg"
+  },
+  {
+    "name": "Baguette",
+    "name_vi": "Bánh mì",
+    "type": "Food",
+    "short_detail": "Wheat roll for the sandwich of the same name",
+    "short_detail_vi": "Bánh mì lúa mì cho món bánh mì",
+    "nutrition": {
+      "description": "Bread, French or Vienna, without seeds",
+      "per_100g": {
+        "calories": 274,
+        "protein": 9,
+        "fat": 1,
+        "carbs": 55,
+        "fiber": 2.2,
+        "sodium": 574
+      }
+    },
+    "image": "public/pictures/ingredients/baguette.jpg"
+  },
+  {
+    "name": "Water spinach",
+    "name_vi": "Rau muống",
+    "type": "Food",
+    "short_detail": "Leafy green for quick stir-fries",
+    "short_detail_vi": "Rau lá xanh cho món xào nhanh",
+    "nutrition": {
+      "description": "Water spinach, raw",
+      "per_100g": {
+        "calories": 19,
+        "protein": 2.6,
+        "fat": 0.2,
+        "carbs": 3.1,
+        "fiber": 2.1,
+        "sodium": 113
+      }
+    },
+    "image": "public/pictures/ingredients/water-spinach.jpg"
+  },
+  {
+    "name": "Bean sprouts",
+    "name_vi": "Giá đỗ",
+    "type": "Food",
+    "short_detail": "Crunchy sprouts for soups and rolls",
+    "short_detail_vi": "Giá giòn cho canh và món cuốn",
+    "nutrition": {
+      "description": "Mung beans, mature seeds, sprouted, raw",
+      "per_100g": {
+        "calories": 30,
+        "protein": 3,
+        "fat": 0.2,
+        "carbs": 5.9,
+        "fiber": 1.8,
+        "sodium": 6
+      }
+    },
+    "image": "public/pictures/ingredients/bean-sprouts.jpg"
+  },
+  {
+    "name": "Tomato",
+    "name_vi": "Cà chua",
+    "type": "Food",
+    "short_detail": "Acid base for soups and sauces",
+    "short_detail_vi": "Nền vị chua cho canh và sốt",
+    "nutrition": {
+      "description": "Tomatoes, red, ripe, raw",
+      "per_100g": {
+        "calories": 18,
+        "protein": 0.9,
+        "fat": 0.2,
+        "carbs": 3.9,
+        "fiber": 1.2,
+        "sodium": 5
+      }
+    },
+    "image": "public/pictures/ingredients/tomato.jpg"
+  },
+  {
+    "name": "Pineapple",
+    "name_vi": "Dứa",
+    "type": "Fruit",
+    "short_detail": "Sweet-sour fruit for sour soup",
+    "short_detail_vi": "Trái chua ngọt cho canh chua",
+    "nutrition": {
+      "description": "Pineapple, raw, all varieties",
+      "per_100g": {
+        "calories": 50,
+        "protein": 0.5,
+        "fat": 0.1,
+        "carbs": 13.1,
+        "fiber": 1.4,
+        "sodium": 1
+      }
+    },
+    "image": "public/pictures/ingredients/pineapple.jpg"
+  },
+  {
+    "name": "Okra",
+    "name_vi": "Đậu bắp",
+    "type": "Food",
+    "short_detail": "Thickens sour soup",
+    "short_detail_vi": "Làm sánh món canh chua",
+    "nutrition": {
+      "description": "Okra, raw",
+      "per_100g": {
+        "calories": 33,
+        "protein": 1.9,
+        "fat": 0.2,
+        "carbs": 7.5,
+        "fiber": 3.2,
+        "sodium": 7
+      }
+    },
+    "image": "public/pictures/ingredients/okra.jpg"
+  },
+  {
+    "name": "Cucumber",
+    "name_vi": "Dưa leo",
+    "type": "Food",
+    "short_detail": "Cool crunch for salads and sandwiches",
+    "short_detail_vi": "Dưa giòn mát cho gỏi và bánh mì",
+    "nutrition": {
+      "description": "Cucumber, with peel, raw",
+      "per_100g": {
+        "calories": 15,
+        "protein": 0.7,
+        "fat": 0.1,
+        "carbs": 3.6,
+        "fiber": 0.5,
+        "sodium": 2
+      }
+    },
+    "image": "public/pictures/ingredients/cucumber.jpg"
+  },
+  {
+    "name": "Carrot",
+    "name_vi": "Cà rốt",
+    "type": "Food",
+    "short_detail": "Pickled with daikon for sandwiches",
+    "short_detail_vi": "Muối chua cùng củ cải cho bánh mì",
+    "nutrition": {
+      "description": "Carrots, raw",
+      "per_100g": {
+        "calories": 41,
+        "protein": 0.9,
+        "fat": 0.2,
+        "carbs": 9.6,
+        "fiber": 2.8,
+        "sodium": 69
+      }
+    },
+    "image": "public/pictures/ingredients/carrot.jpg"
+  },
+  {
+    "name": "Daikon",
+    "name_vi": "Củ cải trắng",
+    "type": "Food",
+    "short_detail": "Pickled with carrot",
+    "short_detail_vi": "Muối chua cùng cà rốt",
+    "nutrition": {
+      "description": "Radishes, Oriental, raw",
+      "per_100g": {
+        "calories": 18,
+        "protein": 0.6,
+        "fat": 0.1,
+        "carbs": 4.1,
+        "fiber": 1.6,
+        "sodium": 21
+      }
+    },
+    "image": "public/pictures/ingredients/daikon.jpg"
+  },
+  {
+    "name": "Garlic",
+    "name_vi": "Tỏi",
+    "type": "Spice",
+    "short_detail": "Aromatic base for marinades and stir-fries",
+    "short_detail_vi": "Nền thơm cho ướp và xào",
+    "nutrition": {
+      "description": "Garlic, raw",
+      "per_100g": {
+        "calories": 149,
+        "protein": 6.4,
+        "fat": 0.5,
+        "carbs": 33.1,
+        "fiber": 2.1,
+        "sodium": 17
+      }
+    },
+    "image": "public/pictures/ingredients/garlic.jpg"
+  },
+  {
+    "name": "Onion",
+    "name_vi": "Hành tây",
+    "type": "Spice",
+    "short_detail": "Charred for phở broth, raw in salads",
+    "short_detail_vi": "Nướng cho nước dùng phở, ăn sống trong gỏi",
+    "nutrition": {
+      "description": "Onions, raw",
+      "per_100g": {
+        "calories": 40,
+        "protein": 1.1,
+        "fat": 0.1,
+        "carbs": 9.3,
+        "fiber": 1.7,
+        "sodium": 4
+      }
+    },
+    "image": "public/pictures/ingredients/onion.jpg"
+  },
+  {
+    "name": "Ginger",
+    "name_vi": "Gừng",
+    "type": "Spice",
+    "short_detail": "Charred for broth, grated for marinades",
+    "short_detail_vi": "Nướng cho nước dùng, bào cho ướp",
+    "nutrition": {
+      "description": "Ginger root, raw",
+      "per_100g": {
+        "calories": 80,
+        "protein": 1.8,
+        "fat": 0.8,
+        "carbs": 17.8,
+        "fiber": 2,
+        "sodium": 13
+      }
+    },
+    "image": "public/pictures/ingredients/ginger.jpg"
+  },
+  {
+    "name": "Lemongrass",
+    "name_vi": "Sả",
+    "type": "Spice",
+    "short_detail": "Citrus-scented stalk for grills",
+    "short_detail_vi": "Thân thơm mùi chanh cho món nướng",
+    "nutrition": {
+      "description": "Lemon grass, raw",
+      "per_100g": {
+        "calories": 99,
+        "protein": 1.8,
+        "fat": 0.5,
+        "carbs": 25.3,
+        "fiber": 0,
+        "sodium": 6
+      }
+    },
+    "image": "public/pictures/ingredients/lemongrass.jpg"
+  },
+  {
+    "name": "Cilantro",
+    "name_vi": "Rau mùi",
+    "type": "Spice",
+    "short_detail": "Fresh herb for garnish",
+    "short_detail_vi": "Rau thơm dùng để rắc",
+    "nutrition": {
+      "description": "Coriander leaves, raw",
+      "per_100g": {
+        "calories": 23,
+        "protein": 2.1,
+        "fat": 0.5,
+        "carbs": 3.7,
+        "fiber": 2.8,
+        "sodium": 46
+      }
+    },
+    "image": "public/pictures/ingredients/cilantro.jpg"
+  },
+  {
+    "name": "Scallion",
+    "name_vi": "Hành lá",
+    "type": "Spice",
+    "short_detail": "Sliced green for garnish",
+    "short_detail_vi": "Hành lá thái nhỏ để rắc",
+    "nutrition": {
+      "description": "Onions, spring or scallions, raw",
+      "per_100g": {
+        "calories": 32,
+        "protein": 1.8,
+        "fat": 0.2,
+        "carbs": 7.3,
+        "fiber": 2.6,
+        "sodium": 16
+      }
+    },
+    "image": "public/pictures/ingredients/scallion.jpg"
+  },
+  {
+    "name": "Thai basil",
+    "name_vi": "Húng quế",
+    "type": "Spice",
+    "short_detail": "Anise-scented herb for soups and rolls",
+    "short_detail_vi": "Rau thơm mùi hồi cho canh và món cuốn",
+    "nutrition": {
+      "description": "Basil, fresh",
+      "per_100g": {
+        "calories": 23,
+        "protein": 3.2,
+        "fat": 0.6,
+        "carbs": 2.7,
+        "fiber": 1.6,
+        "sodium": 4
+      }
+    },
+    "image": "public/pictures/ingredients/thai-basil.jpg"
+  },
+  {
+    "name": "Mung bean",
+    "name_vi": "Đậu xanh",
+    "type": "Food",
+    "short_detail": "Base for sweet soup",
+    "short_detail_vi": "Nguyên liệu cho món chè",
+    "nutrition": {
+      "description": "Mung beans, mature seeds, raw",
+      "per_100g": {
+        "calories": 347,
+        "protein": 23.9,
+        "fat": 1.2,
+        "carbs": 62.6,
+        "fiber": 16.3,
+        "sodium": 15
+      }
+    },
+    "image": "public/pictures/ingredients/mung-bean.jpg"
+  },
+  {
+    "name": "Coconut milk",
+    "name_vi": "Nước cốt dừa",
+    "type": "Food",
+    "short_detail": "Creamy base for curries and sweet soup",
+    "short_detail_vi": "Nền béo cho cà ri và chè",
+    "nutrition": {
+      "description": "Nuts, coconut milk, raw",
+      "per_100g": {
+        "calories": 230,
+        "protein": 2.3,
+        "fat": 23.8,
+        "carbs": 5.5,
+        "fiber": 2.2,
+        "sodium": 15
+      }
+    },
+    "image": "public/pictures/ingredients/coconut-milk.jpg"
+  },
+  {
+    "name": "Tamarind",
+    "name_vi": "Me",
+    "type": "Fruit",
+    "short_detail": "Sour pulp for sour soup",
+    "short_detail_vi": "Thịt quả chua cho canh chua",
+    "nutrition": {
+      "description": "Tamarinds, raw",
+      "per_100g": {
+        "calories": 239,
+        "protein": 2.8,
+        "fat": 0.6,
+        "carbs": 62.5,
+        "fiber": 5.1,
+        "sodium": 28
+      }
+    },
+    "image": "public/pictures/ingredients/tamarind.jpg"
+  },
+  {
+    "name": "Fish sauce",
+    "name_vi": "Nước mắm",
+    "type": "Spice",
+    "short_detail": "Fermented salty sauce for seasoning and dipping",
+    "short_detail_vi": "Nước chấm lên men mặn để nêm và chấm",
+    "nutrition": {
+      "description": "Sauce, fish, ready-to-serve",
+      "per_100g": {
+        "calories": 35,
+        "protein": 5.1,
+        "fat": 0,
+        "carbs": 3.6,
+        "fiber": 0,
+        "sodium": 7851
+      }
+    },
+    "image": ""
+  },
+  {
+    "name": "Soy sauce",
+    "name_vi": "Nước tương",
+    "type": "Spice",
+    "short_detail": "Salty sauce for fried rice and glazes",
+    "short_detail_vi": "Nước sốt mặn cho cơm chiên và sốt",
+    "nutrition": {
+      "description": "Soy sauce made from soy and wheat, ready-to-serve",
+      "per_100g": {
+        "calories": 53,
+        "protein": 8.1,
+        "fat": 0.6,
+        "carbs": 4.9,
+        "fiber": 0.8,
+        "sodium": 5493
+      }
+    },
+    "image": "public/pictures/ingredients/soy-sauce.jpg"
+  },
+  {
+    "name": "Sugar",
+    "name_vi": "Đường",
+    "type": "Spice",
+    "short_detail": "Balances salt and sour",
+    "short_detail_vi": "Cân bằng vị mặn và chua",
+    "nutrition": {
+      "description": "Sugars, granulated",
+      "per_100g": {
+        "calories": 387,
+        "protein": 0,
+        "fat": 0,
+        "carbs": 100,
+        "fiber": 0,
+        "sodium": 1
+      }
+    },
+    "image": ""
+  },
+  {
+    "name": "Salt",
+    "name_vi": "Muối",
+    "type": "Spice",
+    "short_detail": "Base seasoning",
+    "short_detail_vi": "Gia vị nền",
+    "nutrition": {
+      "description": "Salt, table",
+      "per_100g": {
+        "calories": 0,
+        "protein": 0,
+        "fat": 0,
+        "carbs": 0,
+        "fiber": 0,
+        "sodium": 38758
+      }
+    },
+    "image": "public/pictures/ingredients/salt.jpg"
+  },
+  {
+    "name": "Black pepper",
+    "name_vi": "Tiêu",
+    "type": "Spice",
+    "short_detail": "Ground heat for marinades and soups",
+    "short_detail_vi": "Tiêu xay cho ướp và canh",
+    "nutrition": {
+      "description": "Spices, pepper, black",
+      "per_100g": {
+        "calories": 251,
+        "protein": 10.4,
+        "fat": 3.3,
+        "carbs": 63.9,
+        "fiber": 25.3,
+        "sodium": 20
+      }
+    },
+    "image": "public/pictures/ingredients/black-pepper.jpg"
+  },
+  {
+    "name": "Cooking oil",
+    "name_vi": "Dầu ăn",
+    "type": "Other",
+    "short_detail": "Neutral oil for frying",
+    "short_detail_vi": "Dầu trung tính để chiên",
+    "nutrition": {
+      "description": "Oil, vegetable, cooking",
+      "per_100g": {
+        "calories": 884,
+        "protein": 0,
+        "fat": 100,
+        "carbs": 0,
+        "fiber": 0,
+        "sodium": 0
+      }
+    },
+    "image": "public/pictures/ingredients/cooking-oil.jpg"
+  },
+  {
+    "name": "Star anise",
+    "name_vi": "Hoa hồi",
+    "type": "Spice",
+    "short_detail": "Phở spice with a warm anise aroma",
+    "short_detail_vi": "Gia vị phở, mùi hồi ấm",
+    "nutrition": {
+      "description": "Spices, anise seed",
+      "per_100g": {
+        "calories": 337,
+        "protein": 17.6,
+        "fat": 15.9,
+        "carbs": 50,
+        "fiber": 14.6,
+        "sodium": 16
+      }
+    },
+    "image": "public/pictures/ingredients/star-anise.jpg"
+  },
+  {
+    "name": "Turmeric",
+    "name_vi": "Nghệ",
+    "type": "Spice",
+    "short_detail": "Yellow colour for bánh xèo",
+    "short_detail_vi": "Màu vàng cho bánh xèo",
+    "nutrition": {
+      "description": "Spices, turmeric, ground",
+      "per_100g": {
+        "calories": 312,
+        "protein": 9.7,
+        "fat": 3.3,
+        "carbs": 67.1,
+        "fiber": 22.7,
+        "sodium": 27
+      }
+    },
+    "image": "public/pictures/ingredients/turmeric.jpg"
+  },
+  {
+    "name": "Rice flour",
+    "name_vi": "Bột gạo",
+    "type": "Food",
+    "short_detail": "Batter base for bánh xèo",
+    "short_detail_vi": "Nền bột cho bánh xèo",
+    "nutrition": {
+      "description": "Rice flour, white",
+      "per_100g": {
+        "calories": 366,
+        "protein": 5.9,
+        "fat": 1.4,
+        "carbs": 80.1,
+        "fiber": 2.4,
+        "sodium": 0
+      }
+    },
+    "image": ""
+  }
+]

@@ -1,0 +1,28 @@
+# Keep the build context to what the Dockerfile copies: server/, web_ui/, catalog/.
+.git
+.gitattributes
+.github
+.vscode
+.impeccable
+docs
+flutter_web_dev
+database_control_center
+db_control
+db_seed_tests
+shared
+
+# Dependencies and build output are produced inside the image.
+**/node_modules
+**/dist
+**/bin
+**/obj
+**/.vs
+**/.dart_tool
+**/build
+
+# Secrets and local state never enter an image layer.
+.env
+**/.env
+server/backups
+server/Temporary
+server/config/debug/data

@@ -13,7 +13,9 @@ directly, so a field added on one side must be added on the other.
 | `name` | String, unique | `user`, `admin` |
 | `description` | String | |
 
-Created on demand at signup if missing (the seed tools do not create roles).
+Created on demand at signup if missing, and on boot by `promoteAdmin()`. `admin` reaches
+`/api/admin/*` and the `/admin` screens; `user` is the signup default. The last enabled admin
+cannot be demoted or disabled, and an admin cannot demote or disable themselves.
 
 ### `user`
 
@@ -25,6 +27,8 @@ Created on demand at signup if missing (the seed tools do not create roles).
 | `roles` | [ObjectId → `role`], required | array; signup assigns the `user` role |
 | `created_at` | Date | set at signup; null for older users, and `/api/auth/me` returns null |
 | `profile_image` | Buffer | unused by the clients today |
+| `is_disabled` | Boolean | set by an admin; a disabled account cannot sign in (401) or call an admin route |
+| `must_change_password` | Boolean | set when an admin issues a temporary password; cleared by `POST /api/auth/password` |
 
 ### `ingredient`
 
@@ -79,6 +83,9 @@ Created on demand at signup if missing (the seed tools do not create roles).
 | `short_detail_vi` | String | optional Vietnamese description |
 | `profile_image` | String | relative path under `server/` |
 | `images` | Array of String | extra photos, relative paths under `server/` |
+| `servings` | Number | written by the catalog seed |
+| `nutrition` | Object | per portion: `calories`, `protein`, `fat`, `carbs`, `fiber`, `sodium` |
+| `ingredient_amounts` | Array | `{ingredient_id, grams}` for each catalog ingredient |
 | `display_blocks` | Array | rendered content, see below |
 
 ### `comment`
@@ -104,14 +111,58 @@ Unique compound index on `{user_id, dish_post_id}`. The toggle route inserts or 
 `dish_post.points` (increment on vote, floored decrement on unvote), so `points` stays the stored counter that
 `get_best_dish_post` and the C# vote job rank by.
 
-### `database_worker_job`
+### `audit_log`
+
+Append-only: no route updates or deletes a row.
+
 | Field | Type | Notes |
 |---|---|---|
-| `data` | String | `ResetData` or `VoteBestPostIngredient:<ingredientId>` |
-| `time_request` | String | ISO time, used by the vote job to skip stale work |
+| `actor_id` | ObjectId → `user` | the admin who acted |
+| `actor_name` | String | username or email at the time of the action |
+| `action` | String | `admin.signin`, `job.backup`, `job.reset`, `job.restore`, `job.recalc_best_post`, `backup.download`, `user.role`, `user.disabled`, `user.password`, `dish.create`, `dish_post.create`, `ingredient.create`, `ingredient_post.create`, `comment.delete`, ... |
+| `target_type` | String | `user`, `ingredient`, `dish`, `dish_post`, `ingredient_post`, `comment`, `backup`, `job`, ... |
+| `target_id` | String | id of the target, empty when there is none |
+| `result` | String | `ok` or `failed` |
+| `detail` | String | one line of context, never password material; a deleted comment leaves its excerpt here |
+| `ip` | String | request ip |
+| `created_at` | Date | |
 
-The worker deletes a job after success and keeps it after failure. Multiple jobs run in insertion
-order, one batch per second.
+Indexes on `created_at` and `action`; `/api/admin/audit` reads newest first.
+Content creation now writes here too: one row per successful dish, dish post, ingredient or
+ingredient post create, and `comment.delete` for moderation. A refused create writes no row.
+
+### `admin_job`
+
+The admin job queue. One row per operation, run in-process, one at a time.
+
+| Field | Type | Notes |
+|---|---|---|
+| `type` | String | `backup`, `reset`, `restore`, `recalc_best_post`; `ai` is reserved and has no handler yet |
+| `status` | String | `queued`, `running`, `done`, `failed` |
+| `actor_id` | ObjectId → `user` | who queued it |
+| `actor_name` | String | |
+| `payload` | Object | `{ingredient_id}` for `recalc_best_post`, `{id}` (backup id) for `restore`, `{}` otherwise |
+| `detail` | String | success line, e.g. `reset complete, backup backup-20261118-193000.json.gz` |
+| `error` | String | failure message |
+| `created_at`, `started_at`, `finished_at` | Date | |
+| `provider`, `model`, `latency_ms`, `tokens_in`, `tokens_out`, `cost_estimate` | String / Number | reserved for the `ai` type; metrics only, never prompt or response text |
+
+A `queued` or `running` row found at boot becomes `failed` with `detail: "server restarted"`;
+nothing auto-retries. Index on `{status, created_at}`.
+
+### `settings`
+
+One row per key. The only key in use is `maintenance`.
+
+| Field | Type | Notes |
+|---|---|---|
+| `key` | String, unique | `maintenance` |
+| `enabled` | Boolean | while true, public `/api/*` answers 503 |
+| `reason` | String | `catalog reset`, `catalog restore`, `server restarted` |
+| `actor_id` | ObjectId → `user` | who switched it on |
+| `actor_name` | String | |
+| `owner_job_id` | ObjectId → `admin_job` | the job that owns the flag; only it may clear it |
+| `updated_at` | Date | |
 
 ## Display blocks
 
@@ -147,8 +198,23 @@ Image blocks:
 
 ## Seeding
 
-- `db_control --init_data` — drops and re-seeds `ingredient`, `ingredient_post`, `dish`,
-  `dish_post` with 9 ingredients and one dish. Requires user `moonshine@gmail.com`.
-- `database_control_center` job `ResetData` — the same idea, but 6 ingredients and one dish,
-  triggered from the app or by a queued job. The two seeds already differ; unify them if you
-  touch either.
+All three paths read the canonical `catalog/*.json` and produce 38 ingredients and 13 dishes,
+with `name_vi`, nutrition, servings, grams per ingredient and the relative image path stored on
+each ingredient and dish row (`image`):
+
+- `db_control init --yes` — drops and re-seeds the six catalog collections from the terminal.
+- `POST /api/admin/reset` — the same work as an admin job; it writes a backup first.
+- `database_control_center` — the same reset from the offline Windows console.
+
+Every seeded post is owned by the acting admin, so a reset needs an `admin_job` actor id and
+fails before dropping anything when there is none. Unique indexes are recreated after the drop,
+because dropping a collection drops its indexes with it.
+
+## Backups
+
+The backup contract is gzip JSON, `{format:"wdtct-backup", version:1, created_at, collections}`
+with ObjectIds as 24-char hex strings and dates as ISO 8601. It exports the six catalog
+collections plus `user`; a restore reads only the six and leaves `user`, `role`, `audit_log`,
+`admin_job` and `settings` untouched. The server writes to `BACKUP_DIR` (default
+`server/backups`, `/app/backups` in Compose); `db_control` writes wherever `--out` points. Keep
+the newest 10 server archives; older ones are pruned automatically.

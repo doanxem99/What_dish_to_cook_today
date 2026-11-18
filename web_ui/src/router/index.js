@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../assets/store/auth_store'
+import { guardDecision, CHANGE_PASSWORD_PATH } from '../components/admin/admin_guard'
 import { t } from '../i18n'
 import homeView from '../views/home_view.vue'
 
@@ -75,6 +76,50 @@ const router = createRouter({
       meta: {
         requiresAuth: true
       }
+    },
+    {
+      path: '/change-password',
+      name: 'change_password',
+      component: () => import('../views/change_password_view.vue')
+    },
+    {
+      path: '/admin',
+      component: () => import('../views/admin/admin_layout.vue'),
+      meta: {
+        requiresAdmin: true
+      },
+      children: [
+        {
+          path: '',
+          name: 'admin_overview',
+          component: () => import('../views/admin/admin_overview.vue')
+        },
+        {
+          path: 'jobs',
+          name: 'admin_jobs',
+          component: () => import('../views/admin/admin_jobs.vue')
+        },
+        {
+          path: 'backups',
+          name: 'admin_backups',
+          component: () => import('../views/admin/admin_backups.vue')
+        },
+        {
+          path: 'users',
+          name: 'admin_users',
+          component: () => import('../views/admin/admin_users.vue')
+        },
+        {
+          path: 'ai',
+          name: 'admin_ai',
+          component: () => import('../views/admin/admin_ai.vue')
+        },
+        {
+          path: 'audit',
+          name: 'admin_audit',
+          component: () => import('../views/admin/admin_audit.vue')
+        }
+      ]
     }
   ]
 })
@@ -91,7 +136,14 @@ const titleKeys = {
   about: 'nav.about',
   signin: 'nav.signIn',
   signup: 'nav.signUp',
-  profile: 'nav.profile'
+  profile: 'nav.profile',
+  change_password: 'admin.password.title',
+  admin_overview: 'admin.title',
+  admin_jobs: 'admin.nav.jobs',
+  admin_backups: 'admin.nav.backups',
+  admin_users: 'admin.nav.users',
+  admin_ai: 'admin.nav.ai',
+  admin_audit: 'admin.nav.audit'
 }
 
 router.afterEach((to) => {
@@ -100,13 +152,25 @@ router.afterEach((to) => {
 })
 
 router.beforeEach((to, from, next) => {
-  if (to.meta.requiresAuth && !useAuthStore().isLogin) {
-    useAuthStore().jumpPage = to.fullPath;
-    next('/signin');
+  const auth = useAuthStore()
+  const decision = guardDecision(
+    { isLogin: auth.isLogin, isAdmin: auth.isAdmin, mustChange: auth.mustChange },
+    to
+  )
+  if (decision === 'allow' || decision === 'forbidden') {
+    return next()
   }
-  else {
-    next();
+  if (decision.remember) {
+    auth.jumpPage = to.fullPath
   }
+  //A forced password change returns the user to the page they asked for.
+  if (decision.redirect === CHANGE_PASSWORD_PATH) {
+    auth.jumpPage = to.fullPath
+  }
+  if (decision.redirect === '/signin') {
+    return next({ path: '/signin', replace: true })
+  }
+  return next(decision.redirect)
 })
 
 export default router

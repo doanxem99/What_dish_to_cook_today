@@ -1,8 +1,13 @@
 import serverInfo from '../assets/js/server_info.js'
 
+//server_info may or may not carry a trailing slash; one normalised base feeds every raw fetch.
+export function serverBase(url = serverInfo.serverUrl) {
+    return String(url).replace(/\/$/, '')
+}
+
 //One HTTP module. Errors become {status, message} so screens can render a state instead of throwing raw axios noise.
 async function request(method, path, body) {
-    const response = await fetch(serverInfo.serverUrl.replace(/\/$/, '') + path, {
+    const response = await fetch(serverBase() + path, {
         method,
         credentials: 'include',
         headers: body === undefined ? {} : { 'content-type': 'application/json' },

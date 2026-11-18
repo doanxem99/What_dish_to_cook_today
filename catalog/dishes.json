@@ -1,0 +1,483 @@
+[
+  {
+    "name": "Beef noodle soup",
+    "name_vi": "Phở bò",
+    "short_detail": "Rice noodles in a long-simmered beef broth with charred aromatics.",
+    "short_detail_vi": "Bánh phở trong nước dùng bò hầm lâu với hành gừng nướng.",
+    "steps": [
+      {
+        "text": "Char the onion and ginger under a grill until the skins blacken.",
+        "text_vi": "Nướng hành tây và gừng trên lửa đến khi vỏ cháy xém."
+      },
+      {
+        "text": "Simmer beef bones with the charred aromatics and star anise for at least three hours, skimming the foam.",
+        "text_vi": "Hầm xương bò với hành gừng nướng và hoa hồi ít nhất ba giờ, vớt bọt."
+      },
+      {
+        "text": "Strain the broth, then season with fish sauce and salt.",
+        "text_vi": "Lọc nước dùng, nêm nước mắm và muối."
+      },
+      {
+        "text": "Blanch the rice noodles, add thinly sliced beef, and pour the hot broth over the bowl.",
+        "text_vi": "Trần bánh phở, xếp thịt bò thái mỏng rồi chan nước dùng nóng lên."
+      },
+      {
+        "text": "Serve with herbs, lime and chilli on the side.",
+        "text_vi": "Dọn kèm rau thơm, chanh và ớt."
+      }
+    ],
+    "ingredients": [
+      "Beef",
+      "Rice noodle",
+      "Ginger",
+      "Onion",
+      "Star anise",
+      "Fish sauce",
+      "Salt"
+    ],
+    "image": "public/pictures/dishes/pho-bo.jpg"
+  },
+  {
+    "name": "Grilled pork with noodles",
+    "name_vi": "Bún chả",
+    "short_detail": "Hanoi-style grilled pork patties with vermicelli, herbs and dipping sauce.",
+    "short_detail_vi": "Thịt heo nướng kiểu Hà Nội ăn cùng bún, rau thơm và nước chấm.",
+    "steps": [
+      {
+        "text": "Mix minced pork with garlic, fish sauce, sugar and pepper, then shape small patties.",
+        "text_vi": "Trộn thịt heo băm với tỏi, nước mắm, đường và tiêu rồi nặn thành miếng nhỏ."
+      },
+      {
+        "text": "Marinate for at least thirty minutes.",
+        "text_vi": "Ướp ít nhất ba mươi phút."
+      },
+      {
+        "text": "Grill over charcoal until the edges char and the patties are cooked through.",
+        "text_vi": "Nướng trên than đến khi mép cháy cạnh và thịt chín đều."
+      },
+      {
+        "text": "Make the dipping sauce with fish sauce, sugar, lime, garlic and chilli.",
+        "text_vi": "Pha nước chấm với nước mắm, đường, chanh, tỏi và ớt."
+      },
+      {
+        "text": "Serve the pork in the sauce with cold vermicelli, pickled carrot and fresh herbs.",
+        "text_vi": "Dọn thịt trong bát nước chấm cùng bún nguội, cà rốt chua và rau thơm."
+      }
+    ],
+    "ingredients": [
+      "Pork",
+      "Rice vermicelli",
+      "Garlic",
+      "Fish sauce",
+      "Sugar",
+      "Carrot",
+      "Cilantro"
+    ],
+    "image": "public/pictures/dishes/bun-cha.jpg"
+  },
+  {
+    "name": "Grilled pork vermicelli bowl",
+    "name_vi": "Bún thịt nướng",
+    "short_detail": "Southern cold noodle bowl with grilled pork, herbs and peanuts.",
+    "short_detail_vi": "Bún nguội kiểu miền Nam với thịt heo nướng, rau thơm và đậu phộng.",
+    "steps": [
+      {
+        "text": "Marinate sliced pork with lemongrass, garlic, fish sauce and sugar.",
+        "text_vi": "Ướp thịt heo thái lát với sả, tỏi, nước mắm và đường."
+      },
+      {
+        "text": "Grill the pork until browned and slightly charred, then rest it.",
+        "text_vi": "Nướng thịt đến khi vàng nâu và hơi cháy cạnh rồi để nghỉ."
+      },
+      {
+        "text": "Cook the vermicelli, rinse in cold water and drain well.",
+        "text_vi": "Luộc bún, xả nước lạnh và để ráo."
+      },
+      {
+        "text": "Build bowls with noodles, cucumber, pickled carrot, bean sprouts and herbs.",
+        "text_vi": "Xếp bát với bún, dưa leo, cà rốt chua, giá đỗ và rau thơm."
+      },
+      {
+        "text": "Top with the pork and a spoon of dipping sauce.",
+        "text_vi": "Cho thịt lên trên và rưới một thìa nước chấm."
+      }
+    ],
+    "ingredients": [
+      "Pork",
+      "Rice vermicelli",
+      "Cucumber",
+      "Carrot",
+      "Bean sprouts",
+      "Fish sauce",
+      "Cilantro"
+    ],
+    "image": "public/pictures/dishes/bun-thit-nuong.jpg"
+  },
+  {
+    "name": "Broken rice with pork",
+    "name_vi": "Cơm tấm",
+    "short_detail": "Saigon broken rice plate with grilled pork, egg and pickles.",
+    "short_detail_vi": "Cơm tấm Sài Gòn với thịt heo nướng, trứng và đồ chua.",
+    "steps": [
+      {
+        "text": "Marinate pork with garlic, fish sauce, sugar and pepper.",
+        "text_vi": "Ướp thịt heo với tỏi, nước mắm, đường và tiêu."
+      },
+      {
+        "text": "Grill until cooked through and let it rest before slicing.",
+        "text_vi": "Nướng đến khi chín rồi để nghỉ trước khi thái."
+      },
+      {
+        "text": "Steam the broken rice and keep it warm.",
+        "text_vi": "Hấp cơm tấm và giữ nóng."
+      },
+      {
+        "text": "Fry the egg with a soft yolk.",
+        "text_vi": "Chiên trứng với lòng đỏ còn mềm."
+      },
+      {
+        "text": "Plate rice with pork, egg, pickled carrot and daikon, and a bowl of fish sauce.",
+        "text_vi": "Dọn cơm với thịt, trứng, cà rốt củ cải chua và bát nước mắm."
+      }
+    ],
+    "ingredients": [
+      "Rice",
+      "Pork",
+      "Egg",
+      "Carrot",
+      "Daikon",
+      "Fish sauce"
+    ],
+    "image": "public/pictures/dishes/com-tam.jpg"
+  },
+  {
+    "name": "Fresh spring rolls",
+    "name_vi": "Gỏi cuốn",
+    "short_detail": "Rice-paper rolls with shrimp, pork, herbs and lettuce.",
+    "short_detail_vi": "Cuốn bánh tráng với tôm, thịt heo, rau thơm và xà lách.",
+    "steps": [
+      {
+        "text": "Boil the shrimp and pork, then cool and slice them thin.",
+        "text_vi": "Luộc tôm và thịt heo, để nguội rồi thái mỏng."
+      },
+      {
+        "text": "Cook the vermicelli and drain it well.",
+        "text_vi": "Luộc bún và để thật ráo."
+      },
+      {
+        "text": "Soak each rice-paper sheet for a second until it softens.",
+        "text_vi": "Nhúng từng tờ bánh tráng một giây đến khi mềm."
+      },
+      {
+        "text": "Layer herbs, noodles, cucumber and the fillings, then roll tightly.",
+        "text_vi": "Xếp rau, bún, dưa leo và nhân rồi cuốn chặt."
+      },
+      {
+        "text": "Serve with a fish-sauce dip.",
+        "text_vi": "Dọn kèm nước mắm chấm."
+      }
+    ],
+    "ingredients": [
+      "Rice paper",
+      "Shrimp",
+      "Pork",
+      "Cucumber",
+      "Cilantro",
+      "Fish sauce"
+    ],
+    "image": "public/pictures/dishes/goi-cuon.jpg"
+  },
+  {
+    "name": "Vietnamese sandwich",
+    "name_vi": "Bánh mì",
+    "short_detail": "Baguette with pork, pickles, cucumber and cilantro.",
+    "short_detail_vi": "Bánh mì với thịt heo, đồ chua, dưa leo và rau mùi.",
+    "steps": [
+      {
+        "text": "Pickle shredded carrot and daikon in vinegar, sugar and salt for an hour.",
+        "text_vi": "Ngâm cà rốt và củ cải thái sợi với giấm, đường và muối trong một giờ."
+      },
+      {
+        "text": "Cook the pork with soy sauce and garlic until glossy.",
+        "text_vi": "Nấu thịt heo với nước tương và tỏi đến khi bóng mặt."
+      },
+      {
+        "text": "Warm the baguette until the crust crisps.",
+        "text_vi": "Làm nóng bánh mì đến khi vỏ giòn."
+      },
+      {
+        "text": "Slice it open and layer pork, pickles, cucumber and cilantro.",
+        "text_vi": "Rạch bánh và xếp thịt, đồ chua, dưa leo và rau mùi."
+      },
+      {
+        "text": "Add a little soy sauce and serve immediately.",
+        "text_vi": "Thêm chút nước tương và dùng ngay."
+      }
+    ],
+    "ingredients": [
+      "Baguette",
+      "Pork",
+      "Carrot",
+      "Daikon",
+      "Cucumber",
+      "Cilantro",
+      "Soy sauce"
+    ],
+    "image": "public/pictures/dishes/banh-mi.jpg"
+  },
+  {
+    "name": "Sour fish soup",
+    "name_vi": "Canh chua cá",
+    "short_detail": "Mekong sour soup with fish, pineapple, tomato and okra.",
+    "short_detail_vi": "Canh chua miền Tây với cá, dứa, cà chua và đậu bắp.",
+    "steps": [
+      {
+        "text": "Soak tamarind in warm water, then strain the pulp into the pot.",
+        "text_vi": "Ngâm me với nước ấm rồi lọc lấy nước cho vào nồi."
+      },
+      {
+        "text": "Bring the sour water to a simmer and add the fish.",
+        "text_vi": "Đun nước me sôi nhẹ rồi cho cá vào."
+      },
+      {
+        "text": "Add pineapple and tomato and cook until they soften.",
+        "text_vi": "Cho dứa và cà chua vào nấu đến khi mềm."
+      },
+      {
+        "text": "Season with fish sauce and sugar to balance sour and salt.",
+        "text_vi": "Nêm nước mắm và đường để cân bằng chua mặn."
+      },
+      {
+        "text": "Add okra and bean sprouts at the end so they stay crisp.",
+        "text_vi": "Cho đậu bắp và giá đỗ vào cuối để giữ độ giòn."
+      }
+    ],
+    "ingredients": [
+      "Fish",
+      "Tamarind",
+      "Pineapple",
+      "Tomato",
+      "Okra",
+      "Bean sprouts",
+      "Fish sauce"
+    ],
+    "image": "public/pictures/dishes/canh-chua.jpg"
+  },
+  {
+    "name": "Caramelised fish",
+    "name_vi": "Cá kho tộ",
+    "short_detail": "Fish braised in a clay pot with fish sauce, sugar and pepper.",
+    "short_detail_vi": "Cá kho trong nồi đất với nước mắm, đường và tiêu.",
+    "steps": [
+      {
+        "text": "Clean the fish and pat it dry.",
+        "text_vi": "Làm sạch cá và thấm khô."
+      },
+      {
+        "text": "Caramelise sugar in oil until it turns amber.",
+        "text_vi": "Thắng đường với dầu đến khi chuyển màu cánh gián."
+      },
+      {
+        "text": "Turn the fish in the caramel, then add fish sauce and water.",
+        "text_vi": "Cho cá vào đảo qua caramel rồi thêm nước mắm và nước."
+      },
+      {
+        "text": "Add garlic and pepper, then braise gently for forty minutes.",
+        "text_vi": "Thêm tỏi và tiêu rồi kho liu riu bốn mươi phút."
+      },
+      {
+        "text": "Reduce until the sauce coats the fish, and serve with rice.",
+        "text_vi": "Kho đến khi sốt sánh bám cá, dọn cùng cơm."
+      }
+    ],
+    "ingredients": [
+      "Fish",
+      "Fish sauce",
+      "Sugar",
+      "Black pepper",
+      "Garlic",
+      "Cooking oil"
+    ],
+    "image": "public/pictures/dishes/ca-kho.jpg"
+  },
+  {
+    "name": "Water spinach with garlic",
+    "name_vi": "Rau muống xào tỏi",
+    "short_detail": "Fast stir-fry of water spinach with plenty of garlic.",
+    "short_detail_vi": "Rau muống xào nhanh với nhiều tỏi.",
+    "steps": [
+      {
+        "text": "Wash the water spinach and cut it into short lengths.",
+        "text_vi": "Rửa rau muống và cắt khúc ngắn."
+      },
+      {
+        "text": "Crush the garlic and heat the pan until it smokes.",
+        "text_vi": "Đập tỏi và đun chảo đến khi bốc khói."
+      },
+      {
+        "text": "Fry the garlic for ten seconds, then add the greens.",
+        "text_vi": "Phi tỏi mười giây rồi cho rau vào."
+      },
+      {
+        "text": "Toss for one to two minutes until just wilted.",
+        "text_vi": "Đảo một đến hai phút đến khi rau vừa mềm."
+      },
+      {
+        "text": "Season with fish sauce and serve at once.",
+        "text_vi": "Nêm nước mắm và dọn ngay."
+      }
+    ],
+    "ingredients": [
+      "Water spinach",
+      "Garlic",
+      "Cooking oil",
+      "Fish sauce"
+    ],
+    "image": "public/pictures/dishes/rau-muong.jpg"
+  },
+  {
+    "name": "Egg fried rice",
+    "name_vi": "Cơm chiên trứng",
+    "short_detail": "Cold rice fried with egg, scallion and soy sauce.",
+    "short_detail_vi": "Cơm nguội chiên với trứng, hành lá và nước tương.",
+    "steps": [
+      {
+        "text": "Use rice cooked the day before and break up any clumps.",
+        "text_vi": "Dùng cơm nấu từ hôm trước và tơi các cục cơm."
+      },
+      {
+        "text": "Heat oil and scramble the egg hard.",
+        "text_vi": "Đun dầu và chiên trứng thật chín."
+      },
+      {
+        "text": "Add the rice and press it against the pan.",
+        "text_vi": "Cho cơm vào và ép xuống chảo."
+      },
+      {
+        "text": "Keep tossing until the grains separate and smell toasted.",
+        "text_vi": "Đảo liên tục đến khi hạt cơm tơi và thơm."
+      },
+      {
+        "text": "Season with soy sauce and finish with sliced scallion.",
+        "text_vi": "Nêm nước tương và rắc hành lá."
+      }
+    ],
+    "ingredients": [
+      "Rice",
+      "Egg",
+      "Scallion",
+      "Soy sauce",
+      "Cooking oil"
+    ],
+    "image": "public/pictures/dishes/com-chien.jpg"
+  },
+  {
+    "name": "Lemongrass chicken",
+    "name_vi": "Gà nướng sả",
+    "short_detail": "Chicken marinated in lemongrass, garlic and fish sauce, then grilled.",
+    "short_detail_vi": "Gà ướp sả, tỏi và nước mắm rồi nướng.",
+    "steps": [
+      {
+        "text": "Pound lemongrass with garlic into a rough paste.",
+        "text_vi": "Giã sả với tỏi thành hỗn hợp thô."
+      },
+      {
+        "text": "Mix it with fish sauce, sugar and pepper.",
+        "text_vi": "Trộn với nước mắm, đường và tiêu."
+      },
+      {
+        "text": "Marinate the chicken for at least an hour.",
+        "text_vi": "Ướp gà ít nhất một giờ."
+      },
+      {
+        "text": "Grill over medium heat, turning so it cooks evenly.",
+        "text_vi": "Nướng với lửa vừa, trở đều để chín."
+      },
+      {
+        "text": "Rest briefly, then serve with rice or noodles.",
+        "text_vi": "Để nghỉ một lát rồi dọn cùng cơm hoặc bún."
+      }
+    ],
+    "ingredients": [
+      "Chicken",
+      "Lemongrass",
+      "Garlic",
+      "Fish sauce",
+      "Sugar",
+      "Black pepper"
+    ],
+    "image": ""
+  },
+  {
+    "name": "Mung bean sweet soup",
+    "name_vi": "Chè đậu xanh",
+    "short_detail": "Sweet mung bean soup finished with coconut milk.",
+    "short_detail_vi": "Chè đậu xanh ngọt, thêm nước cốt dừa.",
+    "steps": [
+      {
+        "text": "Soak the mung beans for two hours, then drain.",
+        "text_vi": "Ngâm đậu xanh hai giờ rồi để ráo."
+      },
+      {
+        "text": "Simmer them until they soften and start to break down.",
+        "text_vi": "Nấu đến khi đậu mềm và bắt đầu bở."
+      },
+      {
+        "text": "Add sugar and stir gently until it dissolves.",
+        "text_vi": "Thêm đường và khuấy nhẹ đến khi tan."
+      },
+      {
+        "text": "Cook a few more minutes until the soup thickens.",
+        "text_vi": "Nấu thêm vài phút đến khi chè sánh lại."
+      },
+      {
+        "text": "Spoon into bowls and pour coconut milk over each one.",
+        "text_vi": "Múc ra bát và chan nước cốt dừa lên."
+      }
+    ],
+    "ingredients": [
+      "Mung bean",
+      "Sugar",
+      "Coconut milk"
+    ],
+    "image": "public/pictures/dishes/che-dau-xanh.jpg"
+  },
+  {
+    "name": "Sizzling rice pancake",
+    "name_vi": "Bánh xèo",
+    "short_detail": "Crisp turmeric rice pancake with shrimp, pork and bean sprouts.",
+    "short_detail_vi": "Bánh xèo giòn nghệ với tôm, thịt heo và giá đỗ.",
+    "steps": [
+      {
+        "text": "Whisk rice flour, turmeric and coconut milk with water into a thin batter.",
+        "text_vi": "Trộn bột gạo, nghệ, nước cốt dừa với nước thành hỗn hợp loãng."
+      },
+      {
+        "text": "Rest the batter for thirty minutes.",
+        "text_vi": "Để bột nghỉ ba mươi phút."
+      },
+      {
+        "text": "Heat a wide pan with oil and pour in a thin layer of batter.",
+        "text_vi": "Đun chảo rộng với dầu và đổ một lớp bột mỏng."
+      },
+      {
+        "text": "Add shrimp, pork and bean sprouts, then cover briefly.",
+        "text_vi": "Cho tôm, thịt và giá đỗ rồi đậy nắp ngắn."
+      },
+      {
+        "text": "Cook until the edge lifts and crisps, then fold and serve.",
+        "text_vi": "Chiên đến khi mép bong và giòn, gấp đôi rồi dọn."
+      }
+    ],
+    "ingredients": [
+      "Rice flour",
+      "Turmeric",
+      "Coconut milk",
+      "Shrimp",
+      "Pork",
+      "Bean sprouts",
+      "Scallion"
+    ],
+    "image": "public/pictures/dishes/banh-xeo.jpg"
+  }
+]
