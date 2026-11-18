@@ -44,13 +44,13 @@ build context.
 
 ### CORS
 
-`server/app.js` builds a `cors` middleware per request so it can compare the `Origin` header with
-the request's own host. An origin is allowed when it is absent (non-browser and same-origin
-requests without the header), when it equals the request's own origin, or when it is listed in
-`CORS_ORIGINS`. The own-origin rule exists because the built Vue assets carry `crossorigin`, so
-asset requests from the site itself still send `Origin`; a plain allowlist would answer 403 for
-every asset and the page would never mount. Behind a TLS proxy set `TRUST_PROXY=1`, otherwise
-`req.secure` stays false and the own-origin comparison uses `http`.
+`server/config/cors.js` builds a `cors` middleware per request. An origin is allowed when it is
+absent (non-browser requests) or listed in `CORS_ORIGINS`; anything else gets a 403. The list must
+contain the site's own public origin, because the built Vue assets carry `crossorigin` and asset
+requests from the site itself still send `Origin`; without it every asset would answer 403 and the
+page would never mount. The request's `Host` header is never trusted: the caller controls it, so
+matching it would let any origin through. Behind a TLS proxy set `TRUST_PROXY=1` for correct
+client protocol and cookies.
 
 ## Request lifecycle in server/
 
@@ -134,9 +134,10 @@ stored today.
 
 `server/config/catalog/index.js` reads `catalog/ingredients.json`, `dishes.json`,
 `dish-amounts.json`, `images.json` and `nutrition.json`, merges servings and grams into each dish
-and exposes `loadCatalog()`. `validateCatalog()` (`validate.js`) is the shape check. The admin
-reset uses it, so the API, `db_control` and the Windows console produce the same 38 ingredients
-and 13 dishes. In the container the folder is `/catalog`.
+and exposes `loadCatalog()`. The admin reset calls `loadCatalog()`; `validateCatalog()`
+(`validate.js`) exists but is not wired into it, as `docs/KNOWN_ISSUES.md` notes. The API,
+`db_control` and the Windows console still produce the same 38 ingredients and 13 dishes. In the
+container the folder is `/catalog`.
 
 ## Authentication
 

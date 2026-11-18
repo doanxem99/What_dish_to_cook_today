@@ -173,7 +173,7 @@ WinForms offline console:
 
 ### Docker Compose
 
-- Services: `mongo` (volume `mongo-data`), `server` (Node 22, volumes `backups`, `public_uploads`, env from `.env`), `libretranslate` (en/vi only, models cached in a volume), optional `caddy` for HTTPS.
+- Services: `mongo` (volume `mongo-data`), `server` (Node 22, volumes `backup-data` at `/app/backups` and `gallery` at `/app/public/gallery`, env from `.env`), `libretranslate` (en/vi only, models cached in a volume), optional `caddy` for HTTPS.
 - Healthchecks for mongo (`mongosh ping`) and server (`/api/health`), restart policies, no ports exposed except server and Caddy.
 - `.env.example`: `JWT_SECRET`, `MONGODB_URI=mongodb://mongo:27017/what_dish_to_cook_today`, `ADMIN_USERNAME`, `BACKUP_DIR`, `TRANSLATE_URL=http://libretranslate:5000/translate`.
 

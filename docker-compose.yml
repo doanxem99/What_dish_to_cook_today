@@ -4,6 +4,7 @@ services:
   mongo:
     image: mongo:7
     restart: unless-stopped
+    #No auth: Mongo publishes no port, so only containers on this network can reach it.
     volumes:
       - mongo-data:/data/db
     healthcheck:
@@ -13,13 +14,19 @@ services:
       retries: 10
 
   libretranslate:
-    image: libretranslate/libretranslate:latest
+    image: libretranslate/libretranslate:v1.6.5
     restart: unless-stopped
     environment:
       LT_LOAD_ONLY: en,vi
       LT_UPDATE_MODELS: "false"
     volumes:
       - translate-models:/home/libretranslate/.local
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/languages', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
 
   server:
     build: .
@@ -34,17 +41,19 @@ services:
       - "${SERVER_PORT:-3000}:3000"
     environment:
       #Compose reads the same variables from a root .env file; see .env.example.
-      #The fallback is for a first run only: set a real secret before exposing the site.
-      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
+      #No fallback: a predictable secret would let anyone forge a session cookie.
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
       #No directConnection: the driver resolves the container name.
       MONGODB_URI: mongodb://mongo:27017/what_dish_to_cook_today
       #Must include this site's own public origin: the built assets send an Origin header.
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
-      ADMIN_USERNAME: ${ADMIN_USERNAME:-moonshine@gmail.com}
+      #Empty means no boot promotion. Set it to an account that already exists.
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
       BACKUP_DIR: /app/backups
       TRANSLATE_URL: ${TRANSLATE_URL:-http://libretranslate:5000/translate}
       AI_ENABLED: ${AI_ENABLED:-false}
       MAINTENANCE_DISABLED: ${MAINTENANCE_DISABLED:-0}
+      TRUST_PROXY: ${TRUST_PROXY:-}
     volumes:
       - backup-data:/app/backups
       #Only gallery: mounting all of /app/public hides pictures, templates and the defaults.

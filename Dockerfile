@@ -17,9 +17,17 @@ WORKDIR /app
 COPY server/package.json server/package-lock.json ./
 RUN npm ci --omit=dev
 COPY server/ ./
-#The committed build is replaced by the one from stage 1.
+#Drop the committed build so only the stage 1 output is served.
+RUN rm -rf ./web_ui
 COPY --from=web_build /src/server/web_ui ./web_ui
 COPY catalog/ /catalog
+#The app runs as the unprivileged node user. Every writable path is created and owned here:
+#an empty named volume inherits the image directory's owner on first use.
+RUN mkdir -p /app/backups /app/public/gallery /app/config/debug/data \
+  && chown -R node:node /app/backups /app/public/gallery /app/config/debug/data
+#shortcut: a volume created by an older image is owned by root and node cannot write it;
+#recreate it with "docker compose down -v" or chown it once, then upgrade to a root entrypoint.
+USER node
 
 EXPOSE 3000
 CMD ["node", "app.js"]

@@ -240,6 +240,15 @@ test('boot promotion ignores a missing account', async () => {
     delete process.env.ADMIN_USERNAME;
 });
 
+test('boot promotion does nothing when ADMIN_USERNAME is empty', async () => {
+    const adminsBefore = await collections.Role.countDocuments({ name: 'admin' });
+    process.env.ADMIN_USERNAME = '';
+
+    assert.strictEqual(await authRouter.promoteAdmin(), false);
+    assert.strictEqual(await collections.Role.countDocuments({ name: 'admin' }), adminsBefore);
+    delete process.env.ADMIN_USERNAME;
+});
+
 test('an admin sign-in writes an audit row without password material', async () => {
     const user = await createUser({ username: 'audit-admin', roles: ['admin'] });
 

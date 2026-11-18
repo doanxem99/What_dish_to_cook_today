@@ -69,10 +69,10 @@ can be picked up without re-reading the codebase.
 
 ## Deployment notes
 
-14. **CORS still needs the real origins.** The server accepts an origin equal to the request's
-    own host, so the built site works on any host. The Vite dev client on 5173, or a client on a
-    different host, must be listed in `CORS_ORIGINS` (comma separated). Behind a TLS proxy also
-    set `TRUST_PROXY=1`, or the own-origin check compares `http`.
+14. **CORS needs the real origins listed.** The server accepts only origins in `CORS_ORIGINS`
+    (comma separated). The site's own public origin must be there, because built Vue assets send
+    an `Origin` header even from the same host; anything unlisted gets 403 on the API and on asset
+    requests, which looks like a blank page. Behind a TLS proxy also set `TRUST_PROXY=1`.
 15. **`public/gallery` is a volume in Compose, not a copy.** Existing uploads in a local
     `server/public/gallery` are not carried into the `gallery` volume. Copy them in or restore a
     backup before switching a live install to Compose.
@@ -83,32 +83,27 @@ can be picked up without re-reading the codebase.
     `JWT_SECRET = 'what-dish-to-cook-today'`. Anyone with a clone can forge tokens if a
     deployment reuses that value. Generate a fresh random secret; never restore the old one.
     History is not rewritten here.
-
-22. **`must_change_password` is enforced by the client guard only.** The server reports the flag
+18. **`must_change_password` is enforced by the client guard only.** The server reports the flag
     at signin and `/api/auth/me` and clears it on `POST /api/auth/password`; it does not refuse
     other API calls from a session that has not changed its password yet. A script that keeps the
     temporary password can use the account. Enforce the flag in `verifyToken` if that matters.
-23. **The Vite dev server cannot serve `/public/i18n/*.json`.** Those catalogs live in
+19. **The Vite dev server cannot serve `/public/i18n/*.json`.** Those catalogs live in
     `server/public`, and `/public` belongs to Express, so `npm run dev` renders interface keys
     instead of translations unless a proxy or a copied folder supplies them. The build served by
     Express at `/` is correct.
-24. **An unlisted origin on a different host is still refused.** The own-origin rule compares the
-    request's `Host`, which a reverse proxy may rewrite. When the site is reached through
-    another domain, list it in `CORS_ORIGINS`; the error is a 403 on every asset, which looks
-    like a blank page.
 
 ## Responsive layout
 
-18. **No automated guard for layout.** The 320-1440 px pass was verified with a temporary probe harness that measured header height, overflow and tap targets, then was deleted. Any CSS change can regress it silently; repeat the probe or add a Playwright-style check before touching theme.css media queries.
+20. **No automated guard for layout.** The 320-1440 px pass was verified with a temporary probe harness that measured header height, overflow and tap targets, then was deleted. Any CSS change can regress it silently; repeat the probe or add a Playwright-style check before touching theme.css media queries.
 
 ## Flutter client
 
-19. **Flutter editors are new and lightly exercised.** Phase 3 adds dish and ingredient create/edit, uploads, drag-and-drop, blocks and the translation toggle. The file picker and drag-and-drop were not exercised in a real browser; only unit and widget tests cover the upload path.
-20. **Flutter layout is untested in a real browser.** The build is served at /flutter/ and all widget tests pass, but no browser render was captured for this pass. Check /flutter/ at 320 px and 1440 px before claiming parity.
+21. **Flutter editors are new and lightly exercised.** Phase 3 adds dish and ingredient create/edit, uploads, drag-and-drop, blocks and the translation toggle. The file picker and drag-and-drop were not exercised in a real browser; only unit and widget tests cover the upload path.
+22. **Flutter layout is untested in a real browser.** The build is served at /flutter/ and all widget tests pass, but no browser render was captured for this pass. Check /flutter/ at 320 px and 1440 px before claiming parity.
 
 ## Data tools
 
-21. **The C# catalog reader mirrors a JSON shape the server does not validate strictly.**
+23. **The C# catalog reader mirrors a JSON shape the server does not validate strictly.**
     `shared/Catalog.cs` and `server/config/catalog/validate.js` both read `catalog/*.json`; the
     Node side only checks the shape it uses (`validateCatalog` is not wired into the reset).
     A malformed file fails the reset job after the backup, never before it, and the C# tools fail

@@ -7,7 +7,8 @@ const { verifyToken } = require('./verifyToken');
 const { recordAudit } = require('../../config/admin/audit');
 
 const default_admin_username = function() {
-    return process.env.ADMIN_USERNAME || 'moonshine@gmail.com';
+    //No default address: promotion only runs when the operator names an account.
+    return (process.env.ADMIN_USERNAME || '').trim();
 };
 
 //Registration, sign-in and password change share one rule: a password is a non-empty string.
@@ -147,6 +148,11 @@ router.get('/', function(req, res, next){
 //Create the roles the server needs and promote the configured account once per boot.
 //A missing account is not an error.
 const promoteAdmin = async function(username = default_admin_username()) {
+    //Empty ADMIN_USERNAME means no boot promotion at all
+    if (!username) {
+        console.log('Admin promotion skipped: ADMIN_USERNAME is not set.');
+        return false;
+    }
     try {
         const roles = {};
         for (const seed of database.default_roles) {

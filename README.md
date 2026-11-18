@@ -19,7 +19,7 @@ guarded `/admin` area for jobs, backups, users and audit history.
 ## Quick start with Docker Compose
 
 ```bash
-cp .env.example .env        # then set a real JWT_SECRET
+cp .env.example .env        # then set a real JWT_SECRET; Compose refuses to start without it
 docker compose up -d --build
 docker compose ps           # wait for server "healthy"
 ```
@@ -32,21 +32,24 @@ The stack runs `server`, `mongo` and `libretranslate` (en/vi). Volumes: `mongo-d
 `backup-data` (archives at `/app/backups`), `gallery` (`public/gallery` uploads) and
 `translate-models`. Only port 3000 is published.
 
-The first run has no account. Create one, then restart the server once so boot promotes it:
+The first run has no account. Create one, set `ADMIN_USERNAME` to it in `.env`, then restart the
+server once so boot promotes it:
 
 ```bash
 curl -s -X POST http://localhost:3000/api/auth/signup \
   -H 'content-type: application/json' \
   -d '{"username":"moonshine@gmail.com","email":"moonshine@gmail.com","password":"change-me-now"}'
+# .env: ADMIN_USERNAME=moonshine@gmail.com
 docker compose restart server
 ```
 
-`ADMIN_USERNAME` (default `moonshine@gmail.com`) is promoted only when the account already
-exists. After that, sign in at `/admin`; the account can change its password at `/change-password`.
+`ADMIN_USERNAME` is promoted only when it is set and the account already exists. It is empty in
+`.env.example`, so set it to the account you created before the restart. After that, sign in at
+`/admin`; the account can change its password at `/change-password`.
 
 If port 3000 is taken, set `SERVER_PORT=3100` in `.env` (the server keeps listening on 3000
-inside the container) and add `http://localhost:3100` to `CORS_ORIGINS`. The own-origin rule
-also accepts that page, but listing it keeps a proxy setup explicit.
+inside the container) and add `http://localhost:3100` to `CORS_ORIGINS`. An origin that is not
+listed is refused, so the site's own public origin always belongs in that list.
 
 `docker compose down -v` removes the stack **and its data**. Use `docker compose down` to keep it.
 
@@ -57,19 +60,23 @@ Compose reads a root `.env` (template: `.env.example`). Run the API without Dock
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `JWT_SECRET` | random per boot | Signs the session cookie. Without it logins die on restart. |
-| `MONGODB_URI` | `mongodb://localhost:27017/what_dish_to_cook_today` | Database. Compose: `mongodb://mongo:27017/what_dish_to_cook_today`, no `directConnection`. |
-| `CORS_ORIGINS` | localhost:3000/5173 | Extra allowed origins, comma separated. Must include the site's own public origin. |
-| `ADMIN_USERNAME` | `moonshine@gmail.com` | Account promoted to admin on boot when it exists. |
-| `BACKUP_DIR` | `server/backups` | Where the backup job writes archives. Compose mounts `backup-data` at `/app/backups`. |
-| `TRANSLATE_URL` | `http://localhost:5000/translate` | LibreTranslate-compatible service. Compose: `http://libretranslate:5000/translate`. |
+| `JWT_SECRET` | required in Compose | Signs the session cookie. Compose refuses to start without it; a random one would lose logins on restart. |
+| `MONGODB_URI` | `mongodb://localhost:27017/what_dish_to_cook_today` | Database. Compose pins `mongodb://mongo:27017/what_dish_to_cook_today`, no `directConnection`. |
+| `CORS_ORIGINS` | localhost:3000/5173 | Allowed origins, comma separated. Must include the site's own public origin; any other origin is refused. |
+| `ADMIN_USERNAME` | empty | Account promoted to admin on boot when it is set and the account exists. |
+| `BACKUP_DIR` | `server/backups` | Where the backup job writes archives. Compose pins `/app/backups` on the `backup-data` volume. |
+| `TRANSLATE_URL` | `http://localhost:5000/translate` | LibreTranslate-compatible service. Compose pins `http://libretranslate:5000/translate`. |
 | `AI_ENABLED` | `false` | Shows the reserved AI metrics view. Nothing calls a provider yet. |
 | `MAINTENANCE_DISABLED` | `0` | Escape hatch for a stuck maintenance flag. |
-| `TRUST_PROXY` | unset | Set to `1` behind a reverse proxy so cookies and CORS see HTTPS. |
+| `TRUST_PROXY` | unset | Set to `1` behind a reverse proxy so cookies and CORS see HTTPS. Compose forwards it. |
+
+Compose pins `MONGODB_URI`, `BACKUP_DIR` and `TRANSLATE_URL` to the service names and volumes it
+creates, so `.env` values for those three are ignored. Use `server/.env` when you run the API
+without Compose.
 
 `CORS_ORIGINS` needs the site's own origin because the built Vue assets carry `crossorigin` and
-send an `Origin` header even from the same host. The server accepts an origin equal to the
-request's own host without listing it, but proxy setups should still list the real domain.
+send an `Origin` header even from the same host. Only listed origins are accepted; the `Host`
+header is caller-controlled and is never used to grant access.
 
 ## Migrating an existing deployment
 

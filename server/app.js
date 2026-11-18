@@ -1,7 +1,6 @@
 const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
-const cors = require('cors');
 const busboy = require('connect-busboy');
 const adminJobs = require('./config/admin/jobs');
 const adminMaintenance = require('./config/admin/maintenance');
@@ -22,37 +21,9 @@ app.use(require('./config/body_error'));
 app.use(cookieParser());
 
 //Flutter need cors to work with api.
-//Only localhost origins are allowed; set CORS_ORIGINS (comma separated) to add real domains.
-const defaultOrigins = ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173', 'http://127.0.0.1:3000'];
-const allowedOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
-  : defaultOrigins;
-//A same-origin request is always allowed. The built Vue assets carry crossorigin, so asset
-//requests send an Origin header even from the site's own host; the allowlist alone would 403 them.
-const isOwnOrigin = function(req, origin) {
-  if (!origin || !req.headers.host) {
-    return false;
-  }
-  //Behind a proxy this needs TRUST_PROXY=1, or req.secure stays false on an HTTPS site
-  return origin === `${req.secure ? 'https' : 'http'}://${req.headers.host}`;
-};
+const { corsForRequest } = require('./config/cors');
 
-const corsForRequest = function(req) {
-  return cors({
-    origin: (origin, callback) => {
-      //Same-origin and non-browser requests send no Origin header
-      if (!origin || allowedOrigins.includes(origin) || isOwnOrigin(req, origin)) {
-        return callback(null, true);
-      }
-      const error = new Error('Not allowed by CORS');
-      error.status = 403;
-      return callback(error);
-    },
-    credentials: true,
-  });
-};
-
-app.use((req, res, next) => corsForRequest(req)(req, res, next));
+app.use((req, res, next) => corsForRequest()(req, res, next));
 
 //Max upload size is 5 MB
 app.use(busboy({ limits: { fileSize: 5 * 1024 * 1024 } }));
@@ -118,7 +89,7 @@ app.listen("3000", async () => {
     console.error('Cannot recover interrupted jobs: ' + error.message);
   }
 
-  //Promote ADMIN_USERNAME (default moonshine@gmail.com) when the account exists.
+  //Promote ADMIN_USERNAME when it is set and the account exists.
   //It logs one line for promoted, already admin and skipped.
   await require('./routes/api/auth').promoteAdmin();
 
