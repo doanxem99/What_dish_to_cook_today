@@ -134,11 +134,6 @@ const DishPost = mongoose.model('dish_post', {
     display_blocks : Array
 },'dish_post');
 
-const DatabaseWorkerJob = mongoose.model('database_worker_job', {
-    data: String,
-    time_request : String,
-},'database_worker_job');
-
 const Comment = mongoose.model('comment', {
     dish_post_id : String,
     user_id : String,
@@ -231,7 +226,6 @@ module.exports = {
         IngredientPost,
         Dish,
         DishPost,
-        DatabaseWorkerJob,
         Comment,
         Vote,
         AuditLog,

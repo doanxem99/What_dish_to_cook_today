@@ -110,6 +110,54 @@ folder and is moved to its final folder by the profile create/update routes.
 Proxies a LibreTranslate-compatible service set in `TRANSLATE_URL`. Without it the route answers
 503 with a clear message and the editor keeps translation off. Text is limited to 2000 characters.
 
+## Health — `/api/health`
+
+| Method | Path | Answer |
+|---|---|---|
+| GET | `/` | `{status:"ok", uptime_s}` |
+
+Public liveness only: no counts, no latency, no user data. The Docker and Compose healthchecks
+read it, and it keeps answering while maintenance mode is on.
+
+## Admin — `/api/admin`
+
+Every route runs `requireAdmin`: a valid `token` cookie, an existing account, not disabled, and
+the `admin` role. Authenticating failures answer 401 (`unauthorized`) and 403 (`forbidden`);
+errors always use `{error: {code, message}}`. Success bodies are plain objects. No password
+hash, token or AI prompt text is ever returned.
+
+| Method | Path | Body / query | Answer |
+|---|---|---|---|
+| GET | `/health` | – | probes and counts, see below; 200 |
+| GET | `/jobs` | `?type=&status=&page=` | `{rows, total, page}`, newest first, 25 per page |
+| POST | `/jobs/recalc-best-post` | `{ingredient_id}` | job row, 202; 400 bad id, 404 unknown ingredient |
+| POST | `/backup` | – | job row, 202 |
+| GET | `/backups` | – | `{rows, total}` newest first |
+| GET | `/backups/:id` | – | gzip archive download with its filename; 404 unknown id |
+| POST | `/restore` | `{backup_id, confirm:"RESTORE"}` | job row, 202; 400 wrong confirm, 404 unknown id, 409 a job is running |
+| POST | `/reset` | `{confirm:"RESET"}` | job row, 202; 400 wrong confirm, 409 a job is running |
+| GET | `/users` | `?q=&page=` | `{rows, total, page}`; rows hold `id, username, email, created_at, is_disabled, must_change_password, roles`, never the password hash |
+| POST | `/users/:id/role` | `{admin: true\|false}` | user row, 200; 400 not a boolean, 404 unknown user, 409 self-demote or last admin |
+| POST | `/users/:id/disabled` | `{disabled: true\|false}` | user row, 200; 400 not a boolean, 404 unknown user, 409 self-disable or last admin |
+| POST | `/users/:id/password` | – | `{password, user}`, 200; the temporary password is shown once and `must_change_password` is set |
+| GET | `/audit` | `?action=&actor=&page=` | `{rows, total, page}`, newest first, 25 per page |
+
+`/health` answers:
+
+- `version`, `uptime_s`.
+- `database`: `{ok, latency_ms}` from a ping.
+- `counts`: `{users, ingredients, dishes, dish_posts, comments, votes}`.
+- `translation`: `{ok, languages}` or `{ok:false, error}`. The base URL is derived from
+  `TRANSLATE_URL` by stripping `/translate`; the probe caches for 30 s and never runs on the
+  15 s page poll.
+- `ai`: `{configured}`, from `AI_ENABLED` only.
+- `backup`: `{dir_writable, dir, last, error}`.
+- `last_reset`: the newest reset job summary or `null`.
+
+Every mutation writes an `audit_log` row with the acting admin from `req.current_user`.
+Reset and restore run in the job queue and write a backup first; while one runs, the public API
+answers 503 and `/api/health`, `/api/auth/*` and `/api/admin/*` keep working.
+
 ## Web pages
 
 | Method | Path | Answer |
@@ -121,6 +169,6 @@ Proxies a LibreTranslate-compatible service set in `TRANSLATE_URL`. Without it t
 | GET | `/web/:page` | redirect to `/` |
 | GET | `/public/*` | uploaded images |
 
-## WebSocket
+The `/worker` WebSocket endpoint was removed: admin operations run in-process through the job
+queue, and the desktop tools are an offline repair kit.
 
-`ws://localhost:3000/worker` — .NET worker only. See `docs/ARCHITECTURE.md`.

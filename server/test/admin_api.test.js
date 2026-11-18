@@ -1,0 +1,360 @@
+const { test, before, after, beforeEach } = require('node:test');
+const assert = require('node:assert');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const express = require('express');
+const cookieParser = require('cookie-parser');
+const { once } = require('node:events');
+const { MongoMemoryServer } = require('mongodb-memory-server');
+
+process.env.JWT_SECRET = 'test-secret';
+
+let mongod;
+let collections;
+let jobs;
+let httpServer;
+let baseUrl;
+
+const seedRole = async function(name) {
+    return collections.Role.findOneAndUpdate(
+        { name },
+        { $setOnInsert: { name, description: `${name} role` } },
+        { new: true, upsert: true }
+    );
+};
+
+const createUser = async function(options) {
+    const { username, password = 'demo1234', roles = ['user'], ...rest } = options;
+    const roleDocs = await Promise.all(roles.map(seedRole));
+    return collections.User.create({
+        username,
+        email: `${username}@example.com`,
+        password: bcrypt.hashSync(password, 10),
+        roles: roleDocs.map(doc => doc._id),
+        ...rest
+    });
+};
+
+const tokenFor = function(user) {
+    return jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: 60 });
+};
+
+const call = async function(path, token, method = 'GET', body) {
+    const headers = {};
+    if (token) {
+        headers.cookie = `token=${token}`;
+    }
+    if (body !== undefined) {
+        headers['content-type'] = 'application/json';
+    }
+    const response = await fetch(`${baseUrl}${path}`, {
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body)
+    });
+    const text = await response.text();
+    return { status: response.status, body: text ? JSON.parse(text) : null, headers: response.headers };
+};
+
+before(async () => {
+    mongod = await MongoMemoryServer.create();
+    process.env.MONGODB_URI = mongod.getUri('admin_api_test');
+    process.env.BACKUP_DIR = require('node:path').join(require('node:os').tmpdir(), `wdtct-admin-api-${process.pid}`);
+
+    const connection = require('../config/database/connection');
+    await connection.mongoose.connection.asPromise();
+    collections = connection.collections;
+    jobs = require('../config/admin/jobs');
+
+    const app = express();
+    app.use(express.json());
+    app.use(cookieParser());
+    app.use('/api/health', require('../routes/api/health'));
+    app.use('/api/admin', require('../routes/api/admin'));
+
+    httpServer = app.listen(0);
+    await once(httpServer, 'listening');
+    baseUrl = `http://127.0.0.1:${httpServer.address().port}`;
+});
+
+after(async () => {
+    if (httpServer) {
+        httpServer.close();
+    }
+    const connection = require('../config/database/connection');
+    await connection.mongoose.disconnect();
+    if (mongod) {
+        await mongod.stop();
+    }
+});
+
+beforeEach(async () => {
+    await Promise.all([
+        collections.User.deleteMany({}),
+        collections.Role.deleteMany({}),
+        collections.AdminJob.deleteMany({}),
+        collections.AuditLog.deleteMany({}),
+        collections.Setting.deleteMany({}),
+        collections.Ingredient.deleteMany({}),
+        collections.IngredientPost.deleteMany({}),
+        collections.Dish.deleteMany({}),
+        collections.DishPost.deleteMany({}),
+        collections.Vote.deleteMany({}),
+        collections.Comment.deleteMany({})
+    ]);
+});
+
+test('public health is open and leaks no counts', async () => {
+    const response = await call('/api/health');
+
+    assert.strictEqual(response.status, 200);
+    assert.deepStrictEqual(Object.keys(response.body).sort(), ['status', 'uptime_s']);
+    assert.strictEqual(response.body.status, 'ok');
+    assert.strictEqual(typeof response.body.uptime_s, 'number');
+});
+
+test('an anonymous request gets 401 in the documented envelope', async () => {
+    const response = await call('/api/admin/users');
+
+    assert.strictEqual(response.status, 401);
+    assert.strictEqual(response.body.error.code, 'unauthorized');
+    assert.match(response.body.error.message, /invalid/i);
+});
+
+test('a signed-in non-admin gets 403', async () => {
+    const user = await createUser({ username: 'cook' });
+
+    const response = await call('/api/admin/users', tokenFor(user));
+
+    assert.strictEqual(response.status, 403);
+    assert.strictEqual(response.body.error.code, 'forbidden');
+    assert.match(response.body.error.message, /admin/i);
+});
+
+test('a disabled admin gets 403', async () => {
+    const admin = await createUser({ username: 'oldadmin', roles: ['user', 'admin'], is_disabled: true });
+
+    const response = await call('/api/admin/users', tokenFor(admin));
+
+    assert.strictEqual(response.status, 403);
+    assert.strictEqual(response.body.error.code, 'forbidden');
+});
+
+test('the user list has roles but never a password hash', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    await createUser({ username: 'cook' });
+
+    const response = await call('/api/admin/users?q=cook', tokenFor(admin));
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.total, 1);
+    const row = response.body.rows[0];
+    assert.strictEqual(row.username, 'cook');
+    assert.deepStrictEqual(row.roles, ['user']);
+    assert.strictEqual(row.password, undefined);
+    assert.strictEqual(JSON.stringify(response.body).includes('$2a$'), false);
+});
+
+test('reset without the typed confirmation is refused', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+
+    const missing = await call('/api/admin/reset', tokenFor(admin), 'POST', {});
+    const wrong = await call('/api/admin/reset', tokenFor(admin), 'POST', { confirm: 'reset' });
+
+    assert.strictEqual(missing.status, 400);
+    assert.strictEqual(missing.body.error.code, 'invalid_confirm');
+    assert.strictEqual(wrong.status, 400);
+    assert.strictEqual(await collections.AdminJob.countDocuments({}), 0);
+});
+
+test('restore refuses an unknown backup id with 404', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+
+    const wrongConfirm = await call('/api/admin/restore', tokenFor(admin), 'POST', {
+        backup_id: 'backup-20260101-000000',
+        confirm: 'no'
+    });
+    assert.strictEqual(wrongConfirm.status, 400);
+
+    const unknown = await call('/api/admin/restore', tokenFor(admin), 'POST', {
+        backup_id: 'backup-20260101-000000',
+        confirm: 'RESTORE'
+    });
+    assert.strictEqual(unknown.status, 404);
+    assert.strictEqual(unknown.body.error.code, 'not_found');
+    assert.strictEqual(await collections.AdminJob.countDocuments({}), 0);
+});
+
+test('a reset is 409 while another job is queued', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+
+    const backup = await call('/api/admin/backup', tokenFor(admin), 'POST', {});
+    assert.strictEqual(backup.status, 202);
+    assert.strictEqual(backup.body.type, 'backup');
+    assert.strictEqual(backup.body.status, 'queued');
+
+    const reset = await call('/api/admin/reset', tokenFor(admin), 'POST', { confirm: 'RESET' });
+
+    assert.strictEqual(reset.status, 409);
+    assert.strictEqual(reset.body.error.code, 'busy');
+    assert.strictEqual(await collections.AdminJob.countDocuments({ type: 'reset' }), 0);
+});
+
+test('an admin cannot demote themselves', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    await createUser({ username: 'other', roles: ['user', 'admin'] });
+
+    const response = await call(`/api/admin/users/${admin._id}/role`, tokenFor(admin), 'POST', { admin: false });
+
+    assert.strictEqual(response.status, 409);
+    assert.strictEqual(response.body.error.code, 'self');
+    assert.deepStrictEqual((await collections.User.findById(admin._id)).roles.length, 2);
+});
+
+test('the only admin cannot lose the role and a second admin can be demoted', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    const second = await createUser({ username: 'second', roles: ['user', 'admin'] });
+
+    const selfDemote = await call(`/api/admin/users/${admin._id}/role`, tokenFor(admin), 'POST', { admin: false });
+    assert.strictEqual(selfDemote.status, 409);
+    assert.strictEqual(selfDemote.body.error.code, 'self');
+
+    const demoted = await call(`/api/admin/users/${second._id}/role`, tokenFor(admin), 'POST', { admin: false });
+    assert.strictEqual(demoted.status, 200);
+    assert.deepStrictEqual(demoted.body.roles, ['user']);
+
+    const stored = await collections.User.findById(second._id);
+    assert.strictEqual(stored.roles.length, 1);
+});
+
+
+test('an admin cannot disable themselves', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    await createUser({ username: 'second', roles: ['user', 'admin'] });
+
+    const response = await call(`/api/admin/users/${admin._id}/disabled`, tokenFor(admin), 'POST', { disabled: true });
+
+    assert.strictEqual(response.status, 409);
+    assert.strictEqual(response.body.error.code, 'self');
+});
+
+test('the audit list paginates newest first and filters by action', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    const start = Date.now();
+    for (let index = 0; index < 30; index += 1) {
+        await collections.AuditLog.create({
+            actor_id: admin._id,
+            actor_name: 'boss',
+            action: index === 0 ? 'catalog.reset' : 'user.role',
+            result: 'ok',
+            created_at: new Date(start + index * 1000)
+        });
+    }
+
+    const page = await call('/api/admin/audit?page=2', tokenFor(admin));
+    assert.strictEqual(page.status, 200);
+    assert.strictEqual(page.body.total, 30);
+    assert.strictEqual(page.body.rows.length, 5);
+    assert.strictEqual(page.body.rows[0].action, 'user.role');
+
+    const filtered = await call('/api/admin/audit?action=catalog.reset', tokenFor(admin));
+    assert.strictEqual(filtered.body.total, 1);
+    assert.strictEqual(filtered.body.rows[0].action, 'catalog.reset');
+});
+
+test('admin health reports probes without user secrets', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    await collections.Ingredient.create({ name: 'Beef', best_post_id: '' });
+
+    const response = await call('/api/admin/health', tokenFor(admin));
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.database.ok, true);
+    assert.strictEqual(typeof response.body.database.latency_ms, 'number');
+    assert.strictEqual(response.body.counts.users, 1);
+    assert.strictEqual(response.body.counts.ingredients, 1);
+    assert.deepStrictEqual(
+        Object.keys(response.body.counts).sort(),
+        ['comments', 'dish_posts', 'dishes', 'ingredients', 'users', 'votes']
+    );
+    assert.strictEqual(typeof response.body.uptime_s, 'number');
+    assert.strictEqual(response.body.ai.configured, false);
+    assert.strictEqual(response.body.backup.dir_writable, true);
+    //No user data in the health payload
+    assert.strictEqual(JSON.stringify(response.body).includes('boss'), false);
+});
+
+test('an unreachable translation service is a failed probe, not a 500', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    const saved = process.env.TRANSLATE_URL;
+    process.env.TRANSLATE_URL = 'http://127.0.0.1:1/translate';
+    try {
+        const response = await call('/api/admin/health', tokenFor(admin));
+        assert.strictEqual(response.status, 200);
+        assert.strictEqual(response.body.translation.ok, false);
+    } finally {
+        process.env.TRANSLATE_URL = saved;
+    }
+});
+
+test('recalc best post promotes the post with the most points', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    const ingredient = await collections.Ingredient.create({ name: 'Beef', best_post_id: 'stale' });
+    const low = await collections.IngredientPost.create({
+        ingredient_id: String(ingredient._id), points: 1, unique_id: 'a'
+    });
+    const high = await collections.IngredientPost.create({
+        ingredient_id: String(ingredient._id), points: 9, unique_id: 'b'
+    });
+
+    const queued = await call('/api/admin/jobs/recalc-best-post', tokenFor(admin), 'POST', {
+        ingredient_id: String(ingredient._id)
+    });
+    assert.strictEqual(queued.status, 202);
+    assert.strictEqual(queued.body.type, 'recalc_best_post');
+
+    const finished = await jobs.runNextJob();
+    assert.strictEqual(finished.status, 'done');
+
+    const stored = await collections.Ingredient.findById(ingredient._id);
+    assert.strictEqual(stored.best_post_id, String(high._id));
+    assert.strictEqual((await collections.IngredientPost.findById(high._id)).is_best_post, true);
+    assert.strictEqual((await collections.IngredientPost.findById(low._id)).is_best_post, false);
+
+    const audit = await collections.AuditLog.findOne({ action: 'job.recalc_best_post' });
+    assert.ok(audit);
+    assert.strictEqual(audit.actor_name, 'boss');
+});
+
+test('recalc refuses a missing or unknown ingredient', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+
+    const missing = await call('/api/admin/jobs/recalc-best-post', tokenFor(admin), 'POST', {});
+    assert.strictEqual(missing.status, 400);
+
+    const unknown = await call('/api/admin/jobs/recalc-best-post', tokenFor(admin), 'POST', {
+        ingredient_id: '64b000000000000000000001'
+    });
+    assert.strictEqual(unknown.status, 404);
+});
+
+test('a temporary password is returned once and stored hashed', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    const user = await createUser({ username: 'cook' });
+
+    const response = await call(`/api/admin/users/${user._id}/password`, tokenFor(admin), 'POST', {});
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(typeof response.body.password, 'string');
+    assert.ok(response.body.password.length >= 8);
+    assert.strictEqual(response.body.user.must_change_password, true);
+    assert.strictEqual(response.body.user.password, undefined);
+
+    const stored = await collections.User.findById(user._id);
+    assert.notStrictEqual(stored.password, response.body.password);
+    assert.strictEqual(bcrypt.compareSync(response.body.password, stored.password), true);
+
+    const audit = await collections.AuditLog.findOne({ action: 'user.password' });
+    assert.ok(audit);
+    assert.strictEqual(audit.detail.includes(response.body.password), false);
+});

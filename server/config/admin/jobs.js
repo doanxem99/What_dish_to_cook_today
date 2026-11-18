@@ -127,4 +127,25 @@ registerHandler('backup', async (job) => {
 registerHandler('reset', async (job) => resetOps.resetCatalog(jobActor(job)));
 registerHandler('restore', async (job) => resetOps.restoreBackup(job.payload && job.payload.id, jobActor(job)));
 
+//Ingredient-only in v1; dishes are out of scope. Same rule as the desktop repair tool.
+registerHandler('recalc_best_post', async (job) => {
+    const ingredientId = String((job.payload && job.payload.ingredient_id) || '');
+    const ingredient = await collections.Ingredient.findById(ingredientId);
+    if (!ingredient) {
+        throw new Error(`Ingredient ${ingredientId} not found`);
+    }
+    const posts = await collections.IngredientPost.find({ ingredient_id: ingredientId }).sort({ points: -1 }).limit(1);
+    if (posts.length === 0) {
+        throw new Error(`Ingredient ${ingredientId} has no post to vote`);
+    }
+    const best = posts[0];
+    await collections.IngredientPost.updateMany(
+        { ingredient_id: ingredientId },
+        { $set: { is_best_post: false } }
+    );
+    await collections.IngredientPost.updateOne({ _id: best._id }, { $set: { is_best_post: true } });
+    await collections.Ingredient.updateOne({ _id: ingredient._id }, { $set: { best_post_id: String(best._id) } });
+    return `best post ${best._id} for ingredient ${ingredientId}`;
+});
+
 module.exports = { enqueueJob, runNextJob, markInterruptedJobs, registerHandler };
