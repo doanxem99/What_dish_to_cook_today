@@ -58,9 +58,16 @@ New audit actions: `dish.create`, `dish_post.create`, `ingredient.create`, `ingr
 
 ## Final state
 
-- Server: 145 tests pass. Web: 59 tests pass. Build green.
+- Server: 149 tests pass. Web: 68 tests pass. Build green.
 - Live audit check on the demo: `POST /api/dish/profile/create_dish` wrote one row, `action=dish.create`, `target=Audit probe dish`, `actor=demo`, visible through `GET /api/admin/audit`.
 - Bug found while running that check: `dev-demo.mjs` pinned the in-memory Mongo to port 27017, so an orphaned memory server from an earlier run was reused and the fresh seed collided on `role.name`. Fixed in `be2ac70`: the memory server now takes a free port. Consequence to note: killing the orphan dropped the demo data created in the preview.
+
+## Review outcome
+
+- P1 fixed: a slow early translation response can no longer overwrite newer text or user-typed Vietnamese; `shouldApplyTranslation` guards both editors.
+- P2 fixed: errors are per field and per block identity, and survive a move or a sibling success; post edits log `dish_post.edit` / `ingredient_post.edit` instead of a second create; a failed audit insert is logged, not silently swallowed.
+- P3 fixed: detail capped for every action, comment detail prefixed, parent ids validated before `$in`, client-supplied actor fallback removed, missing-parent label test added.
+
 
 
 ## Accepted risks
