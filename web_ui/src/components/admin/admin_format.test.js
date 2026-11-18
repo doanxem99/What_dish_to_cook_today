@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  auditTargetLabel,
+  countLine,
   errorKind,
   filterQuery,
   formatBytes,
@@ -10,6 +12,7 @@ import {
   jobTypeLabel,
   maintenanceReason,
   rowGuard,
+  sortProbes,
   typedWordMatches
 } from './admin_format.js'
 
@@ -138,6 +141,71 @@ describe('errorKind', () => {
     expect(errorKind({ status: 502 })).toBe('server')
     expect(errorKind({ status: 400 })).toBe('request')
     expect(errorKind({})).toBe('network')
+  })
+})
+
+describe('countLine', () => {
+  const catalogue = {
+    'admin.count.line.ingredients': '{n} ingredients',
+    'admin.count.line.ingredientsOne': '{n} ingredient',
+    'admin.count.line.dishes': '{n} dishes',
+    'admin.count.line.dishesOne': '{n} dish',
+    'admin.count.line.comments': '{n} comments',
+    'admin.count.line.commentsOne': '{n} comment',
+    'admin.count.line.users': '{n} users',
+    'admin.count.line.usersOne': '{n} user'
+  }
+  const t = (key, params) => String(catalogue[key] || key).replace('{n}', String(params.n))
+
+  it('joins the four counts on one line with the singular form for one', () => {
+    expect(countLine({ ingredients: 38, dishes: 13, comments: 1, users: 1 }, t))
+      .toBe('38 ingredients · 13 dishes · 1 comment · 1 user')
+  })
+
+  it('keeps zero counts visible', () => {
+    expect(countLine({ ingredients: 0, dishes: 0, comments: 0, users: 2 }, t))
+      .toBe('0 ingredients · 0 dishes · 0 comments · 2 users')
+  })
+
+  it('returns an empty line when there is no snapshot', () => {
+    expect(countLine(null, t)).toBe('')
+    expect(countLine({}, t)).toBe('')
+  })
+})
+
+describe('sortProbes', () => {
+  it('puts a failing probe first and keeps the rest in order', () => {
+    const ordered = sortProbes([
+      { label: 'db', state: 'ok' },
+      { label: 'translation', state: 'missing' },
+      { label: 'ai', state: 'partial' },
+      { label: 'backup', state: 'ok' }
+    ])
+    expect(ordered.map(probe => probe.label)).toEqual(['translation', 'db', 'ai', 'backup'])
+  })
+
+  it('leaves a healthy strip in place and tolerates no rows', () => {
+    const rows = [{ label: 'db', state: 'ok' }, { label: 'ai', state: 'partial' }]
+    expect(sortProbes(rows)).toEqual(rows)
+    expect(sortProbes()).toEqual([])
+  })
+})
+
+describe('auditTargetLabel', () => {
+  const t = key => (key === 'admin.job.type.backup' ? 'Backup' : key)
+
+  it('uses the resolved label and leaves the raw id for the title', () => {
+    const row = { target_type: 'user', target_id: '6afd', target_label: 'boss' }
+    expect(auditTargetLabel(row, t)).toBe('boss')
+  })
+
+  it('translates a job target from its type', () => {
+    expect(auditTargetLabel({ target_type: 'job', target_id: 'j1', target_label: 'backup' }, t)).toBe('Backup')
+  })
+
+  it('falls back to the id, then to a dash', () => {
+    expect(auditTargetLabel({ target_type: 'user', target_id: '6afd' }, t)).toBe('6afd')
+    expect(auditTargetLabel({}, t)).toBe('—')
   })
 })
 

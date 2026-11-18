@@ -181,6 +181,7 @@ function when(value) {
 }
 
 .job-toggle-btn {
+  position: relative;
   width: 26px;
   height: 24px;
   border: 1px solid var(--board-line);
@@ -191,6 +192,13 @@ function when(value) {
   font-size: 13px;
   line-height: 1;
   cursor: pointer;
+}
+
+/*The box paints 26x24; the transparent box around it owns the 44 px target.*/
+.job-toggle-btn::after {
+  content: '';
+  position: absolute;
+  inset: -10px -9px;
 }
 
 .job-toggle-btn:hover {

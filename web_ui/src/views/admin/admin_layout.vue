@@ -16,7 +16,9 @@ const POLL_MS = 15000
 const health = ref(null)
 const healthError = ref(null)
 const healthLoading = ref(false)
+//checkedAt is the last successful read; failedAt is the last failed one. A failure never moves checkedAt.
 const checkedAt = ref('')
+const failedAt = ref('')
 let timer = null
 
 function when(value) {
@@ -30,20 +32,22 @@ async function loadHealth() {
   try {
     health.value = await adminApi.health()
     healthError.value = null
+    checkedAt.value = when(new Date().toISOString())
+    failedAt.value = ''
   } catch (error) {
     healthError.value = error
+    failedAt.value = when(new Date().toISOString())
     //A 401 means the session is gone: clear the stale account so the sign-in link is reachable.
     if (errorKind(error) === 'unauthorized') {
       await auth.signOut()
     }
   } finally {
     healthLoading.value = false
-    checkedAt.value = when(new Date().toISOString())
   }
 }
 
 //One poller for the whole admin area; Overview and the banner read the same snapshot.
-provide('adminHealth', { health, healthError, healthLoading, checkedAt, reload: loadHealth })
+provide('adminHealth', { health, healthError, healthLoading, checkedAt, failedAt, reload: loadHealth })
 
 const aiConfigured = computed(() => Boolean(health.value && health.value.ai && health.value.ai.configured))
 
@@ -198,6 +202,43 @@ onBeforeUnmount(() => {
   color: var(--board-amber);
   border-bottom-color: var(--board-amber);
   font-weight: 700;
+}
+
+/*Quiet inline actions keep their painted size; a transparent box owns the 44 px target.*/
+.admin-refresh {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.admin-refresh,
+.admin-pager .btn,
+.admin-table .btn,
+.admin-job-result .btn,
+.admin-danger-buttons .btn {
+  position: relative;
+}
+
+.admin-refresh::after {
+  content: '';
+  position: absolute;
+  inset: -13px -10px;
+}
+
+.admin-pager .btn::after,
+.admin-job-result .btn::after,
+.admin-danger-buttons .btn::after {
+  content: '';
+  position: absolute;
+  inset: -8px -4px;
+}
+
+.admin-table .btn::after {
+  content: '';
+  position: absolute;
+  inset: -10px 0;
 }
 
 .admin-forbidden {
@@ -461,9 +502,24 @@ onBeforeUnmount(() => {
   .admin-page {
     padding-top: var(--space-3);
   }
+  /*Below the table breakpoint the tabs wrap as chips: no clipped item and no hidden scrollbar.*/
   .admin-subnav {
-    gap: var(--space-3);
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    overflow: visible;
+    border-bottom: 0;
+    padding-bottom: var(--space-1);
     margin-bottom: var(--space-4);
+  }
+  .admin-tab {
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--board-line);
+    border-radius: 999px;
+    margin-bottom: 0;
+  }
+  .admin-tab.is-active {
+    border-color: var(--board-amber);
   }
   .admin-filter {
     flex: 1 1 100%;

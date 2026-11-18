@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import adminApi from '../../api/admin'
 import { useAuthStore } from '../../assets/store/auth_store'
 import { useI18n } from '../../i18n'
-import { errorKind, filterQuery } from '../../components/admin/admin_format.js'
+import { errorKind, filterQuery, auditTargetLabel } from '../../components/admin/admin_format.js'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -13,6 +13,7 @@ const PAGE_SIZE = 25
 const action = ref('')
 const actor = ref('')
 const applied = ref({ action: '', actor: '' })
+const actions = ref([])
 const page = ref(1)
 const rows = ref([])
 const total = ref(0)
@@ -34,12 +35,6 @@ function when(value) {
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleString()
 }
 
-function target(row) {
-  const type = row.target_type || ''
-  const id = row.target_id || ''
-  return [type, id].filter(Boolean).join(' ') || '—'
-}
-
 async function load() {
   loading.value = rows.value.length === 0
   try {
@@ -50,6 +45,7 @@ async function load() {
     }))
     rows.value = answer && Array.isArray(answer.rows) ? answer.rows : []
     total.value = answer && Number.isFinite(answer.total) ? answer.total : 0
+    actions.value = answer && Array.isArray(answer.actions) ? answer.actions : []
     error.value = null
   } catch (caught) {
     error.value = caught
@@ -80,7 +76,10 @@ onMounted(load)
     <form class="admin-toolbar admin-audit-filters" @submit.prevent="applyFilters">
       <label class="field admin-filter">
         <span class="eyebrow">{{ t('admin.audit.filterAction') }}</span>
-        <input v-model="action" class="input" type="text" :placeholder="t('admin.audit.actionPlaceholder')" />
+        <select v-model="action" class="input" @change="applyFilters">
+          <option value="">{{ t('admin.common.all') }}</option>
+          <option v-for="value in actions" :key="value" :value="value">{{ value }}</option>
+        </select>
       </label>
       <label class="field admin-filter">
         <span class="eyebrow">{{ t('admin.audit.filterActor') }}</span>
@@ -88,7 +87,6 @@ onMounted(load)
       </label>
       <button class="btn" type="submit">{{ t('admin.common.apply') }}</button>
     </form>
-    <p class="admin-hint measure">{{ t('admin.audit.actionHint') }}</p>
 
     <div v-if="error" class="ruled admin-failure" role="alert">
       <p>{{ failure }}</p>
@@ -103,7 +101,9 @@ onMounted(load)
 
     <div v-else class="ruled admin-table-wrap">
       <p v-if="loading" class="state text-sm">{{ t('admin.audit.loading') }}</p>
-      <p v-else-if="rows.length === 0" class="state text-sm">{{ t('admin.audit.empty') }}</p>
+      <p v-else-if="rows.length === 0" class="state text-sm">
+        {{ applied.action || applied.actor ? t('admin.audit.emptyFiltered') : t('admin.audit.empty') }}
+      </p>
       <table v-else class="admin-table admin-audit-table">
         <caption class="sr-only">{{ t('admin.audit.title') }}</caption>
         <thead>
@@ -112,6 +112,7 @@ onMounted(load)
             <th scope="col">{{ t('admin.audit.actor') }}</th>
             <th scope="col">{{ t('admin.audit.action') }}</th>
             <th scope="col">{{ t('admin.audit.target') }}</th>
+            <th scope="col">{{ t('admin.jobs.detail') }}</th>
             <th scope="col">{{ t('admin.audit.result') }}</th>
             <th scope="col">{{ t('admin.audit.ip') }}</th>
           </tr>
@@ -121,7 +122,12 @@ onMounted(load)
             <td class="is-num" :data-label="t('admin.audit.time')">{{ when(row.created_at) }}</td>
             <td :data-label="t('admin.audit.actor')">{{ row.actor_name || '—' }}</td>
             <td class="admin-mono" :data-label="t('admin.audit.action')">{{ row.action || '—' }}</td>
-            <td class="admin-ellipsis" :data-label="t('admin.audit.target')" :title="target(row)">{{ target(row) }}</td>
+            <td class="admin-ellipsis" :data-label="t('admin.audit.target')" :title="row.target_id || ''">
+              {{ auditTargetLabel(row, t) }}
+            </td>
+            <td class="admin-ellipsis" :data-label="t('admin.jobs.detail')" :title="row.detail || ''">
+              {{ row.detail || '—' }}
+            </td>
             <td :data-label="t('admin.audit.result')">
               <span :class="row.result === 'ok' ? 'audit-ok' : 'audit-failed'">
                 {{ row.result === 'ok' ? t('admin.audit.resultOk') : t('admin.audit.resultFailed') }}
@@ -133,7 +139,8 @@ onMounted(load)
       </table>
     </div>
 
-    <nav v-if="total > PAGE_SIZE" class="admin-pager" :aria-label="t('admin.common.page', { page, pages })">
+    <nav v-if="total > 0" class="admin-pager" :aria-label="t('admin.common.page', { page, pages })">
+      <span class="admin-pager-total">{{ t('admin.common.total', { total }) }}</span>
       <button class="btn" type="button" :disabled="page <= 1 || loading" @click="go(page - 1)">
         {{ t('admin.common.prev') }}
       </button>
@@ -148,6 +155,14 @@ onMounted(load)
 <style>
 .admin-audit-filters .admin-filter {
   flex: 1 1 200px;
+}
+
+/*The total is the first thing the eye finds when the log is longer than one page.*/
+.admin-pager-total {
+  margin-right: auto;
+  font-size: 12px;
+  color: var(--board-dim);
+  font-variant-numeric: tabular-nums;
 }
 
 .audit-ok {

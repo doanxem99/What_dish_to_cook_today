@@ -158,6 +158,10 @@ async function detectBusy() {
 }
 
 async function createBackup() {
+  //A queued or running job already owns the queue; a second POST would stack two archives.
+  if (creating.value || busy.value) {
+    return
+  }
   creating.value = true
   note.value = ''
   try {
@@ -256,7 +260,7 @@ onBeforeUnmount(stopPoll)
     <section aria-labelledby="admin-backups-title">
       <div class="admin-section-head">
         <h2 id="admin-backups-title" class="admin-section-title">{{ t('admin.backups.listTitle') }}</h2>
-        <button class="btn" type="button" :disabled="creating" @click="createBackup">
+        <button class="btn" type="button" :disabled="creating || busy" @click="createBackup">
           {{ creating ? t('admin.backups.creating') : t('admin.backups.create') }}
         </button>
       </div>
@@ -341,7 +345,7 @@ onBeforeUnmount(stopPoll)
               :disabled="rows.length === 0 || busy"
             >
               <option v-for="row in rows" :key="row.id" :value="row.id">
-                {{ row.file }} · {{ formatBytes(row.bytes) }}
+                {{ row.file }} · {{ formatBytes(row.bytes) }} · {{ when(row.created_at) }}
               </option>
             </select>
           </label>

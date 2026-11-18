@@ -102,6 +102,12 @@ function search() {
   load()
 }
 
+//Clearing the box and the applied query together keeps the line and the table in step.
+function clearSearch() {
+  q.value = ''
+  search()
+}
+
 function go(next) {
   page.value = Math.min(pages.value, Math.max(1, next))
   load()
@@ -254,6 +260,12 @@ onMounted(load)
       <button class="btn" type="submit">{{ t('admin.common.apply') }}</button>
     </form>
 
+    <!--Typing alone changes nothing; this line says which search the table really used.-->
+    <p v-if="query" class="admin-hint">
+      {{ t('admin.users.filtered', { query }) }}
+      <button class="admin-refresh" type="button" @click="clearSearch">{{ t('admin.common.clear') }}</button>
+    </p>
+
     <div v-if="error" class="ruled admin-failure" role="alert">
       <p>{{ failure }}</p>
       <router-link v-if="errorKind(error) === 'unauthorized'" class="link" to="/signin">
@@ -267,7 +279,9 @@ onMounted(load)
 
     <div v-else class="ruled admin-table-wrap">
       <p v-if="loading" class="state text-sm">{{ t('admin.users.loading') }}</p>
-      <p v-else-if="rows.length === 0" class="state text-sm">{{ t('admin.users.empty') }}</p>
+      <p v-else-if="rows.length === 0" class="state text-sm">
+        {{ query ? t('admin.users.emptyFiltered') : t('admin.users.empty') }}
+      </p>
       <table v-else class="admin-table admin-users-table">
         <caption class="sr-only">{{ t('admin.nav.users') }}</caption>
         <thead>

@@ -290,6 +290,49 @@ test('the audit list paginates newest first and filters by action', async () => 
     assert.strictEqual(filtered.body.rows[0].action, 'catalog.reset');
 });
 
+test('the audit list resolves each target to a readable label and lists the actions', async () => {
+    const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
+    const cook = await createUser({ username: 'cook', roles: ['user'] });
+    const ingredient = await collections.Ingredient.create({ name: 'Beef', best_post_id: '' });
+    const dish = await collections.Dish.create({ name: 'Pho' });
+    const backupId = await writeBackupFixture();
+    const job = await collections.AdminJob.create({ type: 'backup', status: 'done', created_at: new Date() });
+
+    const start = Date.now();
+    const targets = [
+        { target_type: 'user', target_id: String(cook._id) },
+        { target_type: 'ingredient', target_id: String(ingredient._id) },
+        { target_type: 'dish', target_id: String(dish._id) },
+        { target_type: 'backup', target_id: backupId },
+        { target_type: 'job', target_id: String(job._id) },
+        //A target that no longer exists keeps its raw id and the page falls back to it.
+        { target_type: 'user', target_id: '64b00000000000000000dead' }
+    ];
+    for (const [index, target] of targets.entries()) {
+        await collections.AuditLog.create({
+            actor_name: 'boss',
+            action: index % 2 === 0 ? 'user.role' : 'catalog.reset',
+            result: 'ok',
+            created_at: new Date(start + index * 1000),
+            ...target
+        });
+    }
+
+    const response = await call('/api/admin/audit', tokenFor(admin));
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.total, 6);
+    assert.deepStrictEqual(response.body.actions, ['catalog.reset', 'user.role']);
+
+    const labels = new Map(response.body.rows.map(row => [row.target_type + ':' + row.target_id, row.target_label]));
+    assert.strictEqual(labels.get('user:' + cook._id), 'cook');
+    assert.strictEqual(labels.get('ingredient:' + ingredient._id), 'Beef');
+    assert.strictEqual(labels.get('dish:' + dish._id), 'Pho');
+    assert.strictEqual(labels.get('backup:' + backupId), BACKUP_FILE);
+    assert.strictEqual(labels.get('job:' + job._id), 'backup');
+    assert.strictEqual(labels.get('user:64b00000000000000000dead'), '');
+});
+
 test('admin health reports probes without user secrets', async () => {
     const admin = await createUser({ username: 'boss', roles: ['user', 'admin'] });
     await collections.Ingredient.create({ name: 'Beef', best_post_id: '' });

@@ -4,12 +4,13 @@ import { useI18n } from '../../i18n'
 const { t } = useI18n()
 
 //state: checking | ok | partial | missing. A failure always carries the next action.
+//stale marks the last good snapshot after a failed poll; the strip names the failure once.
 defineProps({
   label: { type: String, required: true },
   state: { type: String, default: 'checking' },
   value: { type: String, default: '' },
   note: { type: String, default: '' },
-  at: { type: String, default: '' },
+  stale: { type: Boolean, default: false },
   action: { type: String, default: '' }
 })
 
@@ -17,7 +18,7 @@ const lampClass = state => (state === 'ok' ? 'ok' : state === 'partial' ? 'parti
 </script>
 
 <template>
-  <div class="probe row-line" :class="{ 'is-failing': state === 'missing' }">
+  <div class="probe row-line" :class="{ 'is-stale': stale }">
     <span class="lamp" :class="lampClass(state)" aria-hidden="true"></span>
     <span class="sr-only">{{ t('admin.probe.state.' + state) }}</span>
     <div class="probe-body">
@@ -28,7 +29,6 @@ const lampClass = state => (state === 'ok' ? 'ok' : state === 'partial' ? 'parti
       <p v-if="note && state !== 'checking'" class="probe-note" :title="note">{{ note }}</p>
       <p v-if="state === 'missing' && action" class="probe-action">{{ action }}</p>
     </div>
-    <p v-if="at && state !== 'checking'" class="probe-at">{{ t('admin.probe.at', { when: at }) }}</p>
   </div>
 </template>
 
@@ -62,10 +62,15 @@ const lampClass = state => (state === 'ok' ? 'ok' : state === 'partial' ? 'parti
 
 .probe-value {
   margin: 2px 0 0;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--board-ink);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
+}
+
+/*A failed poll keeps the last good values on screen; the strip says they are old.*/
+.probe.is-stale .probe-value {
+  color: var(--board-dim);
 }
 
 .probe-note {
@@ -82,13 +87,5 @@ const lampClass = state => (state === 'ok' ? 'ok' : state === 'partial' ? 'parti
   font-size: 12px;
   color: var(--board-danger);
   max-width: 62ch;
-}
-
-.probe-at {
-  margin: 0;
-  flex: 0 0 auto;
-  font-size: 11px;
-  color: var(--board-dim);
-  white-space: nowrap;
 }
 </style>

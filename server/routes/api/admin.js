@@ -459,6 +459,65 @@ router.post('/users/:id/password', wrap(async function(req, res) {
 
 //------------ Audit
 
+//A row names its target by type and id; the reader needs the name, not the hex.
+const AUDIT_TARGETS = {
+    user: { collection: collections.User, field: 'username' },
+    ingredient: { collection: collections.Ingredient, field: 'name' },
+    dish: { collection: collections.Dish, field: 'name' },
+    job: { collection: collections.AdminJob, field: 'type' }
+};
+
+//One read per target type for the whole page; a deleted target keeps its raw id.
+const auditTargetLabels = async function(rows) {
+    const idsByType = new Map();
+    for (const row of rows) {
+        const type = row.target_type || '';
+        const id = row.target_id || '';
+        if (!type || !id) {
+            continue;
+        }
+        if (!idsByType.has(type)) {
+            idsByType.set(type, new Set());
+        }
+        idsByType.get(type).add(String(id));
+    }
+
+    const labels = new Map();
+    const work = [];
+    idsByType.forEach((ids, type) => {
+        if (type === 'backup') {
+            //Backup ids are derived from the file name, so the listing is the only index.
+            work.push(backups.listBackups().then((list) => {
+                const files = new Map(list.map(row => [String(row.id), row.file]));
+                ids.forEach((id) => {
+                    if (files.has(id)) {
+                        labels.set(`backup:${id}`, files.get(id));
+                    }
+                });
+            }));
+            return;
+        }
+        const target = AUDIT_TARGETS[type];
+        if (!target) {
+            return;
+        }
+        const valid = [...ids].filter(id => mongoose.Types.ObjectId.isValid(id));
+        if (valid.length === 0) {
+            return;
+        }
+        work.push(target.collection.find({ _id: { $in: valid } }).select(target.field).then((docs) => {
+            docs.forEach((doc) => {
+                const value = doc[target.field];
+                if (value) {
+                    labels.set(`${type}:${String(doc._id)}`, String(value));
+                }
+            });
+        }));
+    });
+    await Promise.all(work);
+    return labels;
+};
+
 router.get('/audit', wrap(async function(req, res) {
     const page = pageOf(req.query.page);
     const filter = {};
@@ -469,12 +528,25 @@ router.get('/audit', wrap(async function(req, res) {
         filter.actor_name = new RegExp(escapeRegex(String(req.query.actor)), 'i');
     }
 
-    const [rows, total] = await Promise.all([
+    const [rows, total, actions] = await Promise.all([
         collections.AuditLog.find(filter).sort({ created_at: -1 }).skip((page - 1) * PAGE_SIZE).limit(PAGE_SIZE),
-        collections.AuditLog.countDocuments(filter)
+        collections.AuditLog.countDocuments(filter),
+        collections.AuditLog.distinct('action')
     ]);
 
-    return res.status(200).send({ rows, total, page });
+    const plain = rows.map(row => row.toObject());
+    const labels = await auditTargetLabels(plain);
+    const withLabels = plain.map(row => ({
+        ...row,
+        target_label: labels.get(`${row.target_type || ''}:${String(row.target_id || '')}`) || ''
+    }));
+
+    return res.status(200).send({
+        rows: withLabels,
+        total,
+        page,
+        actions: actions.filter(Boolean).sort()
+    });
 }));
 
 module.exports = router;

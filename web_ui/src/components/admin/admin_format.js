@@ -85,6 +85,48 @@ export function hasActiveJobs(rows) {
   return (rows || []).some(row => row && (row.status === 'queued' || row.status === 'running'))
 }
 
+//The four catalog counts share one line, in a fixed order, each noun in its real number.
+const COUNT_PLURAL_KEYS = {
+  ingredients: 'admin.count.line.ingredients',
+  dishes: 'admin.count.line.dishes',
+  comments: 'admin.count.line.comments',
+  users: 'admin.count.line.users'
+}
+const COUNT_SINGULAR_KEYS = {
+  ingredients: 'admin.count.line.ingredientsOne',
+  dishes: 'admin.count.line.dishesOne',
+  comments: 'admin.count.line.commentsOne',
+  users: 'admin.count.line.usersOne'
+}
+
+export function countLine(counts, translate) {
+  const source = counts || {}
+  return Object.keys(COUNT_PLURAL_KEYS)
+    .filter(key => Number.isFinite(Number(source[key])))
+    .map(key => {
+      const n = Number(source[key])
+      const base = n === 1 ? COUNT_SINGULAR_KEYS[key] : COUNT_PLURAL_KEYS[key]
+      return translate(base, { n })
+    })
+    .join(' · ')
+}
+
+//A failing probe is the one the reader must see; the rest keep their fixed order.
+export function sortProbes(probes) {
+  const list = probes || []
+  return [...list.filter(probe => probe.state === 'missing'), ...list.filter(probe => probe.state !== 'missing')]
+}
+
+//The server resolves the target label; a job target is a type code the page can translate.
+export function auditTargetLabel(row, translate) {
+  const source = row || {}
+  const label = source.target_label || source.target_id || ''
+  if (!label) {
+    return '—'
+  }
+  return source.target_type === 'job' ? jobTypeLabel(label, translate) : String(label)
+}
+
 //The server writes an English sentence; known ones get a catalogue key, unknown ones stay readable.
 const MAINTENANCE_REASON_KEYS = {
   'catalog reset': 'admin.maintenance.reason.catalogReset',

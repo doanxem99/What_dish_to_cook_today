@@ -142,7 +142,7 @@ hash, token or AI prompt text is ever returned.
 | POST | `/users/:id/role` | `{admin: true\|false}` | user row, 200; 400 not a boolean, 404 unknown user, 409 self-demote or last admin |
 | POST | `/users/:id/disabled` | `{disabled: true\|false}` | user row, 200; 400 not a boolean, 404 unknown user, 409 self-disable or last admin |
 | POST | `/users/:id/password` | – | `{password, user}`, 200; the temporary password is shown once and `must_change_password` is set |
-| GET | `/audit` | `?action=&actor=&page=` | `{rows, total, page}`, newest first, 25 per page |
+| GET | `/audit` | `?action=&actor=&page=` | `{rows, total, page, actions}`, newest first, 25 per page; each row carries `target_label` resolved from `target_type`/`target_id`, `actions` is the distinct action list for the filter |
 
 `/health` answers:
 

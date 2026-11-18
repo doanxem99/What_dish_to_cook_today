@@ -4,13 +4,14 @@ import adminApi from '../../api/admin'
 import { useI18n } from '../../i18n'
 import StatusProbe from '../../components/admin/status_probe.vue'
 import JobTable from '../../components/admin/job_table.vue'
+import { countLine, errorKind, sortProbes } from '../../components/admin/admin_format.js'
 
 const { t } = useI18n()
 
 const RECENT_JOBS = 5
 
 //The layout owns the single 15 s health poll; this view only renders its snapshot.
-const { health, healthError, healthLoading, checkedAt, reload } = inject('adminHealth')
+const { health, healthError, healthLoading, checkedAt, failedAt, reload } = inject('adminHealth')
 
 const jobs = ref([])
 const jobsLoading = ref(true)
@@ -22,28 +23,29 @@ function when(value) {
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleString()
 }
 
+//A failed poll leaves the last good snapshot in place and marks it stale.
+const stale = computed(() => healthError.value !== null && health.value !== null)
+const failureKind = computed(() => errorKind(healthError.value))
+
 const probes = computed(() => {
   const data = health.value
-  const failed = healthError.value !== null
-  const probe = (label, state, value, action, note) => ({
-    label,
-    state: failed ? 'missing' : state,
-    value,
-    action: failed ? t('admin.statusFailedAction') : action,
-    note: note || ''
-  })
+  const probe = (label, state, value, action, note) => ({ label, state, value, action, note: note || '' })
   if (!data) {
+    //A first load that fails ends in the failure row, not four rows stuck on "Checking".
+    if (healthError.value) {
+      return []
+    }
     return [
-      probe(t('admin.probe.database'), 'checking', '', ''),
-      probe(t('admin.probe.translation'), 'checking', '', ''),
-      probe(t('admin.probe.ai'), 'checking', '', ''),
-      probe(t('admin.probe.backup'), 'checking', '', '')
+      probe(t('admin.probe.database'), 'checking', '', '', ''),
+      probe(t('admin.probe.translation'), 'checking', '', '', ''),
+      probe(t('admin.probe.ai'), 'checking', '', '', ''),
+      probe(t('admin.probe.backup'), 'checking', '', '', '')
     ]
   }
   const database = data.database || {}
   const translation = data.translation || {}
   const backup = data.backup || {}
-  return [
+  return sortProbes([
     probe(
       t('admin.probe.database'),
       database.ok ? 'ok' : 'missing',
@@ -76,18 +78,10 @@ const probes = computed(() => {
       t('admin.probe.backupAction'),
       backup.dir || backup.error || ''
     )
-  ]
+  ])
 })
 
-const counts = computed(() => {
-  const source = (health.value && health.value.counts) || {}
-  return [
-    { key: 'users', value: source.users },
-    { key: 'ingredients', value: source.ingredients },
-    { key: 'dishes', value: source.dishes },
-    { key: 'comments', value: source.comments }
-  ].map(row => ({ ...row, label: t('admin.count.' + row.key) }))
-})
+const countsText = computed(() => countLine(health.value && health.value.counts, t))
 
 async function loadJobs() {
   jobsLoading.value = jobs.value.length === 0
@@ -110,12 +104,19 @@ onMounted(loadJobs)
     <section aria-labelledby="admin-status-title">
       <div class="admin-section-head">
         <h2 id="admin-status-title" class="admin-section-title">{{ t('admin.status.title') }}</h2>
-        <button
-          class="btn btn-quiet admin-refresh"
-          type="button"
-          :disabled="healthLoading"
-          @click="reload"
-        >{{ t('common.retry') }}</button>
+        <div class="admin-status-head-actions">
+          <p v-if="checkedAt" class="admin-checked">
+            {{ stale
+              ? t('admin.status.stale', { good: checkedAt, failed: failedAt })
+              : t('admin.probe.at', { when: checkedAt }) }}
+          </p>
+          <button
+            class="btn btn-quiet admin-refresh"
+            type="button"
+            :disabled="healthLoading"
+            @click="reload"
+          >{{ t('admin.strip.checkNow') }}</button>
+        </div>
       </div>
       <div class="ruled admin-probes">
         <StatusProbe
@@ -126,30 +127,31 @@ onMounted(loadJobs)
           :value="probe.value"
           :action="probe.action"
           :note="probe.note"
-          :at="checkedAt"
+          :stale="stale"
         />
-      </div>
-      <div v-if="healthError" class="text-sm admin-failed" role="alert">
-        <template v-if="healthError.status === 401">
-          <p>{{ t('admin.status.signIn') }}</p>
-          <router-link class="link" to="/signin">{{ t('admin.status.signInLink') }}</router-link>
-        </template>
-        <template v-else-if="healthError.status === 403">
-          <p class="admin-failed-title">{{ t('admin.forbidden.title') }}</p>
-          <p>{{ healthError.message || t('admin.forbidden.body') }}</p>
-        </template>
-        <p v-else>{{ t('admin.status.failed') }}</p>
+        <!--One row for the failed read: the retry lives here, not on four fake outages.-->
+        <div v-if="healthError" class="admin-probe-failure" role="alert">
+          <template v-if="failureKind === 'unauthorized'">
+            <p>{{ t('admin.status.signIn') }}</p>
+            <router-link class="link" to="/signin">{{ t('admin.status.signInLink') }}</router-link>
+          </template>
+          <template v-else-if="failureKind === 'forbidden'">
+            <p class="admin-failed-title">{{ t('admin.forbidden.title') }}</p>
+            <p>{{ healthError.message || t('admin.forbidden.body') }}</p>
+          </template>
+          <template v-else>
+            <p>{{ t('admin.status.failed') }}</p>
+            <button class="btn" type="button" :disabled="healthLoading" @click="reload">
+              {{ t('admin.common.retry') }}
+            </button>
+          </template>
+        </div>
       </div>
     </section>
 
     <section aria-labelledby="admin-counts-title">
       <h2 id="admin-counts-title" class="admin-section-title">{{ t('admin.counts.title') }}</h2>
-      <dl class="ruled admin-counts">
-        <div v-for="row in counts" :key="row.key" class="admin-count">
-          <dt>{{ row.label }}</dt>
-          <dd>{{ row.value === undefined || row.value === null ? '—' : row.value }}</dd>
-        </div>
-      </dl>
+      <p class="ruled admin-counts">{{ countsText || '—' }}</p>
     </section>
 
     <section aria-labelledby="admin-recent-title">
@@ -168,25 +170,36 @@ onMounted(loadJobs)
   gap: var(--space-5);
 }
 
-.admin-refresh {
-  background: transparent;
-  border: 0;
-  padding: 0;
-  font-size: 12px;
-  cursor: pointer;
+.admin-status-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--space-1) var(--space-3);
+}
+
+.admin-checked {
+  margin: 0;
+  font-size: 11px;
+  color: var(--board-dim);
+  font-variant-numeric: tabular-nums;
 }
 
 .admin-probes {
   padding: 0 var(--space-3);
 }
 
-.admin-failed {
-  margin: var(--space-2) 0 0;
+.admin-probe-failure {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  padding: var(--space-3) 0;
   color: var(--board-danger);
+  font-size: 13px;
 }
 
-.admin-failed p {
-  margin: 0 0 var(--space-1);
+.admin-probe-failure p {
+  margin: 0;
 }
 
 .admin-failed-title {
@@ -194,53 +207,19 @@ onMounted(loadJobs)
 }
 
 .admin-counts {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin: 0;
-}
-
-.admin-count {
-  padding: var(--space-3);
-  border-right: 1px solid var(--board-line);
-}
-
-.admin-count:last-child {
-  border-right: 0;
-}
-
-.admin-count dt {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--board-dim);
-}
-
-.admin-count dd {
-  margin: var(--space-1) 0 0;
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 1;
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
+  color: var(--board-ink);
 }
 
 @media (max-width: 639px) {
-  .admin-counts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .admin-count:nth-child(2) {
-    border-right: 0;
-  }
-  .admin-count:nth-child(-n + 2) {
-    border-bottom: 1px solid var(--board-line);
-  }
   .admin-probes {
     padding: 0 var(--space-2);
   }
   .probe {
     flex-wrap: wrap;
-  }
-  .probe-at {
-    padding-left: 22px;
   }
 }
 </style>
