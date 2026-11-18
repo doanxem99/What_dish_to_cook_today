@@ -170,6 +170,13 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: tokens.ink),
                     ),
+                    if (item.detail(state.locale).isNotEmpty)
+                      Text(
+                        item.detail(state.locale),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, height: 1.4, color: tokens.dim),
+                      ),
                   ],
                 ),
               ),

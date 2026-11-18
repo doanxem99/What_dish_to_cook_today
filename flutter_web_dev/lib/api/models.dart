@@ -19,6 +19,8 @@ class IngredientRef {
     required this.name,
     this.nameVi = '',
     this.type = 'Other',
+    this.shortDetail = '',
+    this.shortDetailVi = '',
     this.image = '',
   });
 
@@ -26,6 +28,8 @@ class IngredientRef {
   final String name;
   final String nameVi;
   final String type;
+  final String shortDetail;
+  final String shortDetailVi;
   final String image;
 
   factory IngredientRef.fromJson(dynamic json) {
@@ -37,11 +41,15 @@ class IngredientRef {
       name: _text(json['name']),
       nameVi: _text(json['name_vi']),
       type: _text(json['type']).isEmpty ? 'Other' : _text(json['type']),
+      shortDetail: _text(json['short_detail']),
+      shortDetailVi: _text(json['short_detail_vi']),
       image: _text(json['profile_image']),
     );
   }
 
   String label(String locale) => I18n.label(nameVi, name, locale);
+
+  String detail(String locale) => I18n.label(shortDetailVi, shortDetail, locale);
 
   BasketItem toBasketItem() => BasketItem(id: id, name: name, nameVi: nameVi);
 

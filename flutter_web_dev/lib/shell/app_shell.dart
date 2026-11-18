@@ -26,12 +26,17 @@ class AppShell extends StatelessWidget {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: BoardTokens.boardWidth),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                          child: child,
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: (MediaQuery.sizeOf(context).height - 160).clamp(0.0, double.infinity),
+                      ),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: BoardTokens.boardWidth),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                            child: child,
+                          ),
                         ),
                       ),
                     ),
