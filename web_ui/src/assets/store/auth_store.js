@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import authAction from "../js/auth_server_action.js";
+import { needsHydration } from "../../components/admin/admin_guard.js";
 import Cookie from 'js-cookie'
 
 const readUser = function(){
@@ -68,6 +69,25 @@ export const useAuthStore = defineStore("auth", {
             } catch (error) {
                 this.errorMessage = errorText(error);
                 return false;
+            }
+        },
+        //An account stored before roles and the password flag existed gets one server read on boot.
+        async hydrate() {
+            if (!needsHydration(this.user)) {
+                return;
+            }
+            try {
+                const response = await authAction.me();
+                const data = response.data || {};
+                const account = data.user || {};
+                this.user = {
+                    ...this.user,
+                    roles: Array.isArray(account.roles) ? account.roles : [],
+                    mustChange: data.must_change_password === true,
+                };
+                Cookie.set('user', JSON.stringify(this.user));
+            } catch (error) {
+                //Keep the stored session; the guard still blocks the admin area without the role.
             }
         },
         //The server cleared the flag; keep the local session in step so the guard stops redirecting

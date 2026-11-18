@@ -238,7 +238,9 @@ router.get('/me', verifyToken, async function(req, res){
                 //Users created before the field existed have no joined date
                 created_at: user.created_at || null,
                 roles: req.roles,
-            }
+            },
+            //The boot re-hydration reads the flag here; older accounts have no field.
+            must_change_password: user.must_change_password === true,
         });
     } catch (err) {
         return res.status(500).send({

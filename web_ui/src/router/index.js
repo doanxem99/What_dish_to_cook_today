@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../assets/store/auth_store'
-import { guardDecision } from '../components/admin/admin_guard'
+import { guardDecision, CHANGE_PASSWORD_PATH } from '../components/admin/admin_guard'
 import { t } from '../i18n'
 import homeView from '../views/home_view.vue'
 
@@ -132,6 +132,13 @@ router.beforeEach((to, from, next) => {
   }
   if (decision.remember) {
     auth.jumpPage = to.fullPath
+  }
+  //A forced password change returns the user to the page they asked for.
+  if (decision.redirect === CHANGE_PASSWORD_PATH) {
+    auth.jumpPage = to.fullPath
+  }
+  if (decision.redirect === '/signin') {
+    return next({ path: '/signin', replace: true })
   }
   return next(decision.redirect)
 })

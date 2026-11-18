@@ -29,7 +29,9 @@ async function submit() {
   try {
     await api.post('/api/auth/password', { current_password: current.value, new_password: next.value })
     auth.passwordChanged()
-    router.push('/')
+    const target = auth.jumpPage || '/'
+    auth.jumpPage = null
+    router.push(target)
   } catch (requestError) {
     error.value = t('admin.password.failed')
   } finally {

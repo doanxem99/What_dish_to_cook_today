@@ -19,6 +19,7 @@ const lampClass = state => (state === 'ok' ? 'ok' : state === 'partial' ? 'parti
 <template>
   <div class="probe row-line" :class="{ 'is-failing': state === 'missing' }">
     <span class="lamp" :class="lampClass(state)" aria-hidden="true"></span>
+    <span class="sr-only">{{ t('admin.probe.state.' + state) }}</span>
     <div class="probe-body">
       <p class="probe-name">{{ label }}</p>
       <p class="probe-value">

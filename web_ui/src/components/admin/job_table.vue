@@ -51,12 +51,12 @@ function when(value) {
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="row._id">
-          <td class="job-time">{{ when(row.created_at) }}</td>
-          <td>{{ typeLabel(row.type) }}</td>
-          <td>
+          <td class="job-time" :data-label="t('admin.jobs.time')">{{ when(row.created_at) }}</td>
+          <td :data-label="t('admin.jobs.type')">{{ typeLabel(row.type) }}</td>
+          <td :data-label="t('admin.jobs.status')">
             <span class="job-status" :class="'is-' + row.status">{{ statusLabel(row.status) }}</span>
           </td>
-          <td class="job-actor" :title="row.actor_name">{{ row.actor_name || t('common.unknown') }}</td>
+          <td class="job-actor" :data-label="t('admin.jobs.actor')" :title="row.actor_name">{{ row.actor_name || t('common.unknown') }}</td>
         </tr>
       </tbody>
     </table>
@@ -116,13 +116,39 @@ function when(value) {
 .job-status.is-failed { color: var(--board-danger); }
 
 @media (max-width: 639px) {
-  .job-table th:nth-child(4),
-  .job-table td:nth-child(4) {
+  .job-table thead {
     display: none;
   }
-  .job-table th,
+  .job-table,
+  .job-table tbody,
+  .job-table tr,
   .job-table td {
+    display: block;
+    width: 100%;
+  }
+  .job-table tr {
     padding: var(--space-2);
+    border-bottom: 1px solid var(--board-line);
+  }
+  .job-table tbody tr:last-child {
+    border-bottom: 0;
+  }
+  .job-table td {
+    display: flex;
+    gap: var(--space-3);
+    padding: 2px 0;
+    border-bottom: 0;
+  }
+  .job-table td::before {
+    content: attr(data-label);
+    flex: 0 0 6.5em;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--board-dim);
+  }
+  .job-actor {
+    max-width: none;
   }
 }
 </style>

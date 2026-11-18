@@ -1,3 +1,8 @@
+//A stored account written by an older build has no roles or flag: ask the server once on boot.
+export function needsHydration(account) {
+  return Boolean(account) && (!Array.isArray(account.roles) || typeof account.mustChange !== 'boolean')
+}
+
 //Pure route decision for the admin area. No router, no store: the test can call it directly.
 export const ADMIN_ROLE = 'admin'
 export const CHANGE_PASSWORD_PATH = '/change-password'

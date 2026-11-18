@@ -1,17 +1,20 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import adminApi from '../../api/admin'
+import { useAuthStore } from '../../assets/store/auth_store'
 import { useI18n } from '../../i18n'
 import StatusProbe from '../../components/admin/status_probe.vue'
 import JobTable from '../../components/admin/job_table.vue'
 
 const { t } = useI18n()
+const auth = useAuthStore()
 
 const POLL_MS = 15000
 const RECENT_JOBS = 5
 
 const health = ref(null)
-const healthFailed = ref(false)
+const healthError = ref(null)
+const healthLoading = ref(false)
 const checkedAt = ref('')
 const jobs = ref([])
 const jobsLoading = ref(true)
@@ -26,7 +29,7 @@ function when(value) {
 
 const probes = computed(() => {
   const data = health.value
-  const failed = healthFailed.value
+  const failed = healthError.value !== null
   const probe = (label, state, value, action, note) => ({
     label,
     state: failed ? 'missing' : state,
@@ -92,12 +95,19 @@ const counts = computed(() => {
 const maintenance = computed(() => (health.value && health.value.maintenance) || null)
 
 async function loadHealth() {
+  healthLoading.value = true
   try {
     health.value = await adminApi.health()
-    healthFailed.value = false
+    healthError.value = null
   } catch (error) {
-    healthFailed.value = true
+    const status = (error && error.response && error.response.status) || null
+    healthError.value = { status, message: (error && error.response && error.response.data && error.response.data.message) || '' }
+    //A 401 means the session is gone: clear the stale account so the sign-in link is reachable.
+    if (status === 401) {
+      await auth.signOut()
+    }
   } finally {
+    healthLoading.value = false
     checkedAt.value = when(new Date().toISOString())
   }
 }
@@ -157,7 +167,7 @@ onBeforeUnmount(() => {
         <button
           class="btn btn-quiet admin-refresh"
           type="button"
-          :disabled="healthFailed"
+          :disabled="healthLoading"
           @click="loadHealth"
         >{{ t('common.retry') }}</button>
       </div>
@@ -173,7 +183,17 @@ onBeforeUnmount(() => {
           :at="checkedAt"
         />
       </div>
-      <p v-if="healthFailed" class="text-sm admin-failed" role="alert">{{ t('admin.status.failed') }}</p>
+      <div v-if="healthError" class="text-sm admin-failed" role="alert">
+        <template v-if="healthError.status === 401">
+          <p>{{ t('admin.status.signIn') }}</p>
+          <router-link class="link" to="/signin">{{ t('admin.status.signInLink') }}</router-link>
+        </template>
+        <template v-else-if="healthError.status === 403">
+          <p class="admin-failed-title">{{ t('admin.forbidden.title') }}</p>
+          <p>{{ healthError.message || t('admin.forbidden.body') }}</p>
+        </template>
+        <p v-else>{{ t('admin.status.failed') }}</p>
+      </div>
     </section>
 
     <section aria-labelledby="admin-counts-title">
@@ -189,7 +209,7 @@ onBeforeUnmount(() => {
     <section aria-labelledby="admin-recent-title">
       <div class="admin-section-head">
         <h2 id="admin-recent-title" class="admin-section-title">{{ t('admin.recent.title') }}</h2>
-        <router-link class="link admin-refresh" to="/admin" aria-disabled="true" :title="t('admin.nav.later')">{{ t('admin.recent.viewAll') }}</router-link>
+        <span class="admin-tab is-disabled admin-refresh" aria-disabled="true" :title="t('admin.nav.later')">{{ t('admin.recent.viewAll') }}</span>
       </div>
       <JobTable :rows="jobs" :loading="jobsLoading" :failed="jobsFailed" />
     </section>
@@ -222,6 +242,10 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
+.admin-refresh.is-disabled {
+  cursor: not-allowed;
+}
+
 .admin-probes {
   padding: 0 var(--space-3);
 }
@@ -229,6 +253,14 @@ onBeforeUnmount(() => {
 .admin-failed {
   margin: var(--space-2) 0 0;
   color: var(--board-danger);
+}
+
+.admin-failed p {
+  margin: 0 0 var(--space-1);
+}
+
+.admin-failed-title {
+  font-weight: 700;
 }
 
 .maintenance-banner {

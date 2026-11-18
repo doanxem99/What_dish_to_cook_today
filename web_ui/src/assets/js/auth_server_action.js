@@ -12,6 +12,12 @@ export default {
         return axios.post(serverInfo.serverUrl + 'api/auth/signup', _user);
     },
 
+    me : function() {
+        return axios.get(serverInfo.serverUrl + 'api/auth/me', {
+            withCredentials: true
+        });
+    },
+
     signout : function() {
         return axios.post(serverInfo.serverUrl + 'api/auth/signout', {}, {
             withCredentials: true

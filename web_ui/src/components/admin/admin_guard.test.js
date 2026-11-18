@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { guardDecision, isAdminUser } from './admin_guard.js'
+import { guardDecision, isAdminUser, needsHydration } from './admin_guard.js'
 
 const adminRoute = { path: '/admin', meta: { requiresAdmin: true } }
 const publicRoute = { path: '/dishes', meta: {} }
@@ -15,6 +15,20 @@ describe('isAdminUser', () => {
     expect(isAdminUser({ roles: ['user'] })).toBe(false)
     expect(isAdminUser({})).toBe(false)
     expect(isAdminUser(null)).toBe(false)
+  })
+})
+
+describe('needsHydration', () => {
+  it('asks the server for an account stored before roles and the flag existed', () => {
+    expect(needsHydration({ username: 'old' })).toBe(true)
+    expect(needsHydration({ username: 'old', roles: ['admin'] })).toBe(true)
+    expect(needsHydration({ username: 'old', mustChange: false })).toBe(true)
+  })
+
+  it('keeps a complete stored account without a request', () => {
+    expect(needsHydration({ roles: [], mustChange: false })).toBe(false)
+    expect(needsHydration({ roles: ['admin'], mustChange: true })).toBe(false)
+    expect(needsHydration(null)).toBe(false)
   })
 })
 
