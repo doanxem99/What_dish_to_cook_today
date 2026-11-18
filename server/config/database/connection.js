@@ -111,6 +111,9 @@ const DishPost = mongoose.model('dish_post', {
     short_detail_vi: String,
     profile_image : String,
     images : Array,
+    servings : Number,
+    nutrition : Object,
+    ingredient_amounts : Array,
     display_blocks : Array
 },'dish_post');
 

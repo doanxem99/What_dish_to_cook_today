@@ -30,6 +30,8 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
   final List<IngredientRef> _chosen = [];
   final List<EditorBlock> _blocks = [];
   final List<String> _images = [];
+  final Map<String, String> _grams = {};
+  final TextEditingController _servings = TextEditingController(text: '4');
   String _cover = '';
   String _query = '';
   bool _autoTranslate = false;
@@ -103,6 +105,12 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
             _blocks
               ..clear()
               ..addAll(parsed.blocks.map((block) => EditorBlock.fromJson(block.toJson())));
+            if (parsed.servings > 0) {
+              _servings.text = '${parsed.servings}';
+            }
+            for (final row in parsed.ingredientAmounts) {
+              _grams['${row['ingredient_id']}'] = '${row['grams']}';
+            }
           }
         }
       }
@@ -152,6 +160,12 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
         'profile_image': _cover,
         'images': _images,
         'ingredients': _chosen.map((item) => item.id).toList(),
+        'servings': int.tryParse(_servings.text) ?? 0,
+        'ingredient_amounts': [
+          for (final item in _chosen)
+            {'ingredient_id': item.id, 'grams': double.tryParse(_grams[item.id] ?? '') ?? 0}
+        ],
+        'nutrition': _perServing().toJson(),
         'display_blocks': _blocks.map((block) => block.toJson()).toList(),
       };
       if (_creating) {
@@ -239,8 +253,31 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
     }
   }
 
+  Nutrition _perServing() {
+    var total = const Nutrition();
+    for (final item in _chosen) {
+      final grams = double.tryParse(_grams[item.id] ?? '') ?? 0;
+      if (grams <= 0) {
+        continue;
+      }
+      final per100 = item.nutrition;
+      total = total +
+          Nutrition(
+            calories: per100.calories * grams / 100,
+            protein: per100.protein * grams / 100,
+            fat: per100.fat * grams / 100,
+            carbs: per100.carbs * grams / 100,
+            fiber: per100.fiber * grams / 100,
+            sodium: per100.sodium * grams / 100,
+          );
+    }
+    final servings = int.tryParse(_servings.text) ?? 0;
+    return servings > 0 ? Nutrition.scaled(total, 1 / servings) : total;
+  }
+
   @override
   void dispose() {
+    _servings.dispose();
     _name.dispose();
     _nameVi.dispose();
     _short.dispose();
@@ -319,6 +356,49 @@ class _DishEditorScreenState extends State<DishEditorScreen> {
                           },
                         ),
                     ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(state.t('edit.nutrition').toUpperCase(), style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: tokens.dim)),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    width: 120,
+                    height: 34,
+                    child: TextField(
+                      key: const ValueKey('dish-servings'),
+                      controller: _servings,
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setState(() {}),
+                      style: TextStyle(fontSize: 13, color: tokens.ink),
+                      decoration: InputDecoration(labelText: state.t('edit.servings')),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  for (final item in _chosen)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(item.label(state.locale), style: TextStyle(fontSize: 13, color: tokens.ink)),
+                          ),
+                          SizedBox(
+                            width: 110,
+                            height: 34,
+                            child: TextFormField(
+                              key: ValueKey('dish-grams-${item.id}'),
+                              initialValue: _grams[item.id] ?? '',
+                              keyboardType: TextInputType.number,
+                              onChanged: (value) => setState(() => _grams[item.id] = value),
+                              style: TextStyle(fontSize: 13, color: tokens.ink),
+                              decoration: InputDecoration(labelText: state.t('edit.grams')),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Text(
+                    '${_perServing().calories.round()} kcal · P ${_perServing().protein.toStringAsFixed(1)}g · F ${_perServing().fat.toStringAsFixed(1)}g · C ${_perServing().carbs.toStringAsFixed(1)}g',
+                    style: TextStyle(fontSize: 12, color: tokens.dim),
                   ),
                   const SizedBox(height: 14),
                   Text(state.t('edit.image').toUpperCase(), style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: tokens.dim)),

@@ -1,6 +1,65 @@
 import '../i18n/i18n.dart';
 import '../state/app_state.dart';
 
+class Nutrition {
+  const Nutrition({this.calories = 0, this.protein = 0, this.fat = 0, this.carbs = 0, this.fiber = 0, this.sodium = 0});
+
+  final double calories;
+  final double protein;
+  final double fat;
+  final double carbs;
+  final double fiber;
+  final double sodium;
+
+  bool get isEmpty => calories == 0 && protein == 0 && fat == 0 && carbs == 0;
+
+  factory Nutrition.fromJson(dynamic json) {
+    if (json is! Map) {
+      return const Nutrition();
+    }
+    double value(String key) {
+      final raw = json[key];
+      return raw is num ? raw.toDouble() : 0;
+    }
+
+    return Nutrition(
+      calories: value('calories'),
+      protein: value('protein'),
+      fat: value('fat'),
+      carbs: value('carbs'),
+      fiber: value('fiber'),
+      sodium: value('sodium'),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'calories': calories,
+        'protein': protein,
+        'fat': fat,
+        'carbs': carbs,
+        'fiber': fiber,
+        'sodium': sodium,
+      };
+
+  static Nutrition scaled(Nutrition total, double factor) => Nutrition(
+        calories: total.calories * factor,
+        protein: total.protein * factor,
+        fat: total.fat * factor,
+        carbs: total.carbs * factor,
+        fiber: total.fiber * factor,
+        sodium: total.sodium * factor,
+      );
+
+  Nutrition operator +(Nutrition other) => Nutrition(
+        calories: calories + other.calories,
+        protein: protein + other.protein,
+        fat: fat + other.fat,
+        carbs: carbs + other.carbs,
+        fiber: fiber + other.fiber,
+        sodium: sodium + other.sodium,
+      );
+}
+
 String _text(dynamic value) => value == null ? '' : value.toString();
 
 int _number(dynamic value) {
@@ -22,6 +81,7 @@ class IngredientRef {
     this.shortDetail = '',
     this.shortDetailVi = '',
     this.image = '',
+    this.nutrition = const Nutrition(),
   });
 
   final String id;
@@ -31,6 +91,7 @@ class IngredientRef {
   final String shortDetail;
   final String shortDetailVi;
   final String image;
+  final Nutrition nutrition;
 
   factory IngredientRef.fromJson(dynamic json) {
     if (json is! Map) {
@@ -44,6 +105,7 @@ class IngredientRef {
       shortDetail: _text(json['short_detail']),
       shortDetailVi: _text(json['short_detail_vi']),
       image: _text(json['profile_image']),
+      nutrition: Nutrition.fromJson(json['nutrition']),
     );
   }
 
@@ -73,6 +135,7 @@ class DishPreview {
     this.totalIngredients = 0,
     this.ingredientDetails = const [],
     this.missingDetails = const [],
+    this.nutrition = const Nutrition(),
   });
 
   final String id;
@@ -81,6 +144,7 @@ class DishPreview {
   final String shortDetail;
   final String shortDetailVi;
   final String image;
+  final Nutrition nutrition;
   final int matchCount;
   final int totalIngredients;
   final List<IngredientRef> ingredientDetails;
@@ -97,6 +161,7 @@ class DishPreview {
       shortDetail: _text(json['short_detail']),
       shortDetailVi: _text(json['short_detail_vi']),
       image: _text(json['profile_image']),
+      nutrition: Nutrition.fromJson(json['nutrition']),
       matchCount: _number(json['match_count']),
       totalIngredients: _number(json['total_ingredients']),
       ingredientDetails: IngredientRef.listFromJson(json['ingredients_detail']),
@@ -202,6 +267,9 @@ class DishPost {
     this.shortDetailVi = '',
     this.image = '',
     this.type = '',
+    this.servings = 0,
+    this.nutrition = const Nutrition(),
+    this.ingredientAmounts = const [],
     this.username = '',
     this.dateTime = '',
     this.extraImages = const [],
@@ -218,6 +286,9 @@ class DishPost {
   final String shortDetailVi;
   final String image;
   final String type;
+  final int servings;
+  final Nutrition nutrition;
+  final List<Map<String, dynamic>> ingredientAmounts;
   final String username;
   final String dateTime;
   final List<String> extraImages;
@@ -240,6 +311,11 @@ class DishPost {
       shortDetailVi: _text(json['short_detail_vi']),
       image: _text(json['profile_image']),
       type: _text(json['type']),
+      servings: _number(json['servings']),
+      nutrition: Nutrition.fromJson(json['nutrition']),
+      ingredientAmounts: json['ingredient_amounts'] is List
+          ? (json['ingredient_amounts'] as List).whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList()
+          : const [],
       username: _text(json['username']),
       dateTime: _text(json['date_time']),
       extraImages: images is List ? images.map(_text).where((item) => item.isNotEmpty).toList() : [],

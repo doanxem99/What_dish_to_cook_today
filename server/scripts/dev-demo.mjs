@@ -6,6 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { INGREDIENTS } from './seed-catalog.mjs'
 import { DISHES } from './seed-dishes.mjs'
+import nutritionData from './nutrition.json' with { type: 'json' }
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 let images = {}
@@ -40,7 +41,8 @@ const userId = user._id.toString()
 
 const ingredientIds = {}
 for (const [name, nameVi, type, detail, detailVi] of INGREDIENTS) {
-    const ingredient = await Ingredient.create({ name, name_vi: nameVi, best_post_id: '', is_need_update: false })
+    const nutrition = nutritionData.ingredients[name] || null
+    const ingredient = await Ingredient.create({ name, name_vi: nameVi, best_post_id: '', nutrition, is_need_update: false })
     const post = await IngredientPost.create({
         name,
         name_vi: nameVi,
@@ -51,6 +53,7 @@ for (const [name, nameVi, type, detail, detailVi] of INGREDIENTS) {
         date_time: new Date(),
         points: 0,
         type,
+        nutrition,
         short_detail: detail,
         short_detail_vi: detailVi,
         profile_image: '',

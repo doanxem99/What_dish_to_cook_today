@@ -170,6 +170,8 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: tokens.ink),
                     ),
+                    if (!item.nutrition.isEmpty)
+                      Text('${item.nutrition.calories.round()} kcal / 100 g', style: TextStyle(fontSize: 11, color: tokens.dim)),
                     if (item.detail(state.locale).isNotEmpty)
                       Text(
                         item.detail(state.locale),

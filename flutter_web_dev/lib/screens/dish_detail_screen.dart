@@ -354,6 +354,13 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                 const SizedBox(height: 6),
                 Text(post.detail(state.locale), style: TextStyle(fontSize: 14, color: tokens.dim)),
               ],
+              if (!post.nutrition.isEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  '${post.nutrition.calories.round()} kcal · P ${post.nutrition.protein.toStringAsFixed(1)}g · F ${post.nutrition.fat.toStringAsFixed(1)}g · C ${post.nutrition.carbs.toStringAsFixed(1)}g',
+                  style: TextStyle(fontSize: 12, color: tokens.dim),
+                ),
+              ],
               if (post.username.isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(state.t('dish.author', {'name': post.username}), style: TextStyle(fontSize: 12, color: tokens.dim)),
