@@ -1,10 +1,11 @@
 <script>
 import Navbar from './components/navbar.vue'
+import AskPanel from './components/ask_panel.vue'
 import Footer from './views/footer.vue'
 import { useI18n } from './i18n'
 
 export default {
-  components: { Navbar, Footer },
+  components: { Navbar, AskPanel, Footer },
   computed: {
     t() { return useI18n().t }
   }
@@ -19,5 +20,6 @@ export default {
       <router-view />
     </main>
     <Footer />
+    <AskPanel />
   </div>
 </template>

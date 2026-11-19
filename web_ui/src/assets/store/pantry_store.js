@@ -44,6 +44,13 @@ export const usePantryStore = defineStore('pantry', {
                 this.add(item)
             }
         },
+        //The assistant proposes a list; the user confirms before it replaces the board selection.
+        setItems(items) {
+            this.items = (Array.isArray(items) ? items : [])
+                .filter(item => item && item.id)
+                .map(item => ({ id: String(item.id), name: item.name || '', name_vi: item.name_vi || null }))
+            this.save()
+        },
         clear() {
             this.items = []
             this.save()

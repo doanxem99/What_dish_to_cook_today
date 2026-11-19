@@ -2,6 +2,7 @@
 import { useAuthStore } from '../assets/store/auth_store'
 import { useI18n } from '../i18n'
 import { currentTheme, toggleTheme } from '../theme'
+import { askAvailable, ensureAskAvailable } from '../api/ai'
 
 export default {
   data() {
@@ -11,11 +12,18 @@ export default {
     t() { return useI18n().t },
     locale() { return useI18n().locale.value },
     auth() { return useAuthStore() },
+    askAvailable() { return askAvailable.value },
     accountName() {
       return this.auth.isLogin ? (this.auth.user?.username || this.t('nav.profile')) : this.t('nav.signIn')
     }
   },
+  mounted() {
+    ensureAskAvailable()
+  },
   methods: {
+    openAsk() {
+      window.dispatchEvent(new CustomEvent('ask:open'))
+    },
     submitSearch() {
       const query = this.q.trim()
       this.$router.push({ path: '/dishes', query: query ? { q: query } : {} })
@@ -96,6 +104,7 @@ export default {
       </div>
 
       <nav class="header-nav" aria-label="Main">
+        <button v-if="askAvailable" class="link ask-open" type="button" @click="openAsk">{{ t('nav.ask') }}</button>
         <router-link to="/" class="link">{{ t('nav.home') }}</router-link>
         <router-link to="/dishes" class="link">{{ t('nav.dishes') }}</router-link>
         <router-link to="/homemade" class="link">{{ t('nav.homemade') }}</router-link>
@@ -105,3 +114,32 @@ export default {
     </div>
   </header>
 </template>
+
+<style scoped>
+.ask-open {
+  align-self: center;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--board-amber);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ask-open:focus-visible {
+  outline: 2px solid var(--board-amber);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (min-width: 640px) {
+  .ask-open {
+    font-size: 14px;
+  }
+}
+</style>

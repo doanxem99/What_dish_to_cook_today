@@ -1,5 +1,6 @@
 <script>
 import { api } from '../api'
+import { aiApi } from '../api/ai'
 import { useI18n } from '../i18n'
 import { usePantryStore } from '../assets/store/pantry_store'
 import { useAuthStore } from '../assets/store/auth_store'
@@ -60,7 +61,11 @@ export default {
     },
     isChosen(id) { return this.chosen.some(item => item.id === id) },
     addIngredient(item) {
+      const wasChosen = this.isChosen(item.id)
       this.pantry.toggle(item)
+      if (!wasChosen && this.auth.isLogin) {
+        aiApi.recordEvent('ingredient_picked', item.id)
+      }
       this.addQuery = ''
       this.load()
     },

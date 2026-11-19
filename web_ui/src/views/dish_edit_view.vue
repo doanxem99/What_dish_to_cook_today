@@ -25,6 +25,7 @@ export default {
         profile_image: '',
         images: [],
         ingredients: [],
+        grams: {},
         blocks: []
       }
     }
@@ -63,10 +64,26 @@ export default {
     if (this.dishId) {
       this.load()
     } else {
+      this.applyPrefill()
       this.loading = false
     }
   },
   methods: {
+    //A confirmed start_draft opens this form with the name and ingredients already filled;
+    //nothing is saved until the cook presses Create.
+    applyPrefill() {
+      const name = this.$route.query.prefill_name
+      if (typeof name === 'string' && name.trim()) {
+        this.model.name = name.trim()
+      }
+      const state = typeof window !== 'undefined' ? window.history.state : null
+      const items = state && Array.isArray(state.prefillIngredients) ? state.prefillIngredients : []
+      if (items.length === 0) return
+      this.model.ingredients = items
+        .filter(item => item && item.id)
+        .map(item => ({ id: String(item.id), name: item.name || '', name_vi: item.name_vi || null }))
+      this.model.grams = {}
+    },
     localName(item) {
       return (this.locale === 'vi' && item.name_vi) ? item.name_vi : item.name
     },
