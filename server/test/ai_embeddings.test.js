@@ -161,6 +161,19 @@ test('embedText posts the model and prompt to Ollama and returns the vector', as
     assert.deepStrictEqual(vector, [0.5, 0.25]);
 });
 
+test('embedText truncates input beyond the bge-m3 context so one long page cannot fail the index', async () => {
+    let seenBody = null;
+    const fakeFetch = async (url, options) => {
+        seenBody = JSON.parse(options.body);
+        return { ok: true, status: 200, json: async () => ({ embedding: [0.1] }) };
+    };
+    await embeddings.embedText('x'.repeat(9000), {
+        config: { ollamaUrl: 'http://ollama:11434', embedModel: 'bge-m3' },
+        fetchImpl: fakeFetch
+    });
+    assert.strictEqual(seenBody.prompt.length, 2000);
+});
+
 test('scheduleIndex coalesces duplicate queued jobs for the same row', async () => {
     const first = await indexJob.scheduleIndex('dish', '64b000000000000000000011');
     const second = await indexJob.scheduleIndex('dish', '64b000000000000000000011');

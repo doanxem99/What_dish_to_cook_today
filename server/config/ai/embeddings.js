@@ -383,6 +383,9 @@ const embedAbortError = (message) => {
     return error;
 };
 
+//bge-m3 refuses input beyond its context; a long README heading would fail the whole index.
+const MAX_EMBED_CHARS = 2000;
+
 const embedText = async (text, options = {}) => {
     const config = options.config || readConfig();
     const fetchImpl = options.fetchImpl || fetch;
@@ -416,7 +419,7 @@ const embedText = async (text, options = {}) => {
         const response = await fetchImpl(`${base}/api/embeddings`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ model: config.embedModel, prompt: String(text) }),
+            body: JSON.stringify({ model: config.embedModel, prompt: String(text).slice(0, MAX_EMBED_CHARS) }),
             signal: controller.signal
         });
         if (!response.ok) {
