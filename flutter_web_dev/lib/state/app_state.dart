@@ -189,12 +189,25 @@ class AppState extends ChangeNotifier {
     AppStorage.write(AppStorage.basketKey, json.encode(_basket.map((item) => item.toJson()).toList()));
   }
 
+  ///History is a background signal: browsing must work when the write fails.
+  Future<void> recordEvent(String type, String targetId) async {
+    if (!isSignedIn || targetId.isEmpty) {
+      return;
+    }
+    try {
+      await api.postJson('/api/ai/events', {'type': type, 'target_id': targetId});
+    } catch (_) {
+      //No retry: one lost view or pick is cheaper than a request storm.
+    }
+  }
+
   void toggleIngredient(BasketItem item) {
     final index = _basket.indexWhere((entry) => entry.id == item.id);
     if (index >= 0) {
       _basket.removeAt(index);
     } else {
       _basket.add(item);
+      recordEvent('ingredient_picked', item.id);
     }
     _persistBasket();
     notifyListeners();

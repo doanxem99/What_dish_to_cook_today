@@ -188,6 +188,28 @@ async function submitConfirm() {
   }
 }
 
+//The server owns the AI guard too; this only sends the field the admin changed.
+async function saveUserAi(row, patch) {
+  busyId.value = row.id
+  try {
+    const updated = await adminApi.setUserAi(row.id, patch)
+    replaceRow(updated)
+    clearRowError(row.id)
+    notify(t(Object.prototype.hasOwnProperty.call(patch, 'daily_limit') ? 'admin.ai.limitSaved' : 'admin.users.saved'))
+  } catch (caught) {
+    const kind = errorKind(caught)
+    if (kind === 'unauthorized') {
+      await auth.signOut()
+    } else if (kind === 'conflict') {
+      setRowError(row.id, conflictText(caught))
+    } else {
+      setRowError(row.id, t('admin.users.saveFailed'))
+    }
+  } finally {
+    busyId.value = ''
+  }
+}
+
 async function issuePassword(row) {
   busyId.value = row.id
   try {
@@ -306,6 +328,8 @@ onMounted(load)
             @role="askRole"
             @disabled="askDisabled"
             @password="issuePassword"
+            @ai="(row, disabled) => saveUserAi(row, { disabled })"
+            @limit="(row, daily_limit) => saveUserAi(row, { daily_limit })"
           />
         </tbody>
       </table>

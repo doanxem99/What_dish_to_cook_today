@@ -28,6 +28,7 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
   bool _voted = false;
   bool _voteBusy = false;
   bool _voteError = false;
+  bool _cooked = false;
   bool _commentBusy = false;
   bool _deleteBusy = false;
   bool _commentError = false;
@@ -116,6 +117,10 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
         _ingredients = ingredients;
         _comments = comments;
       });
+      final resolvedDishId = post.dishId.isNotEmpty ? post.dishId : widget.dishId;
+      if (state.isSignedIn && resolvedDishId.isNotEmpty) {
+        state.recordEvent('dish_viewed', resolvedDishId);
+      }
     } catch (_) {
       if (!mounted) {
         return;
@@ -267,6 +272,15 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
     return post == null ? '/dishes' : '/dish?post_id=${post.id}';
   }
 
+  void _cook() {
+    final post = _post;
+    final dishId = post == null || post.dishId.isEmpty ? widget.dishId : post.dishId;
+    if (dishId.isNotEmpty) {
+      AppScope.of(context).recordEvent('dish_cooked', dishId);
+    }
+    setState(() => _cooked = true);
+  }
+
   Future<void> _vote() async {
     final state = AppScope.of(context);
     final post = _post;
@@ -393,6 +407,15 @@ class _DishDetailScreenState extends State<DishDetailScreen> {
                     primary: _voted,
                     onPressed: _voteBusy ? null : _vote,
                   ),
+                  if (state.isSignedIn) ...[
+                    const SizedBox(width: 8),
+                    BoardButton(
+                      key: const ValueKey('cooked-button'),
+                      label: _cooked ? state.t('dish.cookedToday') : state.t('dish.cookAction'),
+                      active: _cooked,
+                      onPressed: _cooked ? null : _cook,
+                    ),
+                  ],
                 ],
               ),
               if (_voteError)

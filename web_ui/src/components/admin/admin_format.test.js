@@ -9,6 +9,7 @@ import {
   formatTokens,
   hasActiveJobs,
   healthFailure,
+  JOB_TYPES,
   jobStatusLabel,
   jobTypeLabel,
   maintenanceReason,
@@ -43,6 +44,11 @@ describe('job labels', () => {
   it('falls back to unknown for an empty value', () => {
     expect(jobStatusLabel('', t)).toBe('Unknown')
     expect(jobTypeLabel(null, t)).toBe('Unknown')
+  })
+
+  it('includes ai_index in JOB_TYPES and translates its label', () => {
+    expect(JOB_TYPES).toContain('ai_index')
+    expect(jobTypeLabel('ai_index', k => `t:${k}`)).toBe('t:admin.job.type.ai_index')
   })
 })
 
