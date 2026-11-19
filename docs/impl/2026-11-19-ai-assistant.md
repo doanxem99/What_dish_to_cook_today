@@ -91,3 +91,20 @@ P0/P1 findings to fix and no build re-run was needed.
 - `bge-m3` needs a few GB of RAM; on a small host it competes with MongoDB and the server.
 - `admin_job` keeps legacy AI metric columns that `ai_index` does not use; `ai_call` owns the
   assistant metrics.
+- Grounding covers dish names only; an invented ingredient name is not removed.
+- A dish phrase split across two streamed chunks is sanitised by the final whole-text pass, so the
+  persisted text can differ from the concatenated chunks in that rare case.
+- Quotes are buffered by sentence, so a token event arrives per sentence rather than per model
+  token; a stop still ends the reply at a sentence boundary.
+
+## Review rounds
+
+An independent review found three P1 defects, all fixed in `46c5d2f`: model prose could name a dish
+with no tool call, abort handling started too late and billed aborted calls, and quota admission was
+not atomic. A second verification round found the grounding check was case-sensitive, abort after
+the transcript append stored a full answer, and buffering had broken token streaming; all three are
+fixed in `a6414dc`, which streams grounded sentences, finalises calls and messages exactly once, and
+rolls back a reservation on any post-increment failure.
+
+Final counts after both rounds: server 203 tests, web 75, Flutter 77, self-check 68, detector 0
+findings, compose config valid.
