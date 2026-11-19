@@ -345,6 +345,7 @@ const retrievePassages = async (queryText, options = {}) => {
     try {
         queryVector = await embedFn(queryText);
     } catch (error) {
+        if (error && error.name === 'AbortError') throw error;
         return { passages: [], embedDown: true };
     }
     if (!Array.isArray(queryVector)) {
@@ -373,29 +374,73 @@ const retrievePassages = async (queryText, options = {}) => {
     return { passages: scored.slice(0, Math.max(1, limit)), embedDown: false };
 };
 
+//A stalled Ollama must answer "embed_down" quickly, not hold the chat open.
+const EMBED_TIMEOUT_MS = 5000;
+
+const embedAbortError = (message) => {
+    const error = new Error(message);
+    error.name = 'AbortError';
+    return error;
+};
+
 const embedText = async (text, options = {}) => {
     const config = options.config || readConfig();
     const fetchImpl = options.fetchImpl || fetch;
-    const base = String(config.ollamaUrl || 'http://localhost:11434').replace(/\/+$/, '');
-    const response = await fetchImpl(`${base}/api/embeddings`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ model: config.embedModel, prompt: String(text) })
+    const timeoutMs = Number.isFinite(options.timeoutMs) ? Math.max(1, options.timeoutMs) : EMBED_TIMEOUT_MS;
+    const requestSignal = options.signal || null;
+    if (requestSignal && requestSignal.aborted) throw embedAbortError('Ollama embeddings aborted');
+
+    const controller = new AbortController();
+    let timer = null;
+    let removeAbort = null;
+    const timeout = new Promise((resolve, reject) => {
+        timer = setTimeout(() => {
+            controller.abort();
+            const error = new Error('Ollama embeddings timed out');
+            error.name = 'TimeoutError';
+            reject(error);
+        }, timeoutMs);
     });
-    if (!response.ok) {
-        throw new Error(`Ollama embeddings failed: ${response.status}`);
+    const aborted = requestSignal
+        ? new Promise((resolve, reject) => {
+            const onAbort = () => {
+                controller.abort();
+                reject(embedAbortError('Ollama embeddings aborted'));
+            };
+            requestSignal.addEventListener('abort', onAbort, { once: true });
+            removeAbort = () => requestSignal.removeEventListener('abort', onAbort);
+        })
+        : null;
+    const request = (async () => {
+        const base = String(config.ollamaUrl || 'http://localhost:11434').replace(/\/+$/, '');
+        const response = await fetchImpl(`${base}/api/embeddings`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ model: config.embedModel, prompt: String(text) }),
+            signal: controller.signal
+        });
+        if (!response.ok) {
+            throw new Error(`Ollama embeddings failed: ${response.status}`);
+        }
+        const payload = await response.json();
+        const vector = payload.embedding
+            || (Array.isArray(payload.embeddings) ? payload.embeddings[0] : null)
+            || (Array.isArray(payload.data) && payload.data[0] ? payload.data[0].embedding : null);
+        if (!Array.isArray(vector)) {
+            throw new Error('Ollama returned no embedding vector');
+        }
+        return vector;
+    })();
+
+    try {
+        return await Promise.race([request, timeout, ...(aborted ? [aborted] : [])]);
+    } finally {
+        clearTimeout(timer);
+        if (removeAbort) removeAbort();
     }
-    const payload = await response.json();
-    const vector = payload.embedding
-        || (Array.isArray(payload.embeddings) ? payload.embeddings[0] : null)
-        || (Array.isArray(payload.data) && payload.data[0] ? payload.data[0].embedding : null);
-    if (!Array.isArray(vector)) {
-        throw new Error('Ollama returned no embedding vector');
-    }
-    return vector;
 };
 
-const makeEmbedFn = (config) => (text) => embedText(text, { config });
+const makeEmbedFn = (config, signal) => (text) => embedText(text, { config, signal });
 
 module.exports = {
     ALLOWED_DOC_FILES,

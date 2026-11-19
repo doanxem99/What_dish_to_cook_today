@@ -174,3 +174,37 @@ test('retrievePassages falls back gracefully when embedding service is down', as
     assert.strictEqual(result.embedDown, true);
     assert.deepStrictEqual(result.passages, []);
 });
+
+test('embedText gives up on a stalled Ollama inside the bounded timeout', async () => {
+    const started = Date.now();
+    await assert.rejects(embeddings.embedText('warm noodles', {
+        config: { ollamaUrl: 'http://ollama:11434', embedModel: 'bge-m3' },
+        fetchImpl: () => new Promise(() => {}),
+        timeoutMs: 40
+    }), /timed out/);
+    assert.ok(Date.now() - started < 1000);
+});
+
+test('retrievePassages turns a stalled embedder into embed_down without hanging', async () => {
+    const embedFn = (text) => embeddings.embedText(text, {
+        config: { ollamaUrl: 'http://ollama:11434', embedModel: 'bge-m3' },
+        fetchImpl: () => new Promise(() => {}),
+        timeoutMs: 40
+    });
+    const started = Date.now();
+    const result = await embeddings.retrievePassages('noodles', { locale: 'en', embedFn });
+    assert.strictEqual(result.embedDown, true);
+    assert.deepStrictEqual(result.passages, []);
+    assert.ok(Date.now() - started < 1000);
+});
+
+test('embedText stops when the request signal aborts, even if the fetch ignores it', async () => {
+    const controller = new AbortController();
+    const pending = embeddings.embedText('warm noodles', {
+        config: { ollamaUrl: 'http://ollama:11434', embedModel: 'bge-m3' },
+        fetchImpl: () => new Promise(() => {}),
+        signal: controller.signal
+    });
+    controller.abort();
+    await assert.rejects(pending, (error) => error && error.name === 'AbortError');
+});

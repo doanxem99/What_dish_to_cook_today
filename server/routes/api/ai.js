@@ -80,7 +80,16 @@ router.post('/chat', verifyToken, wrap(async (req, res) => {
         return fail(res, 429, 'quota_reached', 'Daily AI message limit reached', { resets_at: quota.resets_at });
     }
 
-    await chat.runChatStream({ res, user, message, mode, capability, locale, config });
+    //Atomic admission: a parallel request that loses the race never reaches the provider.
+    const reservation = await chat.reserveQuota(user, config);
+    if (!reservation) {
+        return fail(res, 429, 'quota_reached', 'Daily AI message limit reached', { resets_at: quota.resets_at });
+    }
+    try {
+        await chat.runChatStream({ res, user, message, mode, capability, locale, config, req });
+    } finally {
+        await chat.releaseQuota(reservation);
+    }
 }));
 
 router.get('/conversation', verifyToken, wrap(async (req, res) => {

@@ -270,6 +270,22 @@ const AiCall = mongoose.model('ai_call', {
 AiCall.schema.index({ user_id: 1, status: 1, created_at: -1 });
 AiCall.schema.index({ created_at: -1 });
 
+//In-flight quota reservations. A turn increments `reserved` before the provider call
+//and decrements it when the turn finishes, so parallel requests cannot share a slot.
+const AiQuota = mongoose.model('ai_quota', {
+    user_id : {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'user'
+    },
+    day : String,
+    reserved : {
+        type: Number,
+        default: 0
+    },
+    created_at : Date
+},'ai_quota');
+AiQuota.schema.index({ user_id: 1, day: 1 }, { unique: true });
+
 //Personal cooking history: one row per user, type, target and UTC day.
 const UserEvent = mongoose.model('user_event', {
     //Mixed: the recorder accepts an ObjectId from a session and a plain string id from a client.
@@ -321,6 +337,7 @@ module.exports = {
         AiEmbedding,
         AiConversation,
         AiCall,
+        AiQuota,
         UserEvent,
         Setting
     }

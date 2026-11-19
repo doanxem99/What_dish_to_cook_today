@@ -530,6 +530,8 @@ router.post('/comment/:dish_post_id', verifyToken, async function(req, res) {
         );
         const user = await database.collections.User.findOne({ _id: req.body.userid }, 'username');
         indexJob.scheduleIfEnabled('dish_post', req.params.dish_post_id, req.current_user);
+        //The parent dish passage embeds its best post comments, so refresh that row too
+        indexJob.scheduleIfEnabled('dish', dishPost.dish_id, req.current_user);
         res.status(200).send({
             'status' : profileEnum.ProfileStatus_PostCreate.CreatingSuccess,
             'status_code': profileEnum.Status_Code_Website.Success,
@@ -579,6 +581,11 @@ router.delete('/comment/:comment_id', verifyToken, async function(req, res) {
         );
         await auditContent(req, 'comment.delete', 'comment', removed._id, excerptOf(comment.body));
         indexJob.scheduleIfEnabled('dish_post', comment.dish_post_id, req.current_user);
+        //Deleted comment text must also leave the parent dish passage
+        const parentPost = await database.collections.DishPost.findById(comment.dish_post_id, 'dish_id');
+        if (parentPost && parentPost.dish_id) {
+            indexJob.scheduleIfEnabled('dish', parentPost.dish_id, req.current_user);
+        }
         res.status(200).send({
             'status' : profileEnum.ProfileStatus_PostDetail.Success,
             'status_code': profileEnum.Status_Code_Website.Success,
