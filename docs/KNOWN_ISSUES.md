@@ -69,10 +69,30 @@ can be picked up without re-reading the codebase.
     `template_ingredient.js` are near-copies; so are `dish_profile.js` and
     `ingredient_profile.js`. They must change together today.
 12. **Reserved fields that nothing uses:** `ingredient.is_need_update`,
-    `dish.is_need_update`, the `ai` job type and its metric columns, and `role.description`.
+    `dish.is_need_update`, the legacy AI metric columns on `admin_job`, and `role.description`.
 13. **`web_ui/src/views/homemade_dishes_view.vue`, `about_view.vue`, `profile_view.vue` are
     placeholders** ("Hello", "About"). They are linked from the header, so users can reach an
     empty page.
+
+## AI assistant
+
+24. **No real-key provider test has run.** Every suite stubs the provider; `node
+    server/scripts/ai-check.mjs` reports `skipped: no key` without `OPENCODE_API_KEY`. Live
+    tool calling against the default base URL is therefore unverified. Run the check once with
+    the intended key before launch.
+25. **Flutter has no assistant.** It records `dish_viewed`, `dish_cooked` and
+    `ingredient_picked`, so history is shared, but the Ask panel and profile AI controls are
+    Vue-only. A Flutter user sees no assistant.
+26. **Quota is a UTC day.** `getQuotaStatus` resets at 00:00 UTC, not local midnight, and the
+    UI shows the UTC reset time. A user east or west of UTC sees the limit reset mid-day or
+    mid-evening.
+27. **Cosine retrieval runs in the Node process.** `retrievePassages` loads every
+    `ai_embedding` row and scores it in memory; a `shortcut:` note marks the ~20k-row point to
+    move to a vector index. The seeded catalog plus docs is far below that, but a large comment
+    corpus would raise latency and RAM.
+28. **`bge-m3` needs a few GB of RAM.** Compose runs it next to MongoDB and the server on the
+    same host. Without enough memory the embedding calls fail, answers fall back to tool-only
+    retrieval, and the stream reports `embed_down`.
 
 ## Deployment notes
 

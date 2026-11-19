@@ -24,9 +24,58 @@ What the area does:
   removal (`dish.create`, `dish_post.edit`, `ingredient.create`, `comment.delete`, …), with a
   readable target, not a raw id.
 - **Users** manages admins, disabled accounts and one-time temporary passwords. The last admin
-  and your own role cannot be removed.
-- **AI** stays hidden until a provider exists; when it ships the tab shows model, latency, tokens
-  and cost, never prompt text.
+  and your own role cannot be removed. Each row also has an AI switch and a daily message limit
+  override.
+- **AI** shows calls, latency, tokens, estimated cost and errors from `ai_call`, with a runtime
+  switch and an index rebuild. It never shows prompt or reply text.
+
+## AI assistant
+
+A signed-in cook can open **Ask** and talk to an assistant grounded in the catalog. It has three
+task modes:
+
+- **Cook with what I have** - list ingredients and get a shortlist that links to real dishes.
+- **Walk me through** - read a dish's steps, amounts and nutrition.
+- **Help me use the app** - answer questions from the curated help pages.
+
+Three capability levels gate what a tool may do:
+
+- **Read only** (default) - search dishes, read one dish, read help. Nothing changes.
+- **Prepare and confirm** - adds an ingredient-selection preview and a dish-editor draft. Both
+  wait for a click; nothing is saved.
+- **Act freely, bounded** - applies the reversible board selection and opens a dish. Saving a
+  draft still needs confirmation.
+
+Answers stream and cite only dishes and ingredients returned by server-side tools, so a link is
+never parsed from model prose. The assistant answers in the interface language and uses
+Vietnamese dish names when they exist.
+
+Each account gets 20 completed replies per UTC day by default. Stopped, failed or provider-errored
+replies do not use quota. An admin can lower or disable a user's quota, and `AI_MONTHLY_BUDGET_USD`
+soft-stops new calls when the month's estimate passes it.
+
+History is visible on the profile: dish views, "I cooked this" marks, ingredient picks and chat
+messages. It personalises assistant suggestions only; the public board keeps ingredient-match
+order. The user can clear history or delete the conversation. Events expire after 90 days and the
+conversation after 30.
+
+Because matching comment text can be sent to the chat provider, the panel states once: "Answers
+may use public dish comments; they are sent to the AI provider." Embeddings stay local.
+
+### Enable it
+
+The assistant is off by default: the Ask panel is hidden and `/api/ai/*` answers 404.
+
+1. Set `AI_ENABLED=true` in the root `.env` for Compose, or `server/.env` for a local run.
+2. For the default hosted provider, set `OPENCODE_API_KEY`. For a local chat model instead, set
+   `AI_PROVIDER=ollama` and `AI_MODEL` to a model the Ollama service has.
+3. Embeddings use Ollama `bge-m3` in both cases. Compose starts the `ollama` service, pulls the
+   model on first start and keeps it in the `ollama-models` volume. Without Compose, run Ollama
+   yourself and point `OLLAMA_URL` at it.
+4. Sign in, open Ask, and run **Rebuild index** on the admin AI tab once (or wait for content
+   writes to enqueue per-row index jobs).
+
+`bge-m3` needs a few GB of RAM. On a small host it competes with MongoDB and the server process.
 
 ## Parts
 
@@ -52,9 +101,11 @@ docker compose ps           # wait for server "healthy"
 - Admin: `http://localhost:3000/admin`
 - Health: `http://localhost:3000/api/health`, admin health: `/api/admin/health`
 
-The stack runs `server`, `mongo` and `libretranslate` (en/vi). Volumes: `mongo-data` (database),
-`backup-data` (archives at `/app/backups`), `gallery` (`public/gallery` uploads) and
-`translate-models`. Only port 3000 is published.
+The stack runs `server`, `mongo`, `libretranslate` (en/vi) and `ollama` (embeddings). Volumes:
+`mongo-data` (database), `backup-data` (archives at `/app/backups`), `gallery` (`public/gallery`
+uploads), `translate-models` and `ollama-models`. Only port 3000 is published. Ollama's first
+start downloads `bge-m3`, so the first `docker compose up` is slower; the assistant stays usable
+without it through tool-only retrieval.
 
 The first run has no account. Create one, set `ADMIN_USERNAME` to it in `.env`, then restart the
 server once so boot promotes it:
@@ -105,7 +156,17 @@ Compose reads a root `.env` (template: `.env.example`). Run the API without Dock
 | `ADMIN_USERNAME` | empty | Account promoted to admin on boot when it is set and the account exists. |
 | `BACKUP_DIR` | `server/backups` | Where the backup job writes archives. Compose pins `/app/backups` on the `backup-data` volume. |
 | `TRANSLATE_URL` | `http://localhost:5000/translate` | LibreTranslate-compatible service. Compose pins `http://libretranslate:5000/translate`. |
-| `AI_ENABLED` | `false` | Shows the reserved AI metrics view. Nothing calls a provider yet. |
+| `AI_ENABLED` | `false` | Turns the assistant on. While false the Ask panel is hidden and `/api/ai/*` answers 404. |
+| `AI_PROVIDER` | `opencode-go` | Chat provider: `opencode-go` or `ollama`. Embeddings always use Ollama. |
+| `OPENCODE_API_KEY` | empty | Key for `opencode-go`; not needed for a local Ollama chat model. |
+| `AI_MODEL` | `deepseek-v4.1-flash` | Chat model name. |
+| `AI_BASE_URL` | OpenCode Go inference URL | OpenAI-compatible chat endpoint; Compose pins the hosted default. |
+| `EMBED_PROVIDER` | `ollama` | Local embedding provider. |
+| `EMBED_MODEL` | `bge-m3` | Multilingual embedding model, pulled by the Compose `ollama` service. |
+| `OLLAMA_URL` | `http://localhost:11434` | Ollama base URL. Compose pins `http://ollama:11434`. |
+| `AI_DAILY_MESSAGE_LIMIT` | `20` | Completed turns per UTC day before 429; an admin can override per user. |
+| `AI_MAX_TOOL_ROUNDS` | `3` | Maximum tool rounds in one answer. |
+| `AI_MONTHLY_BUDGET_USD` | `10` | Soft stop on the month's estimated spend. |
 | `MAINTENANCE_DISABLED` | `0` | Escape hatch for a stuck maintenance flag. |
 | `TRUST_PROXY` | unset | Set to `1` behind a reverse proxy so cookies and CORS see HTTPS. Compose forwards it. |
 

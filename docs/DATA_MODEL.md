@@ -29,6 +29,9 @@ cannot be demoted or disabled, and an admin cannot demote or disable themselves.
 | `profile_image` | Buffer | unused by the clients today |
 | `is_disabled` | Boolean | set by an admin; a disabled account cannot sign in (401) or call an admin route |
 | `must_change_password` | Boolean | set when an admin issues a temporary password; cleared by `POST /api/auth/password` |
+| `ai_disabled` | Boolean | per-user AI block; a call answers 403 `ai_disabled` |
+| `ai_daily_limit` | Number or null | per-user UTC-day message cap; null uses `AI_DAILY_MESSAGE_LIMIT` |
+| `ai_capability` | String | `read_only` (default), `prepare` or `act_freely`; gates the assistant tools |
 
 ### `ingredient`
 
@@ -111,6 +114,72 @@ Unique compound index on `{user_id, dish_post_id}`. The toggle route inserts or 
 `dish_post.points` (increment on vote, floored decrement on unvote), so `points` stays the stored counter that
 `get_best_dish_post` and the C# vote job rank by.
 
+### `ai_embedding`
+
+One row per embedded passage. Written only by the `ai_index` job, never by a request.
+
+| Field | Type | Notes |
+|---|---|---|
+| `target_type` | String | `dish`, `dish_post`, `ingredient` or `doc` |
+| `target_id` | String | source row id, or the relative doc path for `doc` |
+| `locale` | String | `en` or `vi` |
+| `source_hash` | String | SHA-256 of `text`; unchanged hashes are not re-embedded |
+| `text` | String | the passage that was embedded |
+| `vector` | [Number] | `bge-m3` vector |
+| `model` | String | embedding model, `bge-m3` |
+| `updated_at` | Date | |
+
+Unique compound index `{target_type, target_id, locale, model}`. Retrieval scores by cosine in
+the Node process. Docs are limited to `PRODUCT.md`, `README.md` and `docs/help/*.md`.
+
+### `ai_conversation`
+
+One rolling transcript per user; deleted by its owner or by the TTL.
+
+| Field | Type | Notes |
+|---|---|---|
+| `user_id` | ObjectId -> `user`, unique | one conversation per account |
+| `session_id` | String | UUID sent as `x-opencode-session` |
+| `messages` | Array | `{role, content, mode, citations, tool_summary, stopped, created_at}`; at most 20 stored |
+| `updated_at` | Date | |
+| `expires_at` | Date | TTL index with `expireAfterSeconds: 0`; 30 days |
+
+### `ai_call`
+
+Metrics only. No prompt, reply, retrieved text or tool output.
+
+| Field | Type | Notes |
+|---|---|---|
+| `user_id` | ObjectId -> `user` | |
+| `conversation_id` | ObjectId -> `ai_conversation` | |
+| `provider`, `model` | String | |
+| `mode` | String | `cook`, `walkthrough` or `help` |
+| `capability` | String | `read_only`, `prepare` or `act_freely` |
+| `latency_ms`, `tokens_in`, `tokens_out` | Number | |
+| `cost_estimate` | Number | USD from the per-model table; estimated, not billed |
+| `status` | String | `ok`, `stopped` or `failed`; only `ok` consumes quota |
+| `error_code` | String | provider or abort code |
+| `created_at` | Date | |
+
+Indexes `{user_id, status, created_at:-1}` and `{created_at:-1}`.
+
+### `user_event`
+
+Personal cooking history. One row per user, type, target and UTC day.
+
+| Field | Type | Notes |
+|---|---|---|
+| `user_id` | Mixed | ObjectId from a session or string id from a client |
+| `type` | String | `dish_viewed`, `dish_cooked`, `ingredient_picked`, `chat_message` |
+| `target_type` | String | `dish`, `ingredient` or empty |
+| `target_id` | String | resolved catalog id; `dish_cooked` stores the parent dish id even when opened by post id |
+| `day` | String | `YYYY-MM-DD` (UTC) |
+| `created_at` | Date | rewritten on a same-day repeat |
+| `expires_at` | Date | TTL index, 90 days |
+
+Unique compound index `{user_id, type, target_id, day}`. Clearing history deletes all rows for
+the user. Implicit weights for the assistant: cooked 3, picked 2, viewed 1.
+
 ### `audit_log`
 
 Append-only: no route updates or deletes a row.
@@ -137,26 +206,26 @@ The admin job queue. One row per operation, run in-process, one at a time.
 
 | Field | Type | Notes |
 |---|---|---|
-| `type` | String | `backup`, `reset`, `restore`, `recalc_best_post`; `ai` is reserved and has no handler yet |
+| `type` | String | `backup`, `reset`, `restore`, `recalc_best_post`, `ai_index` |
 | `status` | String | `queued`, `running`, `done`, `failed` |
 | `actor_id` | ObjectId → `user` | who queued it |
 | `actor_name` | String | |
-| `payload` | Object | `{ingredient_id}` for `recalc_best_post`, `{id}` (backup id) for `restore`, `{}` otherwise |
+| `payload` | Object | `{ingredient_id}` for `recalc_best_post`, `{id}` (backup id) for `restore`, `{target_type, target_id}` or `{full:true}` for `ai_index`, `{}` otherwise |
 | `detail` | String | success line, e.g. `reset complete, backup backup-20261118-193000.json.gz` |
 | `error` | String | failure message |
 | `created_at`, `started_at`, `finished_at` | Date | |
-| `provider`, `model`, `latency_ms`, `tokens_in`, `tokens_out`, `cost_estimate` | String / Number | reserved for the `ai` type; metrics only, never prompt or response text |
+| `provider`, `model`, `latency_ms`, `tokens_in`, `tokens_out`, `cost_estimate` | String / Number | legacy AI metric columns, unused by `ai_index`; `ai_call` holds assistant metrics, never prompt or response text |
 
 A `queued` or `running` row found at boot becomes `failed` with `detail: "server restarted"`;
 nothing auto-retries. Index on `{status, created_at}`.
 
 ### `settings`
 
-One row per key. The only key in use is `maintenance`.
+One row per key. Keys in use are `maintenance` and `ai_enabled`.
 
 | Field | Type | Notes |
 |---|---|---|
-| `key` | String, unique | `maintenance` |
+| `key` | String, unique | `maintenance`, `ai_enabled` |
 | `enabled` | Boolean | while true, public `/api/*` answers 503 |
 | `reason` | String | `catalog reset`, `catalog restore`, `server restarted` |
 | `actor_id` | ObjectId → `user` | who switched it on |
@@ -215,6 +284,8 @@ because dropping a collection drops its indexes with it.
 The backup contract is gzip JSON, `{format:"wdtct-backup", version:1, created_at, collections}`
 with ObjectIds as 24-char hex strings and dates as ISO 8601. It exports the six catalog
 collections plus `user`; a restore reads only the six and leaves `user`, `role`, `audit_log`,
-`admin_job` and `settings` untouched. The server writes to `BACKUP_DIR` (default
-`server/backups`, `/app/backups` in Compose); `db_control` writes wherever `--out` points. Keep
-the newest 10 server archives; older ones are pruned automatically.
+`admin_job` and `settings` untouched. AI collections (`ai_embedding`, `ai_conversation`,
+`ai_call`, `user_event`) are not exported either; rebuild embeddings with the admin AI tab after
+a restore. The server writes to `BACKUP_DIR` (default `server/backups`, `/app/backups` in
+Compose); `db_control` writes wherever `--out` points. Keep the newest 10 server archives; older
+ones are pruned automatically.

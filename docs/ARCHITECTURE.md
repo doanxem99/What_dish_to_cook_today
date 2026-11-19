@@ -12,6 +12,7 @@ Browser --HTTP--> Express (server/, port 3000)
                           |
                           +--> MongoDB  mongodb://mongo:27017/what_dish_to_cook_today (Compose)
                           +--> LibreTranslate  TRANSLATE_URL, en/vi only
+                          +--> Ollama  OLLAMA_URL, local bge-m3 embeddings and optional chat
                           +--> server/backups  backup archives (Compose volume backup-data)
 
 Vue app (web_ui/, dev on 5173) --HTTP + cookie--> same Express API
@@ -22,19 +23,29 @@ operations run inside the server process, one job at a time.
 
 ## Deployment
 
-`docker-compose.yml` runs three services and four volumes:
+`docker-compose.yml` runs four services and five volumes:
 
 | Service | Image / build | Ports | Volumes |
 |---|---|---|---|
 | `mongo` | `mongo:7` | none | `mongo-data:/data/db` |
 | `server` | this repository's `Dockerfile` | `3000:3000` | `backup-data:/app/backups`, `gallery:/app/public/gallery` |
 | `libretranslate` | `libretranslate/libretranslate:v1.6.5` | none | `translate-models:/home/libretranslate/.local` |
+| `ollama` | `ollama/ollama:latest` | none | `ollama-models:/root/.ollama` |
 
 The `Dockerfile` has two stages. The first builds `web_ui` with Node and writes the result to
 `server/web_ui` (see `web_ui/vite.config.mjs`). The second installs the server's production
 dependencies, copies `server/`, drops in that build and copies the root `catalog/` to `/catalog`
-because `server/config/catalog/index.js` climbs three levels from `config/catalog`. The
-committed Flutter build in `server/web` is copied as part of `server/`.
+because `server/config/catalog/index.js` climbs three levels from `config/catalog`. It also copies
+`PRODUCT.md`, `README.md` and `docs/help/` to `/PRODUCT.md`, `/README.md` and `/docs/help/`; the
+embedding loader climbs from `/app/config/ai` to the filesystem root, so the same allowlist
+resolves inside the image and in a checkout. The committed Flutter build in `server/web` is copied
+as part of `server/`.
+
+The `ollama` service runs `ollama serve` in the background, waits for the API, pulls
+`EMBED_MODEL` (`bge-m3`) once, then waits on the server process. The model volume keeps the
+download across restarts. `server` depends on it with `service_started`, not `service_healthy`,
+so a slow first pull never blocks the site; retrieval degrades to tool-only answers and the
+stream marks that with `embed_down`.
 
 Only `public/gallery` is mounted over the image. Mounting all of `/app/public` would hide
 `pictures/`, `templates/`, the default images and the i18n catalogs that ship in the image.
@@ -64,7 +75,7 @@ client protocol and cookies.
    `/api/health`, `/api/auth/*` and `/api/admin/*` stay open so an admin can see the progress and
    finish the job. `MAINTENANCE_DISABLED=1` ignores a stuck flag.
 3. `server/routes/api/*.js` - Express routers, mounted per feature: `auth`, `health`, `admin`,
-   `ingredient`, `dish`, `template`, `gallery_upload`, `translate`.
+   `ingredient`, `dish`, `template`, `gallery_upload`, `translate`, `ai`.
 4. `server/config/database/connection.js` - one Mongoose connection and every schema.
    Models are exported as `database.collections.<Name>`.
 5. `server/config/file/file_action.js` - moves uploaded files from `public/gallery/temporary/`
@@ -86,8 +97,10 @@ existing account, not disabled, `admin` role). Every failure answers `{error:{co
 `server/config/admin/jobs.js` owns the queue in the `admin_job` collection. `app.js` calls
 `runNextJob()` every 2 s; one job runs at a time and a call while a job is running is a no-op.
 A job is claimed atomically (`queued` -> `running`), run through a per-type timeout (60 s,
-10 min for `restore`), then saved as `done` or `failed` with `detail` or `error`. Handlers:
-`backup`, `reset`, `restore`, `recalc_best_post` (ingredients only). Boot calls
+10 min for `restore`, 5 min for `ai_index`), then saved as `done` or `failed` with `detail` or
+`error`. Handlers: `backup`, `reset`, `restore`, `recalc_best_post` (ingredients only) and
+`ai_index` (one row or a full rebuild; queued from content writes and the admin AI tab, coalesced
+per row). Boot calls
 `markInterruptedJobs()`: a `queued` or `running` row from the previous process becomes `failed`
 with `detail: "server restarted"`, and the maintenance flag is cleared, because the dead job can
 never release it. A job never auto-retries.
@@ -123,12 +136,62 @@ Admin sign-in and every admin mutation write one. User management can grant or r
 `admin` role, disable an account and issue a temporary password; self-demotion, self-disable and
 removing the last enabled admin answer 409.
 
-### AI view
+## AI subsystem
 
-`AI_ENABLED` only drives `GET /api/admin/health` (`ai.configured`) and the reserved `/admin/ai`
-view. Nothing calls a provider. `admin_job` already carries `provider`, `model`, `latency_ms`,
-`tokens_in`, `tokens_out`, `cost_estimate` for that future type; no handler or prompt text is
-stored today.
+`server/config/ai/` holds the assistant. `AI_ENABLED` gates the whole surface: while false,
+`server/config/ai/config.js` is off and `/api/ai/*` answers 404 `ai_not_configured`.
+
+| Module | Responsibility |
+|---|---|
+| `config.js` | Parses the 11 AI variables, estimates USD cost from a per-model table, and checks the runtime `ai_enabled` setting |
+| `provider.js` | OpenAI-compatible chat adapter for `opencode-go` (sends `x-opencode-session`) and `ollama`, tool definitions, streamed or JSON replies |
+| `embeddings.js` | Calls Ollama for `bge-m3` vectors, builds the allowlisted corpus, hashes content, retrieves by cosine |
+| `index_job.js` | `ai_index` job handler, per-row coalescing and full rebuild |
+| `events.js` | `user_event` recorder, per-UTC-day dedupe, history listing and personalisation weights |
+| `tools.js` | Six bounded tools, gated by capability |
+| `chat.js` | System prompt, retrieval, tool rounds, SSE streaming, transcript, quota and `ai_call` metrics |
+
+### Request flow
+
+```text
+POST /api/ai/chat (SSE, verifyToken)
+  AI on, not maintenance, user not disabled, budget not reached, quota remains
+  1. validate message 1-2000, mode, capability, locale
+  2. load the one rolling AiConversation (20 stored messages, 30-day TTL)
+  3. embed the question through Ollama; on failure continue with tool-only retrieval
+  4. retrieve top 6 ai_embedding passages by cosine, locale first, English fallback
+  5. build the system prompt; retrieved text is wrapped in <retrieved_data> as data
+  6. call the provider with the tools allowed by the capability, up to AI_MAX_TOOL_ROUNDS
+  7. emit SSE events, persist the assistant message, write ai_call, count quota
+```
+
+SSE event names:
+
+| Event | Payload |
+|---|---|
+| `meta` | `{embed_down, tool_summary}` |
+| `tool` | `{name, summary, citations, action}` |
+| `token` | `{text}` delta |
+| `done` | `{citations, actions, quota}` |
+| `error` | `{status, code, message}` |
+
+A client abort aborts the upstream fetch, saves the partial reply as `stopped`, writes
+`ai_call.status='stopped'` and does not consume quota. Provider failures write `failed` with the
+error code, also without quota. `ai_call` stores counts only, never prompt, reply or retrieved
+text.
+
+The help corpus is a strict allowlist: `PRODUCT.md`, `README.md` and `docs/help/*.md`. Internal
+docs (`docs/superpowers/`, `docs/impl/`, `KNOWN_ISSUES.md`, `ARCHITECTURE.md`, `API.md`,
+`AGENTS.md`, `RULES.md`) are never listed, embedded or readable through `get_help`.
+
+### Admin AI view
+
+`GET /api/admin/ai/usage` aggregates `ai_call` by day and model and returns 50 recent metrics
+rows, with no message text. `POST /api/admin/ai/enabled` writes the `ai_enabled` setting (in-flight
+replies finish), `POST /api/admin/ai/users/:id` sets a user's `ai_disabled` and daily limit, and
+`POST /api/admin/ai/reindex` queues a full `ai_index` job. Each mutation writes an audit row
+(`ai.enabled`, `user.ai`, `job.ai_index`). `GET /api/admin/health` reports
+`ai: {configured, enabled, budget_reached, provider, model}`.
 
 ## Catalog loader
 

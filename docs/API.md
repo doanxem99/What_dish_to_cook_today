@@ -112,7 +112,44 @@ folder and is moved to its final folder by the profile create/update routes.
 Proxies a LibreTranslate-compatible service set in `TRANSLATE_URL`. Without it the route answers
 503 with a clear message and the editor keeps translation off. Text is limited to 2000 characters.
 
-## Health — `/api/health`
+## AI - `/api/ai`
+
+Every route runs `verifyToken`. While `AI_ENABLED` is false the entire router answers
+`404 {error:{code:"ai_not_configured", message:"AI is not enabled"}}`. During maintenance the
+maintenance gate answers 503 like any other public `/api/*` route. Errors use
+`{error:{code, message}}`.
+
+| Method | Path | Body / query | Answer |
+|---|---|---|---|
+| GET | `/status` | - | `{enabled, capability, quota:{used, limit, remaining, resets_at}}` |
+| POST | `/chat` | `{message, mode, capability, locale}` | SSE stream, see below; 400 bad input, 403 `ai_disabled` (switch, user, or budget), 429 `quota_reached` with `resets_at` |
+| GET | `/conversation` | - | `{messages, capability, quota}`; each message carries `role, content, mode, citations, tool_summary, stopped, created_at` |
+| DELETE | `/conversation` | - | `{status:"ok"}` |
+| POST | `/capability` | `{capability}` | `{status:"ok", capability}`; 400 for an unknown level |
+| POST | `/events` | `{type, target_id, dish_post_id?}` | `{status:"ok"}`; `type` is `dish_viewed`, `dish_cooked` or `ingredient_picked`; 400 when the target does not resolve |
+| GET | `/events` | `?page=` | `{rows, total, page}`, 25 per page, newest first, names hydrated |
+| DELETE | `/events` | - | `{status:"ok", deleted}` |
+
+`POST /chat` accepts `mode` `cook`, `walkthrough` or `help`, `capability` `read_only`, `prepare`
+or `act_freely`, `locale` `en` or `vi`, and a message of 1-2000 characters after trim.
+
+The answer is `text/event-stream` with named frames:
+
+| Event | Data |
+|---|---|
+| `meta` | `{embed_down, tool_summary}` - `embed_down` true means Ollama was unreachable and retrieval fell back to tools |
+| `tool` | `{name, summary, citations, action}` - one per executed tool; citations carry validated dish or ingredient ids |
+| `token` | `{text}` - reply delta |
+| `done` | `{citations, actions, quota}` - terminal frame on success |
+| `error` | `{status, code, message}` - terminal frame on failure |
+
+Citations use `{target_type:"dish"|"ingredient", id, name, name_vi}`; clients build links only
+from those ids. `action` is `{type:"select_ingredients"|"open_dish"|"start_draft", apply, ...}`.
+The client may apply `select_ingredients` in `act_freely`; `start_draft` never applies itself.
+A stop aborts the stream and keeps the partial message with `stopped: true`.
+Stopped and failed replies do not consume quota; only completed turns count, per UTC day.
+
+## Health - `/api/health`
 
 | Method | Path | Answer |
 |---|---|---|
@@ -138,11 +175,15 @@ hash, token or AI prompt text is ever returned.
 | GET | `/backups/:id` | – | gzip archive download with its filename; 404 unknown id |
 | POST | `/restore` | `{backup_id, confirm:"RESTORE"}` | job row, 202; 400 wrong confirm, 404 unknown id, 409 a job is running |
 | POST | `/reset` | `{confirm:"RESET"}` | job row, 202; 400 wrong confirm, 409 a job is running |
-| GET | `/users` | `?q=&page=` | `{rows, total, page}`; rows hold `id, username, email, created_at, is_disabled, must_change_password, roles`, never the password hash |
+| GET | `/users` | `?q=&page=` | `{rows, total, page}`; rows hold `id, username, email, created_at, is_disabled, must_change_password, roles, ai_disabled, ai_daily_limit`, never the password hash |
 | POST | `/users/:id/role` | `{admin: true\|false}` | user row, 200; 400 not a boolean, 404 unknown user, 409 self-demote or last admin |
 | POST | `/users/:id/disabled` | `{disabled: true\|false}` | user row, 200; 400 not a boolean, 404 unknown user, 409 self-disable or last admin |
 | POST | `/users/:id/password` | – | `{password, user}`, 200; the temporary password is shown once and `must_change_password` is set |
 | GET | `/audit` | `?action=&actor=&page=` | `{rows, total, page, actions}`, newest first, 25 per page; each row carries `target_label` resolved from `target_type`/`target_id` (`user`, `ingredient`, `dish`, `dish_post`, `ingredient_post`, `comment`, `backup`, `job`), `actions` is the distinct action list for the filter |
+| GET | `/ai/usage` | - | `{configured, enabled, budget_usd, month_cost_estimate, budget_reached, totals:{calls, tokens_in, tokens_out, cost_estimate, errors}, by_day:[{day, model, calls, tokens_in, tokens_out, cost_estimate, errors, avg_latency_ms}], recent:[{id, created_at, provider, model, mode, capability, latency_ms, tokens_in, tokens_out, cost_estimate, status, error_code}]}`; never prompt or reply text |
+| POST | `/ai/enabled` | `{enabled: boolean}` | `{enabled}`; writes the `ai_enabled` setting and an `ai.enabled` audit row; 400 for a non-boolean |
+| POST | `/ai/users/:id` | `{disabled?, daily_limit?}` | updated user row; `daily_limit` is `null` (default) or an integer 0-1000; writes `user.ai`; 400 bad input, 404 unknown user |
+| POST | `/ai/reindex` | - | `ai_index` job row, 202; queues a full rebuild and writes `job.ai_index` |
 
 `/health` answers:
 
@@ -153,7 +194,9 @@ hash, token or AI prompt text is ever returned.
   derived from `TRANSLATE_URL` by stripping `/translate`; `configured` is false when the variable is
   unset, so the page names the right fix. The probe caches for 30 s and never runs on the 15 s page
   poll.
-- `ai`: `{configured}`, from `AI_ENABLED` only.
+- `ai`: `{configured, enabled, budget_reached, provider, model}`. `configured` is `AI_ENABLED`,
+  `enabled` also includes the admin `ai_enabled` setting, and `budget_reached` compares the
+  month's estimated spend with `AI_MONTHLY_BUDGET_USD`.
 - `backup`: `{dir_writable, dir, last, error}`.
 - `maintenance`: `{on, reason, job_id, updated_at}`. `reason` is the server's sentence (`catalog
   reset` or `catalog restore`) and `job_id` is the job that owns the flag.

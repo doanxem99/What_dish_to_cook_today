@@ -91,3 +91,17 @@ test('a flutter deep link loads the flutter shell', async () => {
     assert.strictEqual(response.status, 200);
     assert.match(text, /flutter-root/);
 });
+
+test('Dockerfile and docker-compose.yml include ollama and the help corpus allowlist', async () => {
+    const repoRoot = path.join(__dirname, '..', '..');
+    const dockerfile = await fs.readFile(path.join(repoRoot, 'Dockerfile'), 'utf8');
+    const compose = await fs.readFile(path.join(repoRoot, 'docker-compose.yml'), 'utf8');
+    const envExample = await fs.readFile(path.join(repoRoot, '.env.example'), 'utf8');
+
+    assert.match(dockerfile, /COPY docs\/help\/ \/docs\/help/);
+    assert.match(dockerfile, /COPY PRODUCT\.md README\.md \//);
+    assert.match(compose, /ollama:/);
+    assert.match(compose, /OLLAMA_URL:\s*\$\{OLLAMA_URL:-http:\/\/ollama:11434\}/);
+    assert.match(envExample, /AI_MODEL=deepseek-v4\.1-flash/);
+    assert.match(envExample, /EMBED_MODEL=bge-m3/);
+});
