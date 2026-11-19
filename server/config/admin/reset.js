@@ -4,6 +4,7 @@ const catalogModule = require('../catalog');
 const { setMaintenance } = require('./maintenance');
 const backups = require('./backups');
 const { FORMAT, VERSION, CATALOG_COLLECTIONS, fromExportDoc } = backups;
+const indexJob = require('../ai/index_job');
 
 //No actor means no owner for the seeded posts, so fail before anything is dropped.
 const actorIdOf = function(actor) {
@@ -167,6 +168,7 @@ const resetCatalog = async function(actor) {
     await seedCatalog(actorId, catalog);
     await recreateUniqueIndexes();
     await setMaintenance(false, 'catalog reset finished', actor);
+    indexJob.scheduleFullIfEnabled(actor);
     return `reset complete, backup ${backup.file}`;
 };
 
@@ -288,6 +290,7 @@ const restoreBackup = async function(id, actor) {
     //Only the six catalog collections are written; user, audit_log and admin_job are ignored.
     await recreateUniqueIndexes();
     await setMaintenance(false, 'catalog restore finished', actor);
+    indexJob.scheduleFullIfEnabled(actor);
     return `restored ${id}, previous data saved to ${backup.file}`;
 };
 

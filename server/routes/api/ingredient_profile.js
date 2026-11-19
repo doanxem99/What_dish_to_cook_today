@@ -7,6 +7,7 @@ const appDebug = require('../../config/debug/app_debug');
 const profileEnum = require('../../config/enum/profile_enum');
 const { verifyToken } = require('./verifyToken');
 const { recordAudit } = require('../../config/admin/audit');
+const indexJob = require('../../config/ai/index_job');
 
 const AUDIT_DETAIL_MAX = 80;
 
@@ -327,6 +328,7 @@ router.post('/create_ingredient', verifyToken, async function(req, res){
         const detail = (typeof req.body.name === 'string' ? req.body.name.trim() : '')
             || (typeof req.body.name_vi === 'string' ? req.body.name_vi.trim() : '');
         await auditContent(req, 'ingredient.create', 'ingredient', result.ingredient_id, detail);
+        indexJob.scheduleIfEnabled('ingredient', result.ingredient_id, req.current_user);
     }
     res.status(result.status_code).send(result);
 });
@@ -348,6 +350,7 @@ router.post('/create_ingredient_post', verifyToken, async function(req, res){
         const action = result.status === profileEnum.ProfileStatus_PostCreate.EditingSuccess
             ? 'ingredient_post.edit' : 'ingredient_post.create';
         await auditContent(req, action, 'ingredient_post', result.ingredient_post_id, detail);
+        indexJob.scheduleIfEnabled('ingredient', req.body.ingredient_id, req.current_user);
     }
     res.status(result.status_code).send(result);
 });

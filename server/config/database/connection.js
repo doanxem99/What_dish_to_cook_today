@@ -272,10 +272,8 @@ AiCall.schema.index({ created_at: -1 });
 
 //Personal cooking history: one row per user, type, target and UTC day.
 const UserEvent = mongoose.model('user_event', {
-    user_id : {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'user'
-    },
+    //Mixed: the recorder accepts an ObjectId from a session and a plain string id from a client.
+    user_id : mongoose.Schema.Types.Mixed,
     type : String,
     target_type : String,
     target_id : String,
