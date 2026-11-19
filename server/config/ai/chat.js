@@ -2,7 +2,7 @@
 //streaming, rolling transcript persistence, quota/budget checks and ai_call metrics.
 //Prompt and reply text never reach AiCall; only counts and the error code do.
 const crypto = require('node:crypto');
-const { collections } = require('../database/connection');
+const { mongoose, collections } = require('../database/connection');
 const { readConfig, estimateCost } = require('./config');
 const provider = require('./provider');
 const embeddings = require('./embeddings');
@@ -106,27 +106,34 @@ const reserveQuota = async (user, config) => {
         if (error && error.code === 11000) doc = await bump();
         else throw error;
     }
-    const used = await collections.AiCall.countDocuments({
-        user_id: user._id,
-        status: 'ok',
-        created_at: { $gte: startOfUtcDay() }
-    });
+    //A failed count must not leave the increment behind, or the slot leaks for the day.
     const reservation = { userId: user._id, day, released: false };
-    if (used + Number(doc.reserved || 0) > limit) {
+    try {
+        const used = await collections.AiCall.countDocuments({
+            user_id: user._id,
+            status: 'ok',
+            created_at: { $gte: startOfUtcDay() }
+        });
+        if (used + Number(doc.reserved || 0) > limit) {
+            await releaseQuota(reservation);
+            return null;
+        }
+        return reservation;
+    } catch (error) {
         await releaseQuota(reservation);
-        return null;
+        throw error;
     }
-    return reservation;
 };
 
 const releaseQuota = async (reservation) => {
     if (!reservation || reservation.released) return;
-    reservation.released = true;
     try {
         await collections.AiQuota.updateOne(
             { user_id: reservation.userId, day: reservation.day, reserved: { $gt: 0 } },
             { $inc: { reserved: -1 } }
         );
+        //Only a real decrement closes the reservation; a retry can try again.
+        reservation.released = true;
     } catch (error) {
         console.error(`Cannot release AI quota: ${error.message}`);
     }
@@ -170,7 +177,7 @@ const appendMessages = async (conversationId, entries, now) => {
 
 const writeCall = async (fields) => {
     try {
-        await collections.AiCall.create({
+        return await collections.AiCall.create({
             user_id: fields.userId,
             conversation_id: fields.conversationId,
             provider: fields.provider,
@@ -288,9 +295,12 @@ const SENTENCE_STARTERS = new Set([
     'for', 'with', 'and', 'or', 'but', 'also', 'then', 'maybe', 'perhaps'
 ]);
 
+//Catalog names and model prose are compared without case, quotes or punctuation.
 const normalizeName = (value) => String(value || '')
-    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u2018\u2019\u02bc]/g, "'")
+    .replace(/[\u201c\u201d\u201e]/g, '"')
     .toLowerCase()
+    .replace(/[^\p{L}\p{N}']+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -298,6 +308,7 @@ const rowName = (row) => (typeof row === 'string' ? row.trim() : String((row && 
 const rowNameVi = (row) => (row && typeof row === 'object' ? String(row.name_vi || '').trim() : '');
 
 //Dishes that a tool really returned; only these may be named in a reply.
+//A null catalog means the read failed, so the rules below fail closed.
 const collectGrounding = (toolResults, catalogNames) => {
     const shortlist = [];
     const seen = new Set();
@@ -319,46 +330,101 @@ const collectGrounding = (toolResults, catalogNames) => {
         if (Array.isArray(output.dishes)) output.dishes.forEach(add);
         else if (output.dish_id && output.name) add(output);
     }
+    const catalogKnown = Array.isArray(catalogNames);
     const catalog = new Set();
-    for (const row of Array.isArray(catalogNames) ? catalogNames : []) {
+    const catalogPhrases = [];
+    for (const row of catalogKnown ? catalogNames : []) {
         const name = rowName(row);
         const nameVi = rowNameVi(row);
-        if (name) catalog.add(normalizeName(name));
-        if (nameVi) catalog.add(normalizeName(nameVi));
+        for (const value of [name, nameVi]) {
+            const key = normalizeName(value);
+            if (!key) continue;
+            catalog.add(key);
+            catalogPhrases.push({ name: value, key });
+        }
     }
-    return { shortlist, allowed, catalog };
+    return { shortlist, allowed, catalog, catalogKnown, catalogPhrases };
 };
 
-const looksLikeDish = (words, catalog) => {
-    const phrase = normalizeName(words.join(' '));
-    if (!phrase) return false;
-    if (catalog.has(phrase)) return true;
-    return DISH_WORDS.has(phrase) || DISH_WORDS.has(normalizeName(words[words.length - 1]));
+//A chunk that only carries the tail of a returned name ("Soup") is not a new dish.
+const isAllowedFragment = (key, allowed) => {
+    const words = key.split(' ').filter(Boolean);
+    if (words.length === 0) return false;
+    for (const name of allowed) {
+        const nameWords = name.split(' ');
+        for (let start = 0; start + words.length <= nameWords.length; start += 1) {
+            if (words.every((word, offset) => nameWords[start + offset] === word)) return true;
+        }
+    }
+    return false;
 };
 
-const ungroundedMentions = (text, allowed, catalog) => {
-    const found = new Set();
-    const inspect = (raw) => {
-        const words = String(raw || '').split(/\s+/).filter(Boolean);
+const looksLikeDish = (key, catalog, catalogKnown, quoted) => {
+    if (!key) return false;
+    const words = key.split(' ');
+    if (catalog.has(key)) return true;
+    if (DISH_WORDS.has(words[words.length - 1])) return true;
+    //No catalog to check against: any multi-word proper name or quoted phrase is suspect.
+    if (!catalogKnown && (words.length >= 2 || quoted)) return true;
+    return false;
+};
+
+const ungroundedMentions = (text, allowed, catalog, catalogKnown, catalogPhrases = []) => {
+    const found = new Map();
+    const inspect = (raw, quoted = false) => {
+        const words = String(raw || '').split(/\s+/).filter((word) => /[\p{L}\p{N}]/u.test(word));
         while (words.length > 1 && SENTENCE_STARTERS.has(normalizeName(words[0]))) words.shift();
         if (words.length === 0) return;
-        const phrase = words.join(' ');
-        const key = normalizeName(phrase);
-        if (!key || allowed.has(key) || found.has(phrase)) return;
-        if (!looksLikeDish(words, catalog)) return;
-        found.add(phrase);
+        const key = normalizeName(words.join(' '));
+        if (!key || allowed.has(key) || found.has(key)) return;
+        if (isAllowedFragment(key, allowed)) return;
+        if (!looksLikeDish(key, catalog, catalogKnown, quoted)) return;
+        found.set(key, words.join(' ').replace(/^["\u201c\u201d']+|["\u201c\u201d']+$/g, '').trim());
     };
     const source = String(text || '');
     for (const match of source.matchAll(/\p{Lu}[\p{L}\p{N}'\u2019-]*(?:\s+\p{Lu}[\p{L}\p{N}'\u2019-]*)*/gu)) {
         inspect(match[0]);
     }
     for (const match of source.matchAll(/["\u201c]([^"\u201d\n]{2,80})["\u201d]/g)) {
-        inspect(match[1]);
+        inspect(match[1], true);
     }
-    return [...found];
+    //Catalog names are matched case-insensitively across punctuation and quotes.
+    if (catalogKnown) {
+        const tokens = normalizeName(source).split(' ').filter(Boolean);
+        for (const phrase of catalogPhrases) {
+            const words = phrase.key.split(' ').filter(Boolean);
+            if (words.length === 0) continue;
+            for (let start = 0; start + words.length <= tokens.length; start += 1) {
+                if (words.every((word, offset) => tokens[start + offset] === word)) {
+                    inspect(phrase.name);
+                    break;
+                }
+            }
+        }
+    }
+    //Dish-word phrases catch lower-case inventions the capitalised scan misses.
+    for (const sentence of source.split(/(?<=[.!?\u2026])\s+/u)) {
+        const tokens = [...sentence.matchAll(/[\p{L}\p{N}']+/gu)].map((match) => match[0]);
+        tokens.forEach((token, index) => {
+            if (!DISH_WORDS.has(normalizeName(token))) return;
+            inspect(tokens.slice(Math.max(0, index - 2), index + 1).join(' '));
+        });
+    }
+    return [...found.values()];
 };
 
 const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+//Punctuation- and quote-tolerant match so removal follows the same rule as detection.
+const mentionPattern = (mention) => {
+    const words = normalizeName(mention).split(' ').filter(Boolean)
+        .map((word) => escapeRegExp(word).replace(/'/g, "['\u2019]"));
+    if (words.length === 0) return null;
+    return new RegExp(
+        `(?<![\\p{L}\\p{N}])${words.join('[^\\p{L}\\p{N}]+')}(?![\\p{L}\\p{N}])`,
+        'giu'
+    );
+};
 
 const tidyText = (value) => String(value || '')
     .replace(/\s{2,}/g, ' ')
@@ -366,29 +432,90 @@ const tidyText = (value) => String(value || '')
     .replace(/([.!?])\s*([.!?])/g, '$1')
     .trim();
 
+const shortlistLine = (dishes) => (dishes.length > 0
+    ? `Available from the catalog: ${dishes.join(', ')}.`
+    : 'I could not find a matching dish in the catalog.');
+
 //Pure policy check run after the tool loop: a dish the tools never returned is
 //removed from the prose, and the real shortlist is appended instead.
 const enforceGrounding = (text, toolResults, catalogNames) => {
     const original = String(text || '');
-    const { shortlist, allowed, catalog } = collectGrounding(toolResults, catalogNames);
-    const removed = ungroundedMentions(original, allowed, catalog);
+    const { shortlist, allowed, catalog, catalogKnown, catalogPhrases } = collectGrounding(toolResults, catalogNames);
+    const removed = ungroundedMentions(original, allowed, catalog, catalogKnown, catalogPhrases);
     const dishes = shortlist.slice(0, 5);
     if (removed.length === 0) {
         return { text: original, changed: false, removed: [], dishes };
     }
     let body = original;
     for (const mention of removed) {
-        body = body.replace(new RegExp(escapeRegExp(mention), 'gi'), ' ');
+        const pattern = mentionPattern(mention);
+        if (pattern) body = body.replace(pattern, ' ');
     }
-    const line = dishes.length > 0
-        ? `Available from the catalog: ${dishes.join(', ')}.`
-        : 'I could not find a matching dish in the catalog.';
     return {
-        text: tidyText(`${tidyText(body)} ${line}`),
+        text: tidyText(`${tidyText(body)} ${shortlistLine(dishes)}`),
         changed: true,
         removed,
         dishes
     };
+};
+
+const CHUNK_LIMIT = 40;
+
+//Streams whole sentences as soon as they pass the same grounding rule as the
+//final text. A failing sentence is replaced once by the grounded shortlist.
+const createGroundedStream = ({ toolResults, catalogNames, emitToken, emitNotice }) => {
+    let buffer = '';
+    let emitted = '';
+    let recoverySent = false;
+
+    const flush = (chunk) => {
+        if (!chunk) return;
+        const { shortlist, allowed, catalog, catalogKnown, catalogPhrases } = collectGrounding(toolResults, catalogNames);
+        const removed = ungroundedMentions(chunk, allowed, catalog, catalogKnown, catalogPhrases);
+        if (removed.length > 0) {
+            if (!recoverySent) {
+                recoverySent = true;
+                emitNotice({ code: 'ungrounded', dishes: shortlist.slice(0, 5) });
+                const line = `${shortlistLine(shortlist.slice(0, 5))} `;
+                emitted += line;
+                emitToken(line);
+            }
+            return;
+        }
+        emitted += chunk;
+        emitToken(chunk);
+    };
+
+    const boundary = () => {
+        const sentence = buffer.match(/[.!?\u2026][")'\u201d\u2019\]]*(?:\s+|$)/u);
+        if (sentence) return sentence.index + sentence[0].length;
+        if (buffer.length >= CHUNK_LIMIT) {
+            const space = buffer.lastIndexOf(' ', CHUNK_LIMIT);
+            return space > 0 ? space + 1 : CHUNK_LIMIT;
+        }
+        return -1;
+    };
+
+    const push = (text) => {
+        buffer += text;
+        for (;;) {
+            const cut = boundary();
+            if (cut < 0) break;
+            const chunk = buffer.slice(0, cut);
+            buffer = buffer.slice(cut);
+            flush(chunk);
+        }
+    };
+
+    const finish = () => {
+        if (buffer) {
+            flush(buffer);
+            buffer = '';
+        }
+        return emitted;
+    };
+
+    return { push, finish };
 };
 
 const runChatStream = async ({ res, user, message, mode, capability, locale, config, req }) => {
@@ -405,6 +532,14 @@ const runChatStream = async ({ res, user, message, mode, capability, locale, con
     const actions = [];
     const toolSummary = [];
     const toolResults = [];
+    //One finalizer owns both writes, so an abort cannot leave a half-finished turn.
+    const assistantId = new mongoose.Types.ObjectId();
+    let assistantAppended = false;
+    let assistantStopped = false;
+    let callWritten = false;
+    let callDocId = null;
+    let finalStatus = null;
+    let stream = null;
 
     //The signal exists before retrieval so an early close also cancels the embedder.
     const controller = new AbortController();
@@ -427,32 +562,60 @@ const runChatStream = async ({ res, user, message, mode, capability, locale, con
         capability
     });
 
-    const finishStopped = async () => {
-        if (conversation) {
-            await appendMessages(conversation._id, [{
-                role: 'assistant',
-                content: content || '',
-                mode,
-                citations: [],
-                tool_summary: null,
-                stopped: true,
-                created_at: new Date()
-            }], new Date()).catch(() => {});
+    const finalize = async (status, errorCode = '') => {
+        if (finalStatus === 'stopped') return 'stopped';
+        if (finalStatus === 'failed' && status !== 'stopped') return 'failed';
+        const next = status === 'stopped' ? 'stopped' : status;
+        const stopped = next === 'stopped';
+
+        //The transcript gets exactly one assistant entry; a stop only flips its flag.
+        if (conversation && next !== 'failed') {
+            if (!assistantAppended) {
+                assistantAppended = true;
+                await appendMessages(conversation._id, [{
+                    _id: assistantId,
+                    role: 'assistant',
+                    content,
+                    mode,
+                    citations,
+                    tool_summary: toolSummary,
+                    stopped,
+                    created_at: new Date()
+                }], new Date()).catch(() => {});
+            } else if (stopped && !assistantStopped) {
+                assistantStopped = true;
+                await collections.AiConversation.updateOne(
+                    { _id: conversation._id, 'messages._id': assistantId },
+                    { $set: { 'messages.$.stopped': true } }
+                ).catch(() => {});
+            }
+            if (stopped) assistantStopped = true;
         }
-        await writeCall({
-            ...callFields(),
-            latencyMs: Date.now() - startedAt,
-            tokensIn,
-            tokensOut,
-            costEstimate: estimateCost(model, tokensIn, tokensOut),
-            status: 'stopped',
-            errorCode: 'client_aborted'
-        });
+
+        if (!callWritten) {
+            callWritten = true;
+            const doc = await writeCall({
+                ...callFields(),
+                latencyMs: Date.now() - startedAt,
+                tokensIn,
+                tokensOut,
+                costEstimate: estimateCost(model, tokensIn, tokensOut),
+                status: next,
+                errorCode: stopped ? (errorCode || 'client_aborted') : errorCode
+            });
+            callDocId = doc && doc._id;
+        } else if (stopped && finalStatus === 'ok' && callDocId) {
+            //The metric row already landed; downgrade it instead of writing a second one.
+            await collections.AiCall.updateOne(
+                { _id: callDocId },
+                { $set: { status: 'stopped', error_code: errorCode || 'client_aborted' } }
+            ).catch(() => {});
+        }
+
+        finalStatus = next;
+        return next;
     };
-    const stopNow = async () => {
-        await finishStopped();
-        return 'stopped';
-    };
+    const stopNow = async () => finalize('stopped');
 
     const sendEvent = (event, data) => {
         if (finished || aborted || res.writableEnded) return;
@@ -491,6 +654,15 @@ const runChatStream = async ({ res, user, message, mode, capability, locale, con
         const passages = retrieved.passages;
         const embedDown = retrieved.embedDown === true;
 
+        //A failed catalog read leaves this null, and grounding then fails closed.
+        let catalogNames = null;
+        try {
+            catalogNames = await collections.Dish.find({}, 'name name_vi').lean();
+        } catch (error) {
+            catalogNames = null;
+        }
+        if (aborted) return await stopNow();
+
         res.status(200);
         res.setHeader('content-type', 'text/event-stream; charset=utf-8');
         res.setHeader('cache-control', 'no-cache');
@@ -499,6 +671,16 @@ const runChatStream = async ({ res, user, message, mode, capability, locale, con
         if (typeof res.flushHeaders === 'function') res.flushHeaders();
 
         sendEvent('meta', { embed_down: embedDown, tool_summary: [] });
+
+        stream = createGroundedStream({
+            toolResults,
+            catalogNames,
+            emitToken: (text) => {
+                content += text;
+                sendEvent('token', { text });
+            },
+            emitNotice: (data) => sendEvent('notice', data)
+        });
 
         const modelMessages = [
             {
@@ -515,15 +697,17 @@ const runChatStream = async ({ res, user, message, mode, capability, locale, con
         const maxRounds = Math.max(1, Number(config.maxToolRounds) || 3);
 
         for (let round = 0; round < maxRounds; round += 1) {
+            let received = 0;
             const result = await completionFn({
                 config,
                 sessionId: conversation.session_id,
                 messages: modelMessages,
                 tools: availableTools,
-                //Buffered: the reply is grounded before any token reaches the client.
+                //Chunks are grounded one sentence at a time before they reach the client.
                 onToken: (text) => {
                     if (!text || aborted) return;
-                    content += text;
+                    received += text.length;
+                    stream.push(text);
                 },
                 signal: controller.signal
             });
@@ -531,7 +715,8 @@ const runChatStream = async ({ res, user, message, mode, capability, locale, con
             tokensIn += Number(result.tokensIn) || 0;
             tokensOut += Number(result.tokensOut) || 0;
             if (result.model) model = result.model;
-            if (result.content && !content) content = result.content;
+            //A non-streaming provider answers once; a streaming one already pushed deltas.
+            if (result.content && received === 0) stream.push(result.content);
 
             const calls = Array.isArray(result.toolCalls) ? result.toolCalls : [];
             if (calls.length === 0) break;
@@ -570,27 +755,17 @@ const runChatStream = async ({ res, user, message, mode, capability, locale, con
 
         if (aborted) return await stopNow();
 
-        if (content) {
-            let catalogNames = [];
-            try {
-                catalogNames = await collections.Dish.find({}, 'name name_vi').lean();
-            } catch (error) {
-                catalogNames = [];
-            }
-            if (aborted) return await stopNow();
-            const grounded = enforceGrounding(content, toolResults, catalogNames);
+        content = stream.finish();
+        //Whole-text pass for phrases split across chunk boundaries: persist only grounded prose.
+        const grounded = enforceGrounding(content, toolResults, catalogNames);
+        if (grounded.changed) {
+            sendEvent('notice', { code: 'ungrounded', dishes: grounded.dishes });
             content = grounded.text;
-            if (grounded.changed) {
-                sendEvent('notice', {
-                    code: 'ungrounded',
-                    dishes: grounded.dishes
-                });
-            }
-            sendEvent('token', { text: content });
         }
         if (aborted) return await stopNow();
 
         await appendMessages(conversation._id, [{
+            _id: assistantId,
             role: 'assistant',
             content,
             mode,
@@ -599,55 +774,36 @@ const runChatStream = async ({ res, user, message, mode, capability, locale, con
             stopped: false,
             created_at: new Date()
         }], new Date());
+        assistantAppended = true;
+        if (aborted) return await stopNow();
 
-        //Another close between the transcript write and the metrics row must not consume quota.
-        if (aborted) {
-            await writeCall({
-                ...callFields(),
-                latencyMs: Date.now() - startedAt,
-                tokensIn,
-                tokensOut,
-                costEstimate: estimateCost(model, tokensIn, tokensOut),
-                status: 'stopped',
-                errorCode: 'client_aborted'
-            });
-            return 'stopped';
-        }
-
-        await writeCall({
-            ...callFields(),
-            latencyMs: Date.now() - startedAt,
-            tokensIn,
-            tokensOut,
-            costEstimate: estimateCost(model, tokensIn, tokensOut),
-            status: 'ok'
-        });
         await events.recordUserEvent({ userId: user._id, type: 'chat_message' }).catch(() => {});
+        if (aborted) return await stopNow();
 
         const quota = await getQuotaStatus(user, config);
-        sendEvent('done', { citations, actions, quota });
+        if (aborted) return await stopNow();
+
+        //Metric is the last write; a stop after it downgrades the same row and frees the slot.
+        const outcome = await finalize('ok');
+        if (aborted) return await finalize('stopped');
+
+        //This call is not in the count yet: it lands right after the read.
+        const quotaNow = {
+            ...quota,
+            used: quota.used + 1,
+            remaining: Math.max(0, quota.remaining - 1)
+        };
+        sendEvent('done', { citations, actions, quota: quotaNow });
         finished = true;
         res.end();
-        return 'ok';
+        return outcome;
     } catch (error) {
         if (aborted || (error && error.name === 'AbortError')) {
-            if (!finished) {
-                finished = true;
-                await finishStopped();
-            }
-            return 'stopped';
+            return await stopNow();
         }
         const status = Number(error && error.status) || 500;
         const code = (error && error.code) || 'chat_failed';
-        await writeCall({
-            ...callFields(),
-            latencyMs: Date.now() - startedAt,
-            tokensIn,
-            tokensOut,
-            costEstimate: estimateCost(model, tokensIn, tokensOut),
-            status: 'failed',
-            errorCode: code
-        });
+        await finalize('failed', code);
         if (!finished) {
             sendEvent('error', { status, code, message: error.message || 'AI request failed' });
             finished = true;

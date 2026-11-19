@@ -4,7 +4,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { once } = require('node:events');
+const { once, EventEmitter } = require('node:events');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
 process.env.JWT_SECRET = 'test-secret';
@@ -505,6 +505,382 @@ test('two parallel requests with one quota slot left answer one 429 and call the
     assert.strictEqual(await collections.AiCall.countDocuments({ user_id: user._id, status: 'ok' }), 1);
 
     chatModule.setTestHooks(null);
+});
+
+const fakeStreamResponse = () => {
+    const res = new EventEmitter();
+    res.events = [];
+    res.writableEnded = false;
+    res.status = () => res;
+    res.setHeader = () => {};
+    res.flushHeaders = () => {};
+    res.write = (chunk) => {
+        res.events.push(chunk);
+        return true;
+    };
+    res.end = () => {
+        res.writableEnded = true;
+        res.emit('close');
+    };
+    return res;
+};
+
+const runDirectChat = (user, message, res) => chatModule.runChatStream({
+    res,
+    user,
+    message,
+    mode: 'cook',
+    capability: 'read_only',
+    locale: 'en',
+    config: require('../config/ai/config').readConfig(),
+    req: new EventEmitter()
+});
+
+const parseSse = (text) => text.split('\n\n')
+    .filter((block) => block.trim())
+    .map((block) => {
+        const lines = block.split('\n');
+        const event = lines.find((line) => line.startsWith('event: '));
+        const data = lines.find((line) => line.startsWith('data: '));
+        return {
+            event: event ? event.slice(7) : '',
+            data: data ? JSON.parse(data.slice(6)) : null
+        };
+    });
+
+test('enforceGrounding rejects lower-case invented and catalog dish names', () => {
+    const invented = chatModule.enforceGrounding('try poison soup.', [], [{ name: 'Chicken Rice' }]);
+    assert.strictEqual(invented.changed, true);
+    assert.ok(!/poison/i.test(invented.text));
+
+    const catalog = chatModule.enforceGrounding('try "chicken-rice!" today.', [], [{ name: 'Chicken Rice' }]);
+    assert.strictEqual(catalog.changed, true);
+    assert.ok(!/chicken.?rice/i.test(catalog.text));
+
+    const curly = chatModule.enforceGrounding('try \u201cChicken Rice\u201d today.', [], [{ name: 'Chicken Rice' }]);
+    assert.strictEqual(curly.changed, true);
+    assert.ok(!/chicken.?rice/i.test(curly.text));
+});
+
+test('enforceGrounding fails closed when the catalog cannot be loaded', () => {
+    const poisoned = chatModule.enforceGrounding('Try poison soup tonight.', [], null);
+    assert.strictEqual(poisoned.changed, true);
+    assert.ok(!/poison/i.test(poisoned.text));
+
+    const proper = chatModule.enforceGrounding('Try Banh Mi today.', [], null);
+    assert.strictEqual(proper.changed, true);
+    assert.ok(!/banh mi/i.test(proper.text));
+});
+
+test('the route never persists a lower-case dish the tools did not return', async () => {
+    const { user, token } = await makeUserToken();
+    await collections.Dish.create({ name: 'Chicken Rice', name_vi: 'Cơm gà' });
+    let reply = 'Try poison soup.';
+    chatModule.setTestHooks({
+        embedFn: async () => [1, 0, 0, 0],
+        completionFn: async ({ onToken }) => {
+            if (onToken) onToken(reply);
+            return { content: reply, toolCalls: [], tokensIn: 5, tokensOut: 4, model: 'deepseek-v4.1-flash' };
+        }
+    });
+
+    try {
+        for (reply of ['Try poison soup.', 'try chicken rice.']) {
+            const res = await postChat(token, { message: 'What should I cook?', mode: 'cook', locale: 'en' });
+            assert.strictEqual(res.status, 200);
+            const sseText = await res.text();
+            assert.ok(sseText.includes('event: notice'));
+
+            const conversation = await collections.AiConversation.findOne({ user_id: user._id }).lean();
+            const assistant = conversation.messages.filter((entry) => entry.role === 'assistant').pop();
+            assert.ok(!/poison/i.test(assistant.content));
+            assert.ok(!/chicken.?rice/i.test(assistant.content));
+        }
+        const calls = await collections.AiCall.find({ user_id: user._id }).lean();
+        assert.ok(calls.every((row) => !/poison|chicken.?rice/i.test(JSON.stringify(row))));
+    } finally {
+        chatModule.setTestHooks(null);
+    }
+});
+
+test('a catalog read failure drops dish prose instead of persisting it', async () => {
+    const { user, token } = await makeUserToken();
+    chatModule.setTestHooks({
+        embedFn: async () => [1, 0, 0, 0],
+        completionFn: async ({ onToken }) => {
+            const reply = 'Try Banh Mi today.';
+            if (onToken) onToken(reply);
+            return { content: reply, toolCalls: [], tokensIn: 5, tokensOut: 4, model: 'deepseek-v4.1-flash' };
+        }
+    });
+    const originalFind = collections.Dish.find;
+    collections.Dish.find = () => { throw new Error('catalog down'); };
+
+    try {
+        const res = await postChat(token, { message: 'What should I cook?', mode: 'cook', locale: 'en' });
+        assert.strictEqual(res.status, 200);
+        await res.text();
+
+        const conversation = await collections.AiConversation.findOne({ user_id: user._id }).lean();
+        const assistant = conversation.messages.filter((entry) => entry.role === 'assistant').pop();
+        assert.ok(!/banh mi/i.test(assistant.content));
+    } finally {
+        collections.Dish.find = originalFind;
+        chatModule.setTestHooks(null);
+    }
+});
+
+test('abort after the transcript append marks one assistant message stopped', async () => {
+    const { user } = await makeUserToken();
+    const res = fakeStreamResponse();
+    chatModule.setTestHooks({
+        embedFn: async () => [1, 0, 0, 0],
+        completionFn: async ({ onToken }) => {
+            const reply = 'Use what you already have.';
+            if (onToken) onToken(reply);
+            return { content: reply, toolCalls: [], tokensIn: 5, tokensOut: 4, model: 'deepseek-v4.1-flash' };
+        }
+    });
+
+    const originalUpdateOne = collections.AiConversation.updateOne;
+    collections.AiConversation.updateOne = async function patched(filter, update, options) {
+        const result = await originalUpdateOne.call(this, filter, update, options);
+        const pushed = update && update.$push && update.$push.messages && update.$push.messages.$each;
+        if (Array.isArray(pushed) && pushed.some((entry) => entry.role === 'assistant')) {
+            res.emit('close');
+        }
+        return result;
+    };
+
+    try {
+        const outcome = await runDirectChat(user, 'Append then abort', res);
+        assert.strictEqual(outcome, 'stopped');
+
+        const conversation = await collections.AiConversation.findOne({ user_id: user._id }).lean();
+        const assistants = conversation.messages.filter((entry) => entry.role === 'assistant');
+        assert.strictEqual(assistants.length, 1);
+        assert.strictEqual(assistants[0].stopped, true);
+        assert.strictEqual(await collections.AiCall.countDocuments({ user_id: user._id }), 1);
+        assert.strictEqual(await collections.AiCall.countDocuments({ user_id: user._id, status: 'stopped' }), 1);
+    } finally {
+        collections.AiConversation.updateOne = originalUpdateOne;
+        chatModule.setTestHooks(null);
+    }
+});
+
+test('abort right after the provider returns marks the one call stopped', async () => {
+    const { user } = await makeUserToken();
+    const res = fakeStreamResponse();
+    chatModule.setTestHooks({
+        embedFn: async () => [1, 0, 0, 0],
+        completionFn: async () => {
+            res.emit('close');
+            return { content: 'Use what you already have.', toolCalls: [], tokensIn: 5, tokensOut: 4, model: 'deepseek-v4.1-flash' };
+        }
+    });
+
+    try {
+        const outcome = await runDirectChat(user, 'Provider then abort', res);
+        assert.strictEqual(outcome, 'stopped');
+
+        const conversation = await collections.AiConversation.findOne({ user_id: user._id }).lean();
+        const assistants = conversation.messages.filter((entry) => entry.role === 'assistant');
+        assert.strictEqual(assistants.length, 1);
+        assert.strictEqual(assistants[0].stopped, true);
+        assert.strictEqual(await collections.AiCall.countDocuments({ user_id: user._id }), 1);
+        assert.strictEqual(await collections.AiCall.countDocuments({ user_id: user._id, status: 'stopped' }), 1);
+    } finally {
+        chatModule.setTestHooks(null);
+    }
+});
+
+test('a late abort after the metric write converts the call to stopped and frees quota', async () => {
+    const { user, token } = await makeUserToken();
+    const controller = new AbortController();
+    chatModule.setTestHooks({
+        embedFn: async () => [1, 0, 0, 0],
+        completionFn: async ({ onToken }) => {
+            const reply = 'Use what you already have.';
+            if (onToken) onToken(reply);
+            return { content: reply, toolCalls: [], tokensIn: 5, tokensOut: 4, model: 'deepseek-v4.1-flash' };
+        }
+    });
+
+    const originalCreate = collections.AiCall.create;
+    collections.AiCall.create = async function patched(fields) {
+        const created = await originalCreate.call(this, fields);
+        if (fields.status === 'ok') {
+            await sleep(80);
+            controller.abort();
+            await sleep(120);
+        }
+        return created;
+    };
+
+    try {
+        const pending = postChat(token, { message: 'Late metric abort', mode: 'cook', locale: 'en' }, controller.signal);
+        await pending.then((response) => response.text()).catch(() => {});
+
+        await waitFor(async () => (await collections.AiCall.countDocuments({ user_id: user._id, status: 'stopped' })) === 1);
+        assert.strictEqual(await collections.AiCall.countDocuments({ user_id: user._id, status: 'ok' }), 0);
+
+        const conversation = await collections.AiConversation.findOne({ user_id: user._id }).lean();
+        const assistant = conversation.messages.filter((entry) => entry.role === 'assistant').pop();
+        assert.strictEqual(assistant.stopped, true);
+
+        const statusBody = await (await fetch(`${baseUrl}/api/ai/status`, {
+            headers: { cookie: `token=${token}` }
+        })).json();
+        assert.strictEqual(statusBody.quota.used, 0);
+    } finally {
+        collections.AiCall.create = originalCreate;
+        chatModule.setTestHooks(null);
+    }
+});
+
+test('a clean reply streams as several grounded token events that match the transcript', async () => {
+    const { user, token } = await makeUserToken();
+    const dish = await collections.Dish.create({ name: 'Tomato Egg Soup', name_vi: 'Canh trứng cà chua', best_post_id: '' });
+    const post = await collections.DishPost.create({
+        dish_id: String(dish._id),
+        user_id: String(user._id),
+        unique_id: `${dish._id}_${user._id}`,
+        is_best_post: true,
+        name: 'Tomato Egg Soup',
+        name_vi: 'Canh trứng cà chua',
+        short_detail: 'Light soup'
+    });
+    dish.best_post_id = String(post._id);
+    await dish.save();
+
+    let round = 0;
+    const reply = 'Tomato Egg Soup is ready. Serve it warm. Enjoy your meal.';
+    chatModule.setTestHooks({
+        embedFn: async () => [1, 0, 0, 0],
+        completionFn: async ({ onToken }) => {
+            round += 1;
+            if (round === 1) {
+                return {
+                    content: '',
+                    toolCalls: [{ id: 'tc1', name: 'search_dishes', arguments: { query: 'egg', limit: 3 } }],
+                    tokensIn: 10,
+                    tokensOut: 5,
+                    model: 'deepseek-v4.1-flash'
+                };
+            }
+            if (onToken) onToken(reply);
+            return { content: reply, toolCalls: [], tokensIn: 10, tokensOut: 8, model: 'deepseek-v4.1-flash' };
+        }
+    });
+
+    try {
+        const res = await postChat(token, { message: 'What should I cook?', mode: 'cook', locale: 'en' });
+        const events = parseSse(await res.text());
+        const tokens = events.filter((entry) => entry.event === 'token');
+        assert.ok(tokens.length > 1, `expected several token events, got ${tokens.length}`);
+        const streamed = tokens.map((entry) => entry.data.text).join('');
+
+        const conversation = await collections.AiConversation.findOne({ user_id: user._id }).lean();
+        const assistant = conversation.messages.filter((entry) => entry.role === 'assistant').pop();
+        assert.strictEqual(assistant.content, streamed);
+        assert.ok(streamed.includes('Tomato Egg Soup'));
+    } finally {
+        chatModule.setTestHooks(null);
+    }
+});
+
+test('an adversarial reply streams only grounded sentences and persists no invented dish', async () => {
+    const { user, token } = await makeUserToken();
+    const dish = await collections.Dish.create({ name: 'Tomato Egg Soup', name_vi: 'Canh trứng cà chua', best_post_id: '' });
+    const post = await collections.DishPost.create({
+        dish_id: String(dish._id),
+        user_id: String(user._id),
+        unique_id: `${dish._id}_${user._id}`,
+        is_best_post: true,
+        name: 'Tomato Egg Soup',
+        name_vi: 'Canh trứng cà chua',
+        short_detail: 'Light soup'
+    });
+    dish.best_post_id = String(post._id);
+    await dish.save();
+
+    let round = 0;
+    const reply = 'Poison Soup is perfect. Tomato Egg Soup is ready. Serve it warm.';
+    chatModule.setTestHooks({
+        embedFn: async () => [1, 0, 0, 0],
+        completionFn: async ({ onToken }) => {
+            round += 1;
+            if (round === 1) {
+                return {
+                    content: '',
+                    toolCalls: [{ id: 'tc1', name: 'search_dishes', arguments: { query: 'egg', limit: 3 } }],
+                    tokensIn: 10,
+                    tokensOut: 5,
+                    model: 'deepseek-v4.1-flash'
+                };
+            }
+            if (onToken) onToken(reply);
+            return { content: reply, toolCalls: [], tokensIn: 10, tokensOut: 8, model: 'deepseek-v4.1-flash' };
+        }
+    });
+
+    try {
+        const res = await postChat(token, { message: 'What should I cook?', mode: 'cook', locale: 'en' });
+        const events = parseSse(await res.text());
+        assert.ok(events.some((entry) => entry.event === 'notice' && entry.data.code === 'ungrounded'));
+        const tokens = events.filter((entry) => entry.event === 'token');
+        assert.ok(tokens.length > 1);
+        const streamed = tokens.map((entry) => entry.data.text).join('');
+        assert.ok(!/poison/i.test(streamed));
+        assert.ok(streamed.includes('Tomato Egg Soup'));
+
+        const conversation = await collections.AiConversation.findOne({ user_id: user._id }).lean();
+        const assistant = conversation.messages.filter((entry) => entry.role === 'assistant').pop();
+        assert.strictEqual(assistant.content, streamed);
+        assert.ok(!/poison/i.test(assistant.content));
+    } finally {
+        chatModule.setTestHooks(null);
+    }
+});
+
+test('a count failure after the quota increment rolls the reservation back', async () => {
+    const { user } = await makeUserToken();
+    const config = require('../config/ai/config').readConfig();
+    const originalCount = collections.AiCall.countDocuments;
+    collections.AiCall.countDocuments = async () => { throw new Error('count failed'); };
+
+    try {
+        await assert.rejects(chatModule.reserveQuota(user, config), /count failed/);
+    } finally {
+        collections.AiCall.countDocuments = originalCount;
+    }
+
+    const row = await collections.AiQuota.findOne({ user_id: user._id }).lean();
+    assert.ok(row);
+    assert.strictEqual(Number(row.reserved), 0);
+});
+
+test('releaseQuota marks the reservation released only after a successful decrement', async () => {
+    const { user } = await makeUserToken();
+    const reservation = { userId: user._id, day: '2020-01-01', released: false };
+    const originalUpdateOne = collections.AiQuota.updateOne;
+    const originalError = console.error;
+    console.error = () => {};
+    collections.AiQuota.updateOne = async () => { throw new Error('quota down'); };
+
+    try {
+        await chatModule.releaseQuota(reservation);
+        assert.strictEqual(reservation.released, false);
+    } finally {
+        collections.AiQuota.updateOne = originalUpdateOne;
+        console.error = originalError;
+    }
+
+    await collections.AiQuota.create({ user_id: user._id, day: '2020-01-01', reserved: 1 });
+    await chatModule.releaseQuota(reservation);
+    assert.strictEqual(reservation.released, true);
+    const row = await collections.AiQuota.findOne({ user_id: user._id }).lean();
+    assert.strictEqual(Number(row.reserved), 0);
 });
 
 test('overlapping turns append both messages instead of clobbering the transcript', async () => {
