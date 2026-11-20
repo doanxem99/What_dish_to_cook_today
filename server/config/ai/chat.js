@@ -910,12 +910,43 @@ const runChatStream = async ({ res, user, message, mode, modeSource, context = {
 
         if (aborted) return await stopNow();
 
+        //Cook mode must be grounded in a real search even if the model forgot the tool.
+        //A failed catalog read stays fail-closed: no tool, so no dish prose survives.
+        if (mode === 'cook' && catalogNames && !toolResults.some((item) => item.name === 'search_dishes')) {
+            const output = await tools.executeTool('search_dishes', { query: message, limit: 5 }, {
+                capability,
+                userId: user._id,
+                locale,
+                embedFn
+            });
+            if (aborted) return await stopNow();
+            toolResults.push({ name: 'search_dishes', output });
+            const shaped = summarizeTool('search_dishes', output);
+            citations.push(...shaped.citations);
+            toolSummary.push({ name: 'search_dishes', ...shaped.summary });
+            sendEvent('tool', {
+                name: 'search_dishes',
+                summary: shaped.summary,
+                citations: shaped.citations,
+                action: shaped.action
+            });
+        }
+
         content = stream.finish();
         //Whole-text pass for phrases split across chunk boundaries: persist only grounded prose.
         const grounded = enforceGrounding(content, toolResults, catalogNames, catalogIngredients);
         if (grounded.changed) {
             sendEvent('notice', { code: 'ungrounded', dishes: grounded.dishes });
             content = grounded.text;
+        }
+        //A cook answer that names none of the found dishes still gets the shortlist.
+        if (mode === 'cook' && toolResults.some((item) => item.name === 'search_dishes')) {
+            const { shortlist } = collectGrounding(toolResults, catalogNames, catalogIngredients);
+            const named = shortlist.some((name) => normalizeName(content).includes(normalizeName(name)));
+            if (!named && shortlist.length > 0) {
+                content = `${content} ${shortlistLine(shortlist.slice(0, 5))}`.trim();
+                sendEvent('token', { text: ` ${shortlistLine(shortlist.slice(0, 5))}` });
+            }
         }
         if (aborted) return await stopNow();
 
