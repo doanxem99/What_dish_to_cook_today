@@ -922,3 +922,172 @@ test('overlapping turns append both messages instead of clobbering the transcrip
 
     chatModule.setTestHooks(null);
 });
+
+test('no mode is inferred from the message and shows in meta and on the call', async () => {
+    const { user, token } = await makeUserToken();
+    chatModule.setTestHooks({
+        embedFn: async () => [1, 0, 0, 0],
+        completionFn: async ({ onToken }) => {
+            if (onToken) onToken('Add it from the dish editor.');
+            return {
+                content: 'Add it from the dish editor.',
+                toolCalls: [],
+                tokensIn: 5,
+                tokensOut: 4,
+                model: 'deepseek-v4.1-flash'
+            };
+        }
+    });
+
+    try {
+        const res = await postChat(token, { message: 'How do I add a new dish and comment on a post?', locale: 'en' });
+        assert.strictEqual(res.status, 200);
+        const frames = parseSse(await res.text());
+        const meta = frames.find((entry) => entry.event === 'meta');
+        assert.strictEqual(meta.data.mode, 'help');
+        assert.strictEqual(meta.data.mode_source, 'rules');
+
+        const callDoc = await collections.AiCall.findOne({ user_id: user._id }).lean();
+        assert.strictEqual(callDoc.mode, 'help');
+        assert.strictEqual(callDoc.mode_source, 'rules');
+
+        const conversation = await collections.AiConversation.findOne({ user_id: user._id }).lean();
+        assert.strictEqual(conversation.messages[0].mode, 'help');
+        assert.strictEqual(conversation.messages[0].mode_source, 'rules');
+    } finally {
+        chatModule.setTestHooks(null);
+    }
+});
+
+test('an explicit mode keeps mode_source user', async () => {
+    const { user, token } = await makeUserToken();
+    chatModule.setTestHooks({
+        embedFn: async () => [1, 0, 0, 0],
+        completionFn: async ({ onToken }) => {
+            if (onToken) onToken('Add it from the dish editor.');
+            return {
+                content: 'Add it from the dish editor.',
+                toolCalls: [],
+                tokensIn: 5,
+                tokensOut: 4,
+                model: 'deepseek-v4.1-flash'
+            };
+        }
+    });
+
+    try {
+        const res = await postChat(token, { message: 'How do I add a new dish?', mode: 'cook', locale: 'en' });
+        const frames = parseSse(await res.text());
+        const meta = frames.find((entry) => entry.event === 'meta');
+        assert.strictEqual(meta.data.mode, 'cook');
+        assert.strictEqual(meta.data.mode_source, 'user');
+
+        const callDoc = await collections.AiCall.findOne({ user_id: user._id }).lean();
+        assert.strictEqual(callDoc.mode, 'cook');
+        assert.strictEqual(callDoc.mode_source, 'user');
+    } finally {
+        chatModule.setTestHooks(null);
+    }
+});
+
+test('walkthrough pre-calls get_dish for a dish named in the message', async () => {
+    const { user, token } = await makeUserToken();
+    const dish = await collections.Dish.create({ name: 'Tomato Egg Soup', name_vi: 'Canh trứng cà chua', best_post_id: '' });
+    const post = await collections.DishPost.create({
+        dish_id: String(dish._id),
+        user_id: String(user._id),
+        unique_id: `${dish._id}_${user._id}`,
+        is_best_post: true,
+        name: 'Tomato Egg Soup',
+        name_vi: 'Canh trứng cà chua',
+        short_detail: 'Light soup',
+        display_blocks: [{ type: 'text', text: 'Boil water and add egg.', text_vi: 'Đun nước rồi cho trứng.' }]
+    });
+    dish.best_post_id = String(post._id);
+    await dish.save();
+
+    let seen = null;
+    chatModule.setTestHooks({
+        embedFn: async () => [1, 0, 0, 0],
+        completionFn: async ({ messages, onToken }) => {
+            seen = messages;
+            if (onToken) onToken('Boil water and add egg.');
+            return {
+                content: 'Boil water and add egg.',
+                toolCalls: [],
+                tokensIn: 5,
+                tokensOut: 4,
+                model: 'deepseek-v4.1-flash'
+            };
+        }
+    });
+
+    try {
+        const res = await postChat(token, { message: 'How do I cook Tomato Egg Soup step by step?', locale: 'en' });
+        assert.strictEqual(res.status, 200);
+        const frames = parseSse(await res.text());
+        const meta = frames.find((entry) => entry.event === 'meta');
+        assert.strictEqual(meta.data.mode, 'walkthrough');
+        assert.strictEqual(meta.data.mode_source, 'rules');
+        const toolFrame = frames.find((entry) => entry.event === 'tool');
+        assert.strictEqual(toolFrame.data.name, 'get_dish');
+        assert.ok(toolFrame.data.citations.some((row) => row.name === 'Tomato Egg Soup'));
+
+        const system = seen.find((entry) => entry.role === 'system');
+        assert.ok(system.content.includes('already loaded'));
+        const toolMessage = seen.find((entry) => entry.role === 'tool');
+        assert.ok(toolMessage);
+        assert.ok(toolMessage.content.includes('Tomato Egg Soup'));
+        const call = seen.find((entry) => entry.role === 'assistant' && entry.tool_calls);
+        assert.strictEqual(call.tool_calls[0].function.name, 'get_dish');
+    } finally {
+        chatModule.setTestHooks(null);
+    }
+});
+
+test('walkthrough with no known dish asks which dish instead of pre-calling', async () => {
+    const { user, token } = await makeUserToken();
+    await collections.Dish.create({ name: 'Fried Rice', name_vi: 'Cơm chiên' });
+
+    let seen = null;
+    chatModule.setTestHooks({
+        embedFn: async () => [1, 0, 0, 0],
+        completionFn: async ({ messages, onToken }) => {
+            seen = messages;
+            if (onToken) onToken('Which dish do you mean?');
+            return {
+                content: 'Which dish do you mean?',
+                toolCalls: [],
+                tokensIn: 5,
+                tokensOut: 4,
+                model: 'deepseek-v4.1-flash'
+            };
+        }
+    });
+
+    try {
+        const res = await postChat(token, { message: 'How do I cook this dish step by step?', locale: 'en' });
+        const frames = parseSse(await res.text());
+        assert.ok(!frames.some((entry) => entry.event === 'tool' && entry.data.name === 'get_dish'));
+        assert.ok(!seen.some((entry) => entry.role === 'tool'));
+        const system = seen.find((entry) => entry.role === 'system');
+        assert.ok(system.content.includes('ask which catalog dish'));
+    } finally {
+        chatModule.setTestHooks(null);
+    }
+});
+
+test('an unknown explicit mode still answers 400', async () => {
+    const { token } = await makeUserToken();
+    const res = await postChat(token, { message: 'Anything', mode: 'chaos' });
+    assert.strictEqual(res.status, 400);
+    const body = await res.json();
+    assert.strictEqual(body.error.code, 'invalid_mode');
+});
+
+test('the system prompt names the first tool for cook and help', () => {
+    const cook = chatModule.buildSystemPrompt({ mode: 'cook', locale: 'en' });
+    assert.ok(cook.includes('Start with search_dishes'));
+    const help = chatModule.buildSystemPrompt({ mode: 'help', locale: 'en' });
+    assert.ok(help.includes('Start with get_help'));
+});

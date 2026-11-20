@@ -235,6 +235,7 @@ const AiConversation = mongoose.model('ai_conversation', {
         role : String,
         content : String,
         mode : String,
+        mode_source : String,
         citations : Array,
         tool_summary : Object,
         stopped : Boolean,
@@ -258,6 +259,10 @@ const AiCall = mongoose.model('ai_call', {
     provider : String,
     model : String,
     mode : String,
+    mode_source : {
+        type : String,
+        default : 'user'
+    },
     capability : String,
     latency_ms : Number,
     tokens_in : Number,

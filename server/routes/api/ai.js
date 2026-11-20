@@ -51,14 +51,23 @@ router.post('/chat', verifyToken, wrap(async (req, res) => {
     const user = req.current_user;
     const body = req.body || {};
     const message = typeof body.message === 'string' ? body.message.trim() : '';
-    const mode = body.mode;
+    //An empty mode means "infer it"; any other value must be a known mode.
+    const mode = body.mode === '' || body.mode === null ? undefined : body.mode;
     const capability = body.capability || user.ai_capability || 'read_only';
     const locale = body.locale || 'en';
+    //The client sends only facts the server cannot see: the open dish and the pantry size.
+    const context = {};
+    if (body.dish_id !== undefined && body.dish_id !== null && body.dish_id !== '') {
+        context.dish_id = String(body.dish_id);
+    }
+    if (body.pantry_count !== undefined && body.pantry_count !== null && Number.isFinite(Number(body.pantry_count))) {
+        context.pantry_count = Number(body.pantry_count);
+    }
 
     if (message.length < 1 || message.length > MAX_MESSAGE_LENGTH) {
         return fail(res, 400, 'invalid_message', `message must be 1-${MAX_MESSAGE_LENGTH} characters`);
     }
-    if (!MODES.includes(mode)) {
+    if (mode !== undefined && !MODES.includes(mode)) {
         return fail(res, 400, 'invalid_mode', 'mode must be cook, walkthrough or help');
     }
     if (!CAPABILITIES.includes(capability)) {
@@ -86,7 +95,7 @@ router.post('/chat', verifyToken, wrap(async (req, res) => {
         return fail(res, 429, 'quota_reached', 'Daily AI message limit reached', { resets_at: quota.resets_at });
     }
     try {
-        await chat.runChatStream({ res, user, message, mode, capability, locale, config, req });
+        await chat.runChatStream({ res, user, message, mode, context, capability, locale, config, req });
     } finally {
         await chat.releaseQuota(reservation);
     }
@@ -101,6 +110,7 @@ router.get('/conversation', verifyToken, wrap(async (req, res) => {
             role: entry.role,
             content: entry.content || '',
             mode: entry.mode || '',
+            mode_source: entry.mode_source || '',
             citations: entry.citations || [],
             tool_summary: entry.tool_summary || null,
             stopped: entry.stopped === true,
