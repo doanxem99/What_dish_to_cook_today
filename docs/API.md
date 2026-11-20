@@ -122,22 +122,29 @@ maintenance gate answers 503 like any other public `/api/*` route. Errors use
 | Method | Path | Body / query | Answer |
 |---|---|---|---|
 | GET | `/status` | - | `{enabled, capability, quota:{used, limit, remaining, resets_at}}` |
-| POST | `/chat` | `{message, mode, capability, locale}` | SSE stream, see below; 400 bad input, 403 `ai_disabled` (switch, user, or budget), 429 `quota_reached` with `resets_at` |
-| GET | `/conversation` | - | `{messages, capability, quota}`; each message carries `role, content, mode, citations, tool_summary, stopped, created_at` |
+| POST | `/chat` | `{message, mode?, capability, locale, dish_id?, pantry_count?}` | SSE stream, see below; 400 bad input, 403 `ai_disabled` (switch, user, or budget), 429 `quota_reached` with `resets_at` |
+| GET | `/conversation` | - | `{messages, capability, quota}`; each message carries `role, content, mode, mode_source, citations, tool_summary, stopped, created_at` |
 | DELETE | `/conversation` | - | `{status:"ok"}` |
 | POST | `/capability` | `{capability}` | `{status:"ok", capability}`; 400 for an unknown level |
 | POST | `/events` | `{type, target_id, dish_post_id?}` | `{status:"ok"}`; `type` is `dish_viewed`, `dish_cooked` or `ingredient_picked`; 400 when the target does not resolve |
 | GET | `/events` | `?page=` | `{rows, total, page}`, 25 per page, newest first, names hydrated |
 | DELETE | `/events` | - | `{status:"ok", deleted}` |
 
-`POST /chat` accepts `mode` `cook`, `walkthrough` or `help`, `capability` `read_only`, `prepare`
-or `act_freely`, `locale` `en` or `vi`, and a message of 1-2000 characters after trim.
+`POST /chat` accepts an optional `mode` (`cook`, `walkthrough`, `help`), `capability`
+(`read_only`, `prepare`, `act_freely`), `locale` (`en`, `vi`), a message of 1-2000 characters
+after trim, and optional `dish_id` / `pantry_count` context.
+
+Omit `mode` and the server infers it: keyword rules first, then cosine similarity against
+per-mode prototype sentences with the same `bge-m3` embeddings, then a context default. The
+resolved mode and where it came from (`rules`, `embedding`, `default`, or `user` when the client
+sent one) travel in the `meta` frame and are stored on the call. `walkthrough` pre-fetches
+`get_dish` when the message or `dish_id` resolves a catalog dish.
 
 The answer is `text/event-stream` with named frames:
 
 | Event | Data |
 |---|---|
-| `meta` | `{embed_down, tool_summary}` - `embed_down` true means Ollama was unreachable and retrieval fell back to tools |
+| `meta` | `{mode, mode_source, embed_down, tool_summary}` - `embed_down` true means Ollama was unreachable and retrieval fell back to tools |
 | `tool` | `{name, summary, citations, action}` - one per executed tool; citations carry validated dish or ingredient ids |
 | `token` | `{text}` - reply delta |
 | `done` | `{citations, actions, quota}` - terminal frame on success |
