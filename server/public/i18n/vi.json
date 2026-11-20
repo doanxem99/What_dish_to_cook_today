@@ -370,7 +370,7 @@
   "admin.ai.cost": "Chi phí",
   "admin.ai.status": "Trạng thái",
   "admin.ai.switchLabel": "Bật lời gọi AI",
-  "admin.ai.switchNote": "AI được bật bằng biến AI_ENABLED trên máy chủ. Công tắc này hoạt động khi có nhà cung cấp AI.",
+  "admin.ai.switchNote": "AI được bật bằng AI_ENABLED trên máy chủ. Giới hạn từng người nằm trong Người dùng.",
   "nav.ask": "Hỏi",
   "ask.title": "Hỏi trợ lý nấu ăn",
   "ask.subtitle": "Tìm món, xem cách nấu hoặc hỏi cách dùng trang.",
