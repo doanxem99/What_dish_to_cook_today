@@ -4,12 +4,17 @@ import { parseSseBuffer } from '../components/ask_format.js'
 
 //The stream reader is a plain fetch: the shared api client reads whole bodies and SSE must
 //stay incremental. Aborting the controller also closes the server request, so quota is kept.
-async function streamChat({ message, mode, capability, locale, signal, onEvent }) {
+async function streamChat({ message, mode, capability, locale, dishId, pantryCount, signal, onEvent }) {
+    //`mode` is omitted unless the user overrode the inferred goal; the server then infers it.
+    //dish_id and pantry_count are the two facts the server cannot see itself.
+    const body = { message, mode, capability, locale }
+    if (dishId) body.dish_id = dishId
+    if (typeof pantryCount === 'number') body.pantry_count = pantryCount
     const response = await fetch(serverBase() + '/api/ai/chat', {
         method: 'POST',
         credentials: 'include',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ message, mode, capability, locale }),
+        body: JSON.stringify(body),
         signal
     })
 

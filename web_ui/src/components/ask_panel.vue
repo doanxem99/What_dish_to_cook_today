@@ -4,16 +4,18 @@ import { useAuthStore } from '../assets/store/auth_store'
 import { usePantryStore } from '../assets/store/pantry_store'
 import { useI18n } from '../i18n'
 import {
+  ASK_MODES,
   actionLink,
   citationHref,
+  dishIdFromRoute,
   errorStateKey,
   mergeCitations,
+  modeChip,
   toolSummaryKey,
   toolSummaryParams,
   validateMessageInput
 } from './ask_format.js'
 
-const MODES = ['cook', 'walkthrough', 'help']
 const CAPABILITIES = ['read_only', 'prepare', 'act_freely']
 
 const historyTools = entry => (Array.isArray(entry.tool_summary) ? entry.tool_summary : []).map((tool) => {
@@ -28,7 +30,9 @@ const historyMessage = (entry) => ({
   tools: historyTools(entry),
   actions: [],
   stopped: entry.stopped === true,
-  empty: false
+  empty: false,
+  goal: entry.role === 'user' ? null : modeChip(entry.mode, entry.mode_source),
+  goalOpen: false
 })
 
 const isAbort = error => Boolean(error && (error.name === 'AbortError' || error.code === 20))
@@ -44,7 +48,6 @@ export default {
       quota: null,
       messages: [],
       draft: '',
-      mode: 'cook',
       capability: 'read_only',
       capabilitySaved: 'read_only',
       streaming: false,
@@ -55,7 +58,7 @@ export default {
       controller: null,
       lastFocus: null,
       previousOverflow: '',
-      modes: MODES,
+      modes: ASK_MODES,
       capabilities: CAPABILITIES
     }
   },
@@ -65,6 +68,7 @@ export default {
     auth() { return useAuthStore() },
     pantry() { return usePantryStore() },
     signedOut() { return !this.auth.isLogin },
+    dishId() { return dishIdFromRoute(this.$route) },
     quotaReached() {
       return Boolean(this.quota && Number(this.quota.remaining) <= 0)
     },
@@ -188,10 +192,29 @@ export default {
       if (!this.canSend) return
       const text = this.draft.trim()
       this.draft = ''
+      await this.run(text)
+    },
+    //The chip re-sends the message that produced this answer with an explicit goal, so the
+    //answer is regenerated and the server records that the user chose the mode.
+    async changeGoal(message, mode) {
+      message.goalOpen = false
+      if (this.streaming || !this.enabled || this.quotaReached) return
+      const index = this.messages.indexOf(message)
+      const source = this.messages.slice(0, index).reverse().find(entry => entry.role === 'user')
+      if (!source || !source.content) return
+      await this.run(source.content, mode)
+    },
+    toggleGoal(message) {
+      const next = !message.goalOpen
+      for (const entry of this.messages) entry.goalOpen = false
+      message.goalOpen = next
+    },
+    async run(text, mode) {
+      if (this.streaming || !this.enabled || this.quotaReached) return
       this.errorKey = ''
       this.embedDown = false
-      const userMessage = { role: 'user', content: text, citations: [], tools: [], actions: [], stopped: false, empty: false }
-      const assistant = { role: 'assistant', content: '', citations: [], tools: [], actions: [], stopped: false, empty: false }
+      const userMessage = { role: 'user', content: text, citations: [], tools: [], actions: [], stopped: false, empty: false, goal: null, goalOpen: false }
+      const assistant = { role: 'assistant', content: '', citations: [], tools: [], actions: [], stopped: false, empty: false, goal: null, goalOpen: false }
       this.messages.push(userMessage, assistant)
       this.thinking = true
       this.streaming = true
@@ -201,9 +224,11 @@ export default {
       try {
         await aiApi.streamChat({
           message: text,
-          mode: this.mode,
+          mode,
           capability: this.capability,
           locale: this.locale,
+          dishId: this.dishId,
+          pantryCount: this.pantry.total,
           signal: this.controller.signal,
           onEvent: event => this.handleEvent(event, assistant)
         })
@@ -230,6 +255,7 @@ export default {
     handleEvent({ event, data }, assistant) {
       if (event === 'meta') {
         this.embedDown = Boolean(data && data.embed_down)
+        assistant.goal = modeChip(data && data.mode, data && data.mode_source)
         return
       }
       if (event === 'token') {
@@ -355,17 +381,6 @@ export default {
       </header>
 
       <div class="ask-controls">
-        <div class="ask-mode" role="group" :aria-label="t('ask.modeLabel')">
-          <button
-            v-for="item in modes"
-            :key="item"
-            class="chip"
-            :class="{ 'chip-chosen': mode === item }"
-            type="button"
-            :aria-pressed="mode === item"
-            @click="mode = item"
-          >{{ t('ask.mode.' + item) }}</button>
-        </div>
         <label class="ask-capability">
           <span class="eyebrow">{{ t('ask.capabilityLabel') }}</span>
           <select v-model="capability" class="input" :disabled="signedOut || streaming" @change="changeCapability">
@@ -401,6 +416,32 @@ export default {
             :class="message.role === 'user' ? 'is-user' : 'is-assistant'"
           >
             <p class="eyebrow">{{ message.role === 'user' ? t('ask.you') : t('ask.assistant') }}</p>
+
+            <div v-if="message.goal" class="ask-goal">
+              <button
+                class="chip ask-goal-toggle"
+                type="button"
+                :aria-expanded="message.goalOpen"
+                :aria-label="t('ask.mode.change') + ': ' + t(message.goal.labelKey)"
+                :disabled="streaming"
+                @click="toggleGoal(message)"
+              >
+                {{ t(message.goal.labelKey) }}
+                <span class="ask-goal-caret" aria-hidden="true"></span>
+              </button>
+              <ul v-if="message.goalOpen" class="ask-goal-menu">
+                <li v-for="item in modes" :key="item">
+                  <button
+                    class="chip"
+                    :class="{ 'chip-chosen': message.goal.labelKey === 'ask.mode.' + item }"
+                    type="button"
+                    @click="changeGoal(message, item)"
+                  >{{ t('ask.mode.' + item) }}</button>
+                </li>
+              </ul>
+              <p v-if="message.goal.noticeKey" class="ask-note">{{ t(message.goal.noticeKey) }}</p>
+            </div>
+
             <p v-if="message.content" class="ask-text">{{ message.content }}</p>
             <p v-else-if="message.empty" class="ask-note">{{ t('ask.emptyAnswer') }}</p>
             <p
@@ -597,10 +638,27 @@ export default {
   border-bottom: 1px solid var(--board-line);
 }
 
-.ask-mode {
+.ask-goal {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.ask-goal-caret {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+}
+
+.ask-goal-menu {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .ask-capability {

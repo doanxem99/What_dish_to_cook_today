@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { citationHref, parseSseBuffer, parseSseChunk, validateMessageInput } from './ask_format.js'
+import { citationHref, dishIdFromRoute, modeChip, parseSseBuffer, parseSseChunk, validateMessageInput } from './ask_format.js'
 
 const catalogueDir = path.resolve(process.cwd(), '../server/public/i18n')
 const read = lang => JSON.parse(fs.readFileSync(path.join(catalogueDir, `${lang}.json`), 'utf8'))
@@ -17,6 +17,8 @@ describe('ask assistant format and i18n parity', () => {
       'ask.mode.cook',
       'ask.mode.walkthrough',
       'ask.mode.help',
+      'ask.mode.change',
+      'ask.mode.overridden',
       'ask.capability.read_only',
       'ask.capability.prepare',
       'ask.capability.act_freely',
@@ -80,5 +82,24 @@ describe('ask assistant format and i18n parity', () => {
     expect(validateMessageInput('What can I cook?')).toBe(true)
     expect(validateMessageInput('x'.repeat(2000))).toBe(true)
     expect(validateMessageInput('x'.repeat(2001))).toBe(false)
+  })
+
+  it('shows a goal chip only for an inferred mode it knows, and marks a user override', () => {
+    expect(modeChip('cook', 'rules')).toEqual({ labelKey: 'ask.mode.cook', noticeKey: '' })
+    expect(modeChip('walkthrough', 'embedding')).toEqual({ labelKey: 'ask.mode.walkthrough', noticeKey: '' })
+    expect(modeChip('help', 'default')).toEqual({ labelKey: 'ask.mode.help', noticeKey: '' })
+    expect(modeChip('cook', 'user')).toEqual({ labelKey: 'ask.mode.cook', noticeKey: 'ask.mode.overridden' })
+    expect(modeChip('', '')).toBeNull()
+    expect(modeChip(undefined, undefined)).toBeNull()
+    expect(modeChip('translate', 'rules')).toBeNull()
+  })
+
+  it('takes the open dish id only from a dish detail page', () => {
+    const id = '64b000000000000000000001'
+    expect(dishIdFromRoute({ path: '/dish_detail', query: { dish_id: id } })).toBe(id)
+    expect(dishIdFromRoute({ path: '/dish_detail', query: { dish_post_id: id } })).toBe('')
+    expect(dishIdFromRoute({ path: '/dish_detail', query: { dish_id: 'javascript:alert(1)' } })).toBe('')
+    expect(dishIdFromRoute({ path: '/dishes', query: { dish_id: id } })).toBe('')
+    expect(dishIdFromRoute(null)).toBe('')
   })
 })

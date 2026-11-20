@@ -108,3 +108,30 @@ rolls back a reservation on any post-increment failure.
 
 Final counts after both rounds: server 203 tests, web 75, Flutter 77, self-check 68, detector 0
 findings, compose config valid.
+
+## Intent inference: Vue half (2026-11-20)
+
+Plan: [2026-11-20-intent-inference.md](../superpowers/plans/2026-11-20-intent-inference.md).
+Server inference shipped in `82180ee`. This section covers the client half only.
+
+Goal: one input and one Send; the server infers cook, walkthrough or help, and the panel shows
+the guess as an editable chip above the answer.
+
+Files:
+
+- `web_ui/src/components/ask_format.js` — `ASK_MODES`, `modeChip(mode, source)` returns
+  `{ labelKey, noticeKey }` for a known mode and `null` for an unknown one, so no chip is guessed;
+  `dishIdFromRoute(route)` returns the validated `dish_id` query value on `/dish_detail`, else `''`.
+- `web_ui/src/api/ai.js` — `streamChat` sends `mode` only when given (JSON drops `undefined`), and
+  flat `dish_id` / `pantry_count` fields, which is what `server/routes/api/ai.js` reads.
+- `web_ui/src/components/ask_panel.vue` — mode chips removed; each assistant turn stores `goal`
+  from the SSE `meta` event; the chip opens the three labels and re-sends the last user message
+  with an explicit mode.
+- `server/public/i18n/{en,vi}.json` — `ask.mode.change` and `ask.mode.overridden`; `ask.modeLabel`
+  removed (the group it labelled is gone).
+
+Deviation: the plan lists `override: true` on the route, but the shipped server has no such field.
+The route treats any explicit `mode` as `mode_source: 'user'`, so the override sends `mode` alone.
+
+Verification: `npx vitest run` in `web_ui` — 77 passed (75 before, two helper tests added);
+`npm test` in `server` — 217 passed, unchanged; `npm run build` refreshed `server/web_ui`.

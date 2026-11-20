@@ -4,6 +4,8 @@
 const OBJECT_ID = /^[a-f0-9]{24}$/i
 const SAFE_ACTION_LINK = /^\/(?:dish_detail\?dish_id=|ingredient_detail\?ingredient_id=)[a-f0-9]{24}$/i
 
+export const ASK_MODES = ['cook', 'walkthrough', 'help']
+
 const TOOL_KEYS = {
     search_dishes: 'ask.tool.searchDishes',
     get_dish: 'ask.tool.getDish',
@@ -23,6 +25,23 @@ const EVENT_KEYS = {
 export function validateMessageInput(text) {
     const value = typeof text === 'string' ? text.trim() : ''
     return value.length >= 1 && value.length <= 2000
+}
+
+//The chip is the only place the inferred goal is shown. An unknown or missing mode yields no
+//chip at all: the panel must never guess while the server has not spoken.
+export function modeChip(mode, source) {
+    if (!ASK_MODES.includes(mode)) return null
+    return {
+        labelKey: 'ask.mode.' + mode,
+        noticeKey: source === 'user' ? 'ask.mode.overridden' : ''
+    }
+}
+
+//Only the open catalog dish is a fact the server cannot see. A post id does not resolve here.
+export function dishIdFromRoute(route) {
+    if (!route || route.path !== '/dish_detail') return ''
+    const id = String((route.query && route.query.dish_id) || '')
+    return OBJECT_ID.test(id) ? id : ''
 }
 
 export function citationHref(citation) {
