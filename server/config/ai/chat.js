@@ -494,6 +494,10 @@ const stripMarkup = (value) => String(value || '')
     .replace(/\(\s*\)/g, '')
     .replace(/[ \t]{2,}/g, ' ');
 
+//Models sometimes narrate their own rules ("I shouldn't write URLs..."). That
+//sentence is noise for the cook and reveals the prompt, so it is dropped.
+const META_SENTENCE = /\b(i should(?:n't| not)|my instructions|system (?:message|prompt)|the interface (?:turns|renders)|let me redo|as an ai)\b/i;
+
 const tidyText = (value) => stripMarkup(value)
     .replace(/\s{2,}/g, ' ')
     .replace(/\s+([.,!?;:])/g, '$1')
@@ -512,7 +516,12 @@ const enforceGrounding = (text, toolResults, catalogNames, catalogIngredients) =
     const dishes = shortlist.slice(0, 5);
     const removed = [];
     const kept = [];
+    let metaDropped = false;
     for (const sentence of original.split(/(?<=[.!?\u2026])\s+/u)) {
+        if (META_SENTENCE.test(sentence)) {
+            metaDropped = true;
+            continue;
+        }
         const bad = ungroundedMentions(sentence, allowed, catalog, catalogKnown, catalogPhrases);
         if (bad.length > 0) {
             removed.push(...bad);
@@ -520,12 +529,12 @@ const enforceGrounding = (text, toolResults, catalogNames, catalogIngredients) =
         }
         kept.push(sentence);
     }
-    if (removed.length === 0) {
+    if (removed.length === 0 && !metaDropped) {
         return { text: original, changed: false, removed: [], dishes };
     }
     const body = tidyText(kept.join(' '));
     return {
-        text: tidyText([body, shortlistLine(dishes)].filter(Boolean).join(' ')),
+        text: tidyText([body, removed.length > 0 ? shortlistLine(dishes) : ''].filter(Boolean).join(' ')),
         changed: true,
         removed,
         dishes
@@ -544,6 +553,7 @@ const createGroundedStream = ({ toolResults, catalogNames, catalogIngredients, e
     const flush = (raw) => {
         const chunk = stripMarkup(raw);
         if (!chunk.trim()) return;
+        if (META_SENTENCE.test(chunk)) return;
         const { shortlist, allowed, catalog, catalogKnown, catalogPhrases } = collectGrounding(toolResults, catalogNames, catalogIngredients);
         const removed = ungroundedMentions(chunk, allowed, catalog, catalogKnown, catalogPhrases);
         if (removed.length > 0) {
