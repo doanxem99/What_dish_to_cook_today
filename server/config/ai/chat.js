@@ -311,7 +311,7 @@ const rowNameVi = (row) => (row && typeof row === 'object' ? String(row.name_vi 
 
 //Dishes that a tool really returned; only these may be named in a reply.
 //A null catalog means the read failed, so the rules below fail closed.
-const collectGrounding = (toolResults, catalogNames) => {
+const collectGrounding = (toolResults, catalogNames, catalogIngredients) => {
     const shortlist = [];
     const seen = new Set();
     const allowed = new Set();
@@ -343,6 +343,14 @@ const collectGrounding = (toolResults, catalogNames) => {
             if (!key) continue;
             catalog.add(key);
             catalogPhrases.push({ name: value, key });
+        }
+    }
+    //Ingredients are facts too: a reply may name "chicken" without the tools
+    //returning it as a dish, and that must not count as an invented dish.
+    for (const row of Array.isArray(catalogIngredients) ? catalogIngredients : []) {
+        for (const value of [rowName(row), rowNameVi(row)]) {
+            const key = normalizeName(value);
+            if (key) allowed.add(key);
         }
     }
     return { shortlist, allowed, catalog, catalogKnown, catalogPhrases };
@@ -440,9 +448,9 @@ const shortlistLine = (dishes) => (dishes.length > 0
 
 //Every sentence is kept whole or dropped whole: stripping a name mid-sentence
 //leaves broken prose, which reads worse than losing the sentence.
-const enforceGrounding = (text, toolResults, catalogNames) => {
+const enforceGrounding = (text, toolResults, catalogNames, catalogIngredients) => {
     const original = String(text || '');
-    const { shortlist, allowed, catalog, catalogKnown, catalogPhrases } = collectGrounding(toolResults, catalogNames);
+    const { shortlist, allowed, catalog, catalogKnown, catalogPhrases } = collectGrounding(toolResults, catalogNames, catalogIngredients);
     const dishes = shortlist.slice(0, 5);
     const removed = [];
     const kept = [];
@@ -470,14 +478,14 @@ const CHUNK_LIMIT = 40;
 
 //Streams whole sentences as soon as they pass the same grounding rule as the
 //final text. A failing sentence is replaced once by the grounded shortlist.
-const createGroundedStream = ({ toolResults, catalogNames, emitToken, emitNotice }) => {
+const createGroundedStream = ({ toolResults, catalogNames, catalogIngredients, emitToken, emitNotice }) => {
     let buffer = '';
     let emitted = '';
     let recoverySent = false;
 
     const flush = (chunk) => {
         if (!chunk) return;
-        const { shortlist, allowed, catalog, catalogKnown, catalogPhrases } = collectGrounding(toolResults, catalogNames);
+        const { shortlist, allowed, catalog, catalogKnown, catalogPhrases } = collectGrounding(toolResults, catalogNames, catalogIngredients);
         const removed = ungroundedMentions(chunk, allowed, catalog, catalogKnown, catalogPhrases);
         if (removed.length > 0) {
             if (!recoverySent) {
@@ -663,10 +671,13 @@ const runChatStream = async ({ res, user, message, mode, capability, locale, con
 
         //A failed catalog read leaves this null, and grounding then fails closed.
         let catalogNames = null;
+        let catalogIngredients = null;
         try {
             catalogNames = await collections.Dish.find({}, 'name name_vi').lean();
+            catalogIngredients = await collections.Ingredient.find({}, 'name name_vi').lean();
         } catch (error) {
             catalogNames = null;
+            catalogIngredients = null;
         }
         if (aborted) return await stopNow();
 
@@ -682,6 +693,7 @@ const runChatStream = async ({ res, user, message, mode, capability, locale, con
         stream = createGroundedStream({
             toolResults,
             catalogNames,
+            catalogIngredients,
             emitToken: (text) => {
                 content += text;
                 sendEvent('token', { text });
@@ -764,7 +776,7 @@ const runChatStream = async ({ res, user, message, mode, capability, locale, con
 
         content = stream.finish();
         //Whole-text pass for phrases split across chunk boundaries: persist only grounded prose.
-        const grounded = enforceGrounding(content, toolResults, catalogNames);
+        const grounded = enforceGrounding(content, toolResults, catalogNames, catalogIngredients);
         if (grounded.changed) {
             sendEvent('notice', { code: 'ungrounded', dishes: grounded.dishes });
             content = grounded.text;
