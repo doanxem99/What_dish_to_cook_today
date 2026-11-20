@@ -421,6 +421,7 @@ export default {
                   v-if="citationHref(citation)"
                   class="chip"
                   :to="citationHref(citation)"
+                  @click="closePanel"
                 >{{ citationName(citation) }}</router-link>
               </li>
             </ul>
