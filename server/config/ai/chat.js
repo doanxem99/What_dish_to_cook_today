@@ -335,15 +335,23 @@ const collectGrounding = (toolResults, catalogNames, catalogIngredients) => {
     const catalogKnown = Array.isArray(catalogNames);
     const catalog = new Set();
     const catalogPhrases = [];
+    const aliases = new Map();
     for (const row of catalogKnown ? catalogNames : []) {
         const name = rowName(row);
         const nameVi = rowNameVi(row);
+        const aliasKey = normalizeName(name);
         for (const value of [name, nameVi]) {
             const key = normalizeName(value);
             if (!key) continue;
             catalog.add(key);
             catalogPhrases.push({ name: value, key });
+            if (nameVi) aliases.set(aliasKey, nameVi);
         }
+    }
+    //A tool returns the English dish name; its Vietnamese name is the same dish.
+    for (const key of [...allowed]) {
+        const nameVi = aliases.get(key);
+        if (nameVi) allowed.add(normalizeName(nameVi));
     }
     //Ingredients are facts too: a reply may name "chicken" without the tools
     //returning it as a dish, and that must not count as an invented dish.
@@ -436,7 +444,15 @@ const mentionPattern = (mention) => {
     );
 };
 
-const tidyText = (value) => String(value || '')
+//Models still emit markdown links and bare URLs despite the instructions. The
+//interface renders its own links, so the prose keeps only the label.
+const stripMarkup = (value) => String(value || '')
+    .replace(/\[([^\]\n]{1,120})\]\((?:[^)\s]+)\)/g, '$1')
+    .replace(/https?:\/\/[^\s)]+/gi, '')
+    .replace(/\(\s*\)/g, '')
+    .replace(/[ \t]{2,}/g, ' ');
+
+const tidyText = (value) => stripMarkup(value)
     .replace(/\s{2,}/g, ' ')
     .replace(/\s+([.,!?;:])/g, '$1')
     .replace(/([.!?])\s*([.!?])/g, '$1')
@@ -483,8 +499,9 @@ const createGroundedStream = ({ toolResults, catalogNames, catalogIngredients, e
     let emitted = '';
     let recoverySent = false;
 
-    const flush = (chunk) => {
-        if (!chunk) return;
+    const flush = (raw) => {
+        const chunk = stripMarkup(raw);
+        if (!chunk.trim()) return;
         const { shortlist, allowed, catalog, catalogKnown, catalogPhrases } = collectGrounding(toolResults, catalogNames, catalogIngredients);
         const removed = ungroundedMentions(chunk, allowed, catalog, catalogKnown, catalogPhrases);
         if (removed.length > 0) {
@@ -504,9 +521,10 @@ const createGroundedStream = ({ toolResults, catalogNames, catalogIngredients, e
     const boundary = () => {
         const sentence = buffer.match(/[.!?\u2026][")'\u201d\u2019\]]*(?:\s+|$)/u);
         if (sentence) return sentence.index + sentence[0].length;
-        if (buffer.length >= CHUNK_LIMIT) {
-            const space = buffer.lastIndexOf(' ', CHUNK_LIMIT);
-            return space > 0 ? space + 1 : CHUNK_LIMIT;
+        //A very long sentence must not hold the reply: cut at a space near the cap.
+        if (buffer.length >= 240) {
+            const space = buffer.lastIndexOf(' ', 240);
+            return space > 0 ? space + 1 : 240;
         }
         return -1;
     };
