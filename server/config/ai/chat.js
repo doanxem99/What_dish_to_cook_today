@@ -490,6 +490,7 @@ const mentionPattern = (mention) => {
 const stripMarkup = (value) => String(value || '')
     .replace(/\[([^\]\n]{1,120})\]\((?:[^)\s]+)\)/g, '$1')
     .replace(/https?:\/\/[^\s)]+/gi, '')
+    .replace(/\/(?:dish_detail|ingredient_detail)\?[^\s)]*/gi, '')
     .replace(/\(\s*\)/g, '')
     .replace(/[ \t]{2,}/g, ' ');
 
