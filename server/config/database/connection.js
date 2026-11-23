@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
+const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/what_dish_to_cook_today?directConnection=true';
 mongoose
-    .connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/what_dish_to_cook_today?directConnection=true', {
+    .connect(MONGO_URI, {
         //Fail fast instead of buffering requests forever when the database is down
         serverSelectionTimeoutMS: 5000
     })
@@ -10,6 +11,25 @@ mongoose
     .catch((err) => {
         console.error('MongoDB connection error:', err);
     });
+
+//Compose can start this container a moment before Mongo answers its healthcheck.
+//Retry for about half a minute instead of booting a half-broken server.
+const waitForMongo = async ({ attempts = 15, delayMs = 2000 } = {}) => {
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        if (mongoose.connection.readyState === 1) {
+            return true;
+        }
+        try {
+            await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 });
+            console.log(`MongoDB connected on attempt ${attempt}!`);
+            return true;
+        } catch (error) {
+            console.error(`MongoDB not ready (attempt ${attempt}/${attempts}): ${error.message}`);
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+    }
+    return mongoose.connection.readyState === 1;
+};
 //*Create collection
 const Role = mongoose.model('role', {
     name: {
@@ -327,6 +347,7 @@ const Setting = mongoose.model('setting', {
 
 module.exports = {
     "mongoose" : mongoose,
+    "waitForMongo" : waitForMongo,
     "default_roles" : default_roles,
     "collections" : {
         Role,

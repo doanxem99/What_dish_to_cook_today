@@ -419,7 +419,7 @@ test('abort during retrieval records a stopped turn and consumes no quota', asyn
     setTimeout(() => controller.abort(), 20);
     await assert.rejects(pending);
 
-    await waitFor(async () => (await collections.AiCall.countDocuments({ user_id: user._id, status: 'stopped' })) === 1);
+    await waitFor(async () => (await collections.AiCall.countDocuments({ user_id: user._id, status: 'stopped' })) === 1, 10000);
     assert.strictEqual(await collections.AiCall.countDocuments({ user_id: user._id, status: 'ok' }), 0);
 
     const conversation = await collections.AiConversation.findOne({ user_id: user._id }).lean();

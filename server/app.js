@@ -77,10 +77,9 @@ app.listen("3000", async () => {
   console.log('Begin listening on port 3000');
 
   //Recovery and admin promotion both read Mongo, so wait for the connection first
-  try {
-    await database.mongoose.connection.asPromise();
-  } catch (error) {
-    console.error('Startup could not reach MongoDB: ' + error.message);
+  const connected = await database.waitForMongo();
+  if (!connected) {
+    console.error('Startup could not reach MongoDB; the API stays up but database routes will fail.');
   }
 
   //A row left queued or running by the previous process can never finish
