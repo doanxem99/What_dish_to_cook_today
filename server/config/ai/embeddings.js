@@ -277,7 +277,8 @@ const syncTarget = async ({ targetType, targetId, embedFn, model }) => {
 };
 
 const rebuildIndex = async ({ embedFn, model }) => {
-    const summary = { dish: 0, dish_post: 0, ingredient: 0, doc: 0, deleted: 0 };
+    //`embedded` counts passages written; `current` counts rows the index should hold.
+    const summary = { dish: 0, dish_post: 0, ingredient: 0, doc: 0, deleted: 0, embedded: 0, current: 0 };
     const desired = new Set();
     const remember = (targetType, targetId) => desired.add(`${targetType}:${targetId}`);
 
@@ -285,28 +286,32 @@ const rebuildIndex = async ({ embedFn, model }) => {
     for (const row of ingredients) {
         remember('ingredient', String(row._id));
         const result = await syncTarget({ targetType: 'ingredient', targetId: String(row._id), embedFn, model });
-        summary.ingredient += result.embedded;
+        summary.ingredient += 1;
+        summary.embedded += result.embedded;
     }
 
     const dishes = await collections.Dish.find({}, '_id');
     for (const row of dishes) {
         remember('dish', String(row._id));
         const result = await syncTarget({ targetType: 'dish', targetId: String(row._id), embedFn, model });
-        summary.dish += result.embedded;
+        summary.dish += 1;
+        summary.embedded += result.embedded;
     }
 
     const posts = await collections.DishPost.find({}, '_id dish_id');
     for (const row of posts) {
         remember('dish_post', String(row._id));
         const result = await syncTarget({ targetType: 'dish_post', targetId: String(row._id), embedFn, model });
-        summary.dish_post += result.embedded;
+        summary.dish_post += 1;
+        summary.embedded += result.embedded;
     }
 
     const docs = await listAllowedDocPaths();
     for (const relative of docs) {
         remember('doc', relative);
         const result = await syncTarget({ targetType: 'doc', targetId: relative, embedFn, model });
-        summary.doc += result.embedded;
+        summary.doc += 1;
+        summary.embedded += result.embedded;
     }
 
     //Orphans: rows whose source row or allowlisted file no longer exists.
