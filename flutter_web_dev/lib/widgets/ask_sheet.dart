@@ -98,8 +98,11 @@ class _AskSheetState extends State<AskSheet> {
     return '';
   }
 
-  Future<void> _send({String? overrideMode}) async {
-    final text = _lastUserTextRetry(overrideMode);
+  Future<void> _send({String? overrideMode, String? overrideText}) async {
+    if (!_state.isSignedIn || !_enabled || _streaming || (_quota?.isReached ?? false)) return;
+    final text = overrideMode == null
+        ? _input.text.trim()
+        : (overrideText ?? _lastUserText).trim();
     if (!validateMessageInput(text)) return;
     final userMessage = AiChatMessage(role: 'user', content: text);
     final assistant = AiChatMessage(role: 'assistant');
@@ -193,20 +196,26 @@ class _AskSheetState extends State<AskSheet> {
     }
   }
 
-  String _lastUserTextRetry(String? overrideMode) {
-    final typed = _input.text.trim();
-    return overrideMode == null ? typed : (_lastUserText.isNotEmpty ? _lastUserText : typed);
-  }
-
-  void _stop() {
+    void _stop() {
     _cancel?.cancel();
     setState(() => _streaming = false);
   }
 
-  Future<void> _changeGoal(AiChatMessage message, String mode) async {
+  String? _textBefore(int index) {
+    for (var i = index - 1; i >= 0; i -= 1) {
+      if (_messages[i].role == 'user' && _messages[i].content.trim().isNotEmpty) {
+        return _messages[i].content;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _changeGoal(AiChatMessage message, String mode, int index) async {
     if (_streaming) return;
+    final text = _textBefore(index);
+    if (text == null) return;
     message.goal = AiGoalChip(mode: mode, source: 'user');
-    await _send(overrideMode: mode);
+    await _send(overrideMode: mode, overrideText: text);
   }
 
   void _openCitation(AiCitation citation) {
@@ -288,7 +297,7 @@ class _AskSheetState extends State<AskSheet> {
         children: [
           Text(isUser ? t('ask.you') : t('ask.assistant'),
               style: theme.textTheme.labelSmall?.copyWith(color: theme.hintColor)),
-          if (!isUser && message.goal != null) _goalChip(theme, message),
+          if (!isUser && message.goal != null) _goalChip(theme, message, index),
           if (isUser)
             SelectableText(message.content, style: theme.textTheme.bodyMedium)
           else if (message.content.isNotEmpty)
@@ -340,14 +349,14 @@ class _AskSheetState extends State<AskSheet> {
     );
   }
 
-  Widget _goalChip(ThemeData theme, AiChatMessage message) {
+  Widget _goalChip(ThemeData theme, AiChatMessage message, int index) {
     final goal = message.goal!;
     return Padding(
       padding: const EdgeInsets.only(top: 4, bottom: 4),
       child: PopupMenuButton<String>(
         enabled: !_streaming,
         tooltip: t('ask.mode.change'),
-        onSelected: (mode) => _changeGoal(message, mode),
+        onSelected: (mode) => _changeGoal(message, mode, index),
         itemBuilder: (context) => [
           for (final mode in askModes)
             PopupMenuItem<String>(value: mode, child: Text(t('ask.mode.$mode'))),
@@ -430,4 +439,6 @@ Future<void> showAskSheet(BuildContext context, AppState state) {
     builder: (context) => AskSheet(state: state),
   );
 }
+
+
 

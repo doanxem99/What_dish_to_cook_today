@@ -80,6 +80,14 @@ void main() {
     expect(second.remainder.trim(), isEmpty);
   });
 
+  test('parseSseBuffer accepts CRLF frames', () {
+    const raw = 'event: token\r\ndata: {"text":"a"}\r\n\r\nevent: done\r\ndata: {}\r\n\r\n';
+    final parsed = parseSseBuffer(raw);
+    expect(parsed.events.length, 2);
+    expect(parsed.events.first.event, 'token');
+    expect(parsed.remainder.trim(), isEmpty);
+  });
+
   test('errorStateKey separates quota, disabled, auth, provider and generic', () {
     expect(errorStateKey(429, 'quota_reached'), 'ask.quotaReached');
     expect(errorStateKey(403, 'ai_disabled'), 'ask.disabled');

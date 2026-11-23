@@ -150,6 +150,28 @@ void main() {
     expect(events.first.data['mode'], 'cook');
   });
 
+  test('streamChat keeps Vietnamese text intact when a character is split across chunks', () async {
+    final mock = MockClient.streaming((request, bodyStream) async {
+      unawaited(bodyStream.drain<void>());
+      final bytes = utf8.encode('event: token\ndata: {"text":"Phở"}\n\n');
+      final cut = bytes.indexOf(0xE1) + 1; //Inside the multi-byte sequence.
+      final stream = Stream<List<int>>.fromIterable([bytes.sublist(0, cut), bytes.sublist(cut)]);
+      return http.StreamedResponse(stream, 200);
+    });
+
+    final ai = AiApi(_client(mock));
+    final answers = <String>[];
+    await ai.streamChat(
+      message: 'xin chao',
+      locale: 'vi',
+      capability: 'read_only',
+      onEvent: (event) {
+        if (event.event == 'token') answers.add('${event.data['text'] ?? ''}');
+      },
+    );
+    expect(answers.join(), 'Phở');
+  });
+
   test('an error envelope becomes AiApiException with the real code', () async {
     final mock = MockClient((request) async {
       return http.Response(json.encode({
@@ -163,6 +185,22 @@ void main() {
       throwsA(isA<AiApiException>()
           .having((error) => error.status, 'status', 429)
           .having((error) => error.code, 'code', 'quota_reached')),
+    );
+  });
+
+  test('cancel before headers arrive still completes the future', () async {
+    final mock = MockClient.streaming((request, bodyStream) async {
+      unawaited(bodyStream.drain<void>());
+      return http.StreamedResponse(const Stream<List<int>>.empty(), 200);
+    });
+    final ai = AiApi(_client(mock));
+    final token = AiChatCancelToken()..cancel();
+    await ai.streamChat(
+      message: 'hello',
+      locale: 'en',
+      capability: 'read_only',
+      cancel: token,
+      onEvent: (_) {},
     );
   });
 

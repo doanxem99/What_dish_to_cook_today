@@ -475,5 +475,6 @@
   "admin.ai.switchFailed": "Chưa đổi được công tắc AI.",
   "admin.ai.reindexQueued": "Đã xếp hàng dựng lại chỉ mục.",
   "admin.ai.reindexFailed": "Không xếp hàng được dựng lại chỉ mục.",
-  "ask.shortlistNote": "Từ thực đơn"
+  "ask.shortlistNote": "Từ thực đơn",
+  "common.confirm": "Xác nhận"
 }

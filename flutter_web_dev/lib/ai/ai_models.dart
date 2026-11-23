@@ -107,11 +107,21 @@ class AiToolSummary {
 
   factory AiToolSummary.fromHistoryJson(dynamic json) {
     final map = _map(json);
-    return AiToolSummary(name: _text(map['name']), summary: _map(map['summary']));
+    final summary = <String, dynamic>{};
+    map.forEach((key, value) {
+      if (key == 'name') return;
+      if (value is Map) {
+        summary.addAll(Map<String, dynamic>.from(value));
+      } else {
+        summary[key] = value;
+      }
+    });
+    return AiToolSummary(name: _text(map['name']), summary: summary);
   }
 
   ///The tool label is a fixed catalogue key, never server prose.
   String get i18nKey {
+    if (summary['error'] != null) return 'ask.tool.failed';
     if (name == 'search_dishes') return 'ask.tool.searchDishes';
     if (name == 'get_dish') return 'ask.tool.getDish';
     if (name == 'get_help') return 'ask.tool.getHelp';
@@ -122,8 +132,11 @@ class AiToolSummary {
   }
 
   Map<String, String> get i18nParams {
-    final count = (summary['count'] as num?)?.toInt();
-    return count == null ? const <String, String>{} : <String, String>{'n': '$count'};
+    for (final key in const ['dishes', 'passages', 'matched', 'dish', 'items', 'count']) {
+      final value = summary[key];
+      if (value is num) return <String, String>{'n': '${value.toInt()}'};
+    }
+    return const <String, String>{'n': '0'};
   }
 }
 
@@ -260,13 +273,13 @@ SseParseResult parseSseBuffer(String buffer) {
   final events = <AiSseEvent>[];
   var rest = buffer;
   while (true) {
-    final cut = rest.indexOf('\n\n');
-    if (cut < 0) break;
-    final frame = rest.substring(0, cut);
-    rest = rest.substring(cut + 2);
+    final match = RegExp(r'\r?\n\r?\n').firstMatch(rest);
+    if (match == null) break;
+    final frame = rest.substring(0, match.start);
+    rest = rest.substring(match.end);
     String? name;
     final dataLines = <String>[];
-    for (final line in frame.split('\n')) {
+    for (final line in frame.split(RegExp(r'\r?\n'))) {
       if (line.startsWith('event:')) {
         name = line.substring(6).trim();
       } else if (line.startsWith('data:')) {

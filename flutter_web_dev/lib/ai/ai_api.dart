@@ -23,7 +23,7 @@ class AiApiException implements Exception {
 
 class AiChatCancelToken {
   bool _cancelled = false;
-  StreamSubscription<List<int>>? _subscription;
+  StreamSubscription<dynamic>? _subscription;
   void Function()? onCancel;
 
   bool get isCancelled => _cancelled;
@@ -34,7 +34,7 @@ class AiChatCancelToken {
     onCancel?.call();
   }
 
-  void attach(StreamSubscription<List<int>> subscription) {
+  void attach(StreamSubscription<dynamic> subscription) {
     _subscription = subscription;
     if (_cancelled) subscription.cancel();
   }
@@ -129,12 +129,19 @@ class AiApi {
     }
 
     final completer = Completer<void>();
+    if (cancel?.isCancelled == true) {
+      completer.complete();
+      return completer.future;
+    }
     var buffer = '';
-    late final StreamSubscription<List<int>> subscription;
-    subscription = response.stream.listen(
-      (bytes) {
+    cancel?.onCancel = () {
+      if (!completer.isCompleted) completer.complete();
+    };
+    late final StreamSubscription<String> subscription;
+    subscription = response.stream.transform(utf8.decoder).listen(
+      (chunk) {
         if (cancel?.isCancelled == true) return;
-        buffer += utf8.decode(bytes, allowMalformed: true);
+        buffer += chunk;
         final parsed = parseSseBuffer(buffer);
         buffer = parsed.remainder;
         for (final event in parsed.events) {
@@ -151,11 +158,6 @@ class AiApi {
       cancelOnError: true,
     );
     cancel?.attach(subscription);
-    if (cancel != null) {
-      cancel.onCancel = () {
-        if (!completer.isCompleted) completer.complete();
-      };
-    }
     return completer.future;
   }
 

@@ -475,5 +475,6 @@
   "admin.ai.switchFailed": "The AI switch was not changed.",
   "admin.ai.reindexQueued": "Index rebuild queued.",
   "admin.ai.reindexFailed": "The index rebuild was not queued.",
-  "ask.shortlistNote": "From the catalog"
+  "ask.shortlistNote": "From the catalog",
+  "common.confirm": "Confirm"
 }
