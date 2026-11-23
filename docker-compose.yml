@@ -89,6 +89,8 @@ services:
       AI_DAILY_MESSAGE_LIMIT: ${AI_DAILY_MESSAGE_LIMIT:-20}
       AI_MAX_TOOL_ROUNDS: ${AI_MAX_TOOL_ROUNDS:-3}
       AI_MONTHLY_BUDGET_USD: ${AI_MONTHLY_BUDGET_USD:-10}
+      #A cold bge-m3 load on CPU can exceed five seconds; fifteen is the floor.
+      AI_EMBED_TIMEOUT_MS: ${AI_EMBED_TIMEOUT_MS:-15000}
       MAINTENANCE_DISABLED: ${MAINTENANCE_DISABLED:-0}
       TRUST_PROXY: ${TRUST_PROXY:-}
     volumes:

@@ -24,6 +24,7 @@ const readConfig = (env = process.env) => ({
     embedProvider: env.EMBED_PROVIDER || 'ollama',
     embedModel: env.EMBED_MODEL || 'bge-m3',
     ollamaUrl: env.OLLAMA_URL || 'http://localhost:11434',
+    embedTimeoutMs: toNumber(env.AI_EMBED_TIMEOUT_MS, 15000),
     dailyLimit: toNumber(env.AI_DAILY_MESSAGE_LIMIT, 20),
     maxToolRounds: toNumber(env.AI_MAX_TOOL_ROUNDS, 3),
     monthlyBudgetUsd: toNumber(env.AI_MONTHLY_BUDGET_USD, 10)

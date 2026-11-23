@@ -55,7 +55,7 @@ const scheduleFullIfEnabled = (actor) => {
 const runIndexJob = async (job) => {
     const payload = (job && job.payload) || {};
     const config = readConfig();
-    const embedFn = embeddings.makeEmbedFn(config);
+    const embedFn = embeddings.makeEmbedFn(config, undefined, 60000);
     const model = config.embedModel;
     if (payload.full === true) {
         const summary = await embeddings.rebuildIndex({ embedFn, model });
