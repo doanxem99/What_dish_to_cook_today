@@ -499,9 +499,15 @@ const stripMarkup = (value) => String(value || '')
 const META_SENTENCE = /\b(i should(?:n't| not)|my instructions|system (?:message|prompt)|the interface (?:turns|renders)|let me redo|as an ai)\b/i;
 
 const tidyText = (value) => stripMarkup(value)
+    .replace(/\s+(?:at|in|on|from|via|see|here)\s*([.,;:!?])/gi, '$1')
+    .replace(/\s+(?:at|in|on|from|via|see|here)\s*$/gi, '')
     .replace(/\s{2,}/g, ' ')
     .replace(/\s+([.,!?;:])/g, '$1')
     .replace(/([.!?])\s*([.!?])/g, '$1')
+    //A dropped sentence leaves the next one starting lowercase.
+    .replace(/([.!?])\s+(\p{Ll})/gu, (match, stop, letter) => `${stop} ${letter.toUpperCase()}`)
+    //The first kept sentence can lose its capitalised predecessor.
+    .replace(/^\p{Ll}/u, (letter) => letter.toUpperCase())
     .trim();
 
 const shortlistLine = (dishes) => (dishes.length > 0
@@ -530,7 +536,8 @@ const enforceGrounding = (text, toolResults, catalogNames, catalogIngredients) =
         kept.push(sentence);
     }
     if (removed.length === 0 && !metaDropped) {
-        return { text: original, changed: false, removed: [], dishes };
+        const cleaned = tidyText(original);
+        return { text: cleaned, changed: cleaned !== original, removed: [], dishes };
     }
     const body = tidyText(kept.join(' '));
     return {
@@ -551,7 +558,7 @@ const createGroundedStream = ({ toolResults, catalogNames, catalogIngredients, e
     let recoverySent = false;
 
     const flush = (raw) => {
-        const chunk = stripMarkup(raw);
+        const chunk = tidyText(raw);
         if (!chunk.trim()) return;
         if (META_SENTENCE.test(chunk)) return;
         const { shortlist, allowed, catalog, catalogKnown, catalogPhrases } = collectGrounding(toolResults, catalogNames, catalogIngredients);
