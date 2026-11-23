@@ -235,11 +235,9 @@ the build served by Express is fine.
 
 ## Run the Flutter client
 
-The assistant is Vue-only in this release. Flutter signs in, browses and records cooking
-history (`dish_viewed`, `dish_cooked`, `ingredient_picked`), so its users still feed the same
-personalisation, but it has no Ask panel and no AI profile controls. Porting it means a chat sheet,
-an SSE reader, capability and quota controls, and the same citation linking — tracked in
-[docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
+Flutter has the assistant too: the same Ask sheet, inferred goal label with override, streamed
+answers, citations that open dishes, and profile controls for capability, quota and history. Both
+clients read one server contract, so an answer made in one is shown in the other.
 
 ```bash
 cd flutter_web_dev
