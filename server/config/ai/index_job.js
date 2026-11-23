@@ -59,8 +59,10 @@ const runIndexJob = async (job) => {
     const model = config.embedModel;
     if (payload.full === true) {
         const summary = await embeddings.rebuildIndex({ embedFn, model });
-        return `indexed ${summary.dish} dish, ${summary.dish_post} dish_post, `
-            + `${summary.ingredient} ingredient, ${summary.doc} doc passages, removed ${summary.deleted}`;
+        summary.current = summary.dish + summary.dish_post + summary.ingredient + summary.doc;
+        return `index current: ${summary.current} rows (${summary.dish} dish, ${summary.dish_post} dish_post, `
+            + `${summary.ingredient} ingredient, ${summary.doc} doc passages), `
+            + `${summary.embedded} embedded, ${summary.deleted} removed`;
     }
     const result = await embeddings.syncTarget({
         targetType: payload.target_type,

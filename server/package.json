@@ -10,7 +10,7 @@
   "main": "app.js",
   "scripts": {
     "start": "node --env-file-if-exists=.env app.js",
-    "test": "node --test",
+    "test": "node --test --test-concurrency=1",
     "dev": "nodemon --env-file-if-exists=.env app.js"
   },
   "dependencies": {
