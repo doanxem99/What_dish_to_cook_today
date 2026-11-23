@@ -84,7 +84,7 @@ can be picked up without re-reading the codebase.
     streaming, stop, citations, capability, quota and history exist. Two gaps remain: the
     `select_ingredients` and `start_draft` action cards are not rendered (the server can return
     them; the cook sees no confirm button), and the sheet has no widget test because the surface
-    is driven by live streams. Both are Vue-parity items, not server changes.
+    is driven by live streams. The history list shows page 1 only (no pager), and the sheet sends no dish_id/pantry_count context. All four are Vue-parity items, not server changes.
 26. **Quota is a UTC day.** `getQuotaStatus` resets at 00:00 UTC, not local midnight, and the
     UI shows the UTC reset time. A user east or west of UTC sees the limit reset mid-day or
     mid-evening.
