@@ -13,7 +13,7 @@ const DEFAULT_HANDLER_TIMEOUT = 60 * 1000;
 const HANDLER_TIMEOUTS = {
     restore: 10 * 60 * 1000,
     //A full rebuild embeds every row; a per-row sync is bounded by the same entry.
-    ai_index: 5 * 60 * 1000
+    ai_index: 30 * 60 * 1000
 };
 
 const timeoutFor = function(type) {

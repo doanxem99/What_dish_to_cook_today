@@ -446,7 +446,7 @@ const embedText = async (text, options = {}) => {
     }
 };
 
-const makeEmbedFn = (config, signal) => (text) => embedText(text, { config, signal });
+const makeEmbedFn = (config, signal, timeoutMs) => (text) => embedText(text, { config, signal, timeoutMs });
 
 module.exports = {
     ALLOWED_DOC_FILES,
