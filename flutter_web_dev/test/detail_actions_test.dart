@@ -22,6 +22,8 @@ const _catalogue = {
   'dish.commentDeleteConfirm': 'Delete this comment?',
   'dish.vote': 'Vote',
   'dish.voted': 'Voted',
+  'dish.cookAction': 'I cooked this',
+  'dish.cookedToday': 'Cooked today',
   'dish.notFound': 'Dish not found',
   'common.loading': 'Loading',
   'common.errorBody': 'Something went wrong.',
@@ -44,7 +46,7 @@ http.Response _ok(Object body) {
       headers: {'content-type': 'application/json; charset=utf-8'});
 }
 
-ApiClient _api({List<String>? calls, bool signedIn = false, bool withComment = false, bool failComment = false}) {
+ApiClient _api({List<String>? calls, bool signedIn = false, bool withComment = false, bool failComment = false, List<Map<String, dynamic>>? bodies}) {
   var comments = <Map<String, dynamic>>[
     if (withComment) {'id': 'c1', 'username': 'demo', 'body': 'Lovely broth', 'is_mine': true}
   ];
@@ -101,6 +103,10 @@ ApiClient _api({List<String>? calls, bool signedIn = false, bool withComment = f
         'status': 0,
         'data': {'voted': voted, 'points': votes}
       });
+    }
+    if (path == '/api/ai/events') {
+      bodies?.add(Map<String, dynamic>.from(json.decode(request.body) as Map));
+      return _ok({'ok': true});
     }
     return _ok({'isSuccess': true, 'data': []});
   }));
@@ -225,6 +231,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('signin-route'), findsOneWidget);
+  });
+
+  testWidgets('a guest view sends no history event and hides the cooked button', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    final calls = <String>[];
+    final state = _state(_api(calls: calls));
+    await state.refreshAccount();
+    await _pump(tester, state);
+
+    expect(find.byKey(const ValueKey('cooked-button')), findsNothing);
+    expect(calls, isNot(contains('POST /api/ai/events')));
+  });
+
+  testWidgets('signed-in dish load records dish_viewed and tapping cooked button records dish_cooked with resolved dish id', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    final calls = <String>[];
+    final bodies = <Map<String, dynamic>>[];
+    final state = _state(_api(calls: calls, signedIn: true, bodies: bodies));
+    await state.refreshAccount();
+    await _pump(tester, state);
+
+    expect(bodies.any((b) => b['type'] == 'dish_viewed' && b['target_id'] == 'd1'), isTrue);
+
+    await tester.tap(find.byKey(const ValueKey('cooked-button')));
+    await tester.pumpAndSettle();
+
+    expect(bodies.any((b) => b['type'] == 'dish_cooked' && b['target_id'] == 'd1'), isTrue);
+    expect(find.text('Cooked today'), findsOneWidget);
+
+    state.toggleIngredient(const BasketItem(id: 'ing-1', name: 'Beef'));
+    await tester.pump();
+    expect(bodies.any((b) => b['type'] == 'ingredient_picked' && b['target_id'] == 'ing-1'), isTrue);
   });
 
   testWidgets('a rejected comment shows the error text and keeps the draft', (tester) async {

@@ -1,5 +1,6 @@
 <script>
 import { api } from '../api'
+import { aiApi } from '../api/ai'
 import { useI18n } from '../i18n'
 import { useAuthStore } from '../assets/store/auth_store'
 import { usePantryStore } from '../assets/store/pantry_store'
@@ -19,6 +20,9 @@ export default {
       voteError: false,
       votePoints: 0,
       voted: false,
+      cooked: false,
+      cookedError: false,
+      viewRecorded: false,
       ownPostId: null
     }
   },
@@ -72,6 +76,10 @@ export default {
         this.votePoints = post && post.points ? post.points : 0
         if (post) {
           await Promise.all([this.loadComments(), this.loadIngredients(), this.loadOwnPost()])
+        }
+        if (post && this.auth.isLogin && !this.viewRecorded && this.dishId) {
+          this.viewRecorded = true
+          aiApi.recordEvent('dish_viewed', this.dishId)
         }
       } catch (error) {
         this.pageError = true
@@ -145,6 +153,20 @@ export default {
       } catch (error) {
         this.voteError = true
       }
+    },
+    async markCooked() {
+      if (!this.auth.isLogin || !this.dishId || this.cooked) return
+      this.cookedError = false
+      try {
+        const result = await aiApi.recordEvent('dish_cooked', this.dishId)
+        if (result) {
+          this.cooked = true
+        } else {
+          this.cookedError = true
+        }
+      } catch (error) {
+        this.cookedError = true
+      }
     }
   }
 }
@@ -180,7 +202,7 @@ export default {
             </p>
           </div>
           <div class="min-w-0 sm:text-right">
-            <div class="flex items-center gap-2 sm:block">
+            <div class="flex flex-wrap items-center gap-2 sm:block">
               <p class="match-number">{{ votePoints }}</p>
               <p class="eyebrow">{{ t('dish.vote') }}</p>
               <button
@@ -190,8 +212,17 @@ export default {
                 :disabled="!auth.isLogin"
                 @click="toggleVote"
               >{{ voted ? t('dish.voted') : t('dish.vote') }}</button>
+              <button
+                v-if="auth.isLogin && dishId"
+                class="btn sm:mt-2"
+                :class="{ 'is-active': cooked }"
+                type="button"
+                :disabled="cooked"
+                @click="markCooked"
+              >{{ cooked ? t('dish.cookedToday') : t('dish.cookAction') }}</button>
             </div>
             <p v-if="voteError" class="text-xs mt-2" role="alert" style="color: var(--board-danger)">{{ t('common.errorBody') }}</p>
+            <p v-if="cookedError" class="text-xs mt-2" role="alert" style="color: var(--board-danger)">{{ t('common.errorBody') }}</p>
             <p v-if="!auth.isLogin" class="text-xs mt-2" style="color: var(--board-dim)">
               <router-link class="link" to="/signin">{{ t('nav.signIn') }}</router-link>
             </p>

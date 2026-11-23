@@ -4,7 +4,9 @@
 .github
 .vscode
 .impeccable
-docs
+#Only the user-facing help corpus enters the image; internal docs stay out.
+docs/*
+!docs/help
 flutter_web_dev
 database_control_center
 db_control

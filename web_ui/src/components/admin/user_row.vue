@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from '../../i18n'
 import { rowGuard } from './admin_format.js'
 
@@ -11,11 +11,36 @@ const props = defineProps({
   error: { type: String, default: '' }
 })
 
-const emit = defineEmits(['role', 'disabled', 'password'])
+const emit = defineEmits(['role', 'disabled', 'password', 'ai', 'limit'])
 const { t } = useI18n()
 
 const isAdmin = computed(() => (props.row.roles || []).includes('admin'))
 const isDisabled = computed(() => props.row.is_disabled === true)
+const aiDisabled = computed(() => props.row.ai_disabled === true)
+const limit = ref('')
+
+//The saved row replaces the prop after a successful call; the field follows it.
+watch(
+  () => props.row.ai_daily_limit,
+  value => {
+    limit.value = value === null || value === undefined ? '' : String(value)
+  },
+  { immediate: true }
+)
+
+const limitValue = computed(() => {
+  const raw = String(limit.value).trim()
+  if (!raw) {
+    return null
+  }
+  const value = Number(raw)
+  return Number.isInteger(value) && value >= 0 && value <= 1000 ? value : NaN
+})
+const limitValid = computed(() => !Number.isNaN(limitValue.value))
+const limitChanged = computed(() => {
+  const saved = props.row.ai_daily_limit === undefined ? null : props.row.ai_daily_limit
+  return limitValid.value && limitValue.value !== saved
+})
 const guard = computed(() => rowGuard(props.row, {
   currentUserId: props.me.id,
   currentUsername: props.me.username,
@@ -41,6 +66,13 @@ const joined = computed(() => {
   const date = new Date(props.row.created_at)
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString()
 })
+
+function saveLimit() {
+  if (props.busy || !limitChanged.value) {
+    return
+  }
+  emit('limit', props.row, limitValue.value)
+}
 </script>
 
 <template>
@@ -74,6 +106,31 @@ const joined = computed(() => {
         <button class="btn btn-quiet" type="button" :disabled="busy" @click="emit('password', row)">
           {{ t('admin.users.password') }}
         </button>
+      </div>
+      <div class="admin-row-ai">
+        <button class="btn btn-quiet" type="button" :disabled="busy" @click="emit('ai', row, !aiDisabled)">
+          {{ aiDisabled ? t('admin.ai.userEnable') : t('admin.ai.userDisable') }}
+        </button>
+        <label class="admin-ai-limit">
+          <span class="admin-ai-limit-label">{{ t('admin.ai.dailyLimit') }}</span>
+          <input
+            v-model="limit"
+            class="input"
+            type="number"
+            min="0"
+            max="1000"
+            step="1"
+            :placeholder="t('admin.ai.dailyLimitDefault')"
+            :aria-invalid="limitValid ? 'false' : 'true'"
+            :disabled="busy"
+          />
+        </label>
+        <button class="btn btn-quiet" type="button" :disabled="busy || !limitChanged" @click="saveLimit">
+          {{ t('admin.common.apply') }}
+        </button>
+        <span v-if="aiDisabled || !limitValid" class="admin-ai-limit-state">
+          {{ limitValid ? t('admin.ai.userDisabled') : t('admin.ai.limitInvalid') }}
+        </span>
       </div>
       <p v-if="note" class="user-note" role="alert">{{ note }}</p>
     </td>
@@ -129,6 +186,42 @@ const joined = computed(() => {
 .admin-row-actions .btn {
   font-size: 12px;
   padding: 4px 8px;
+}
+
+.admin-row-ai {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.admin-row-ai .btn {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.admin-ai-limit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.admin-ai-limit-label {
+  font-size: 11px;
+  color: var(--board-dim);
+}
+
+.admin-ai-limit .input {
+  width: 76px;
+  font-size: 12px;
+  padding: 3px 6px;
+}
+
+.admin-ai-limit-state {
+  flex-basis: 100%;
+  font-size: 11px;
+  color: var(--board-dim);
 }
 
 .user-note {

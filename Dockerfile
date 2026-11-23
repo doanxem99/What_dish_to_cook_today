@@ -21,6 +21,10 @@ COPY server/ ./
 RUN rm -rf ./web_ui
 COPY --from=web_build /src/server/web_ui ./web_ui
 COPY catalog/ /catalog
+#AI doc allowlist: server/config/ai/embeddings.js climbs from /app/config/ai to the
+#filesystem root, so these land at /PRODUCT.md, /README.md and /docs/help/.
+COPY PRODUCT.md README.md /
+COPY docs/help/ /docs/help/
 #The app runs as the unprivileged node user. Every writable path is created and owned here:
 #an empty named volume inherits the image directory's owner on first use.
 RUN mkdir -p /app/backups /app/public/gallery /app/config/debug/data \

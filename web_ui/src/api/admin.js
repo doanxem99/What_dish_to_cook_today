@@ -24,7 +24,11 @@ export const adminApi = {
   setRole: (userId, admin) => api.post(`/api/admin/users/${userId}/role`, { admin }),
   setDisabled: (userId, disabled) => api.post(`/api/admin/users/${userId}/disabled`, { disabled }),
   temporaryPassword: userId => api.post(`/api/admin/users/${userId}/password`),
-  recalcBestPost: ingredientId => api.post('/api/admin/jobs/recalc-best-post', { ingredient_id: ingredientId })
+  recalcBestPost: ingredientId => api.post('/api/admin/jobs/recalc-best-post', { ingredient_id: ingredientId }),
+  aiUsage: () => api.get('/api/admin/ai/usage'),
+  setAiEnabled: enabled => api.post('/api/admin/ai/enabled', { enabled }),
+  reindexAi: () => api.post('/api/admin/ai/reindex'),
+  setUserAi: (userId, patch) => api.post(`/api/admin/ai/users/${userId}`, patch)
 }
 
 export default adminApi

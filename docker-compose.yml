@@ -28,6 +28,30 @@ services:
       retries: 5
       start_period: 120s
 
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    #Starts the server, waits for it, then pulls the embedding model once. The
+    #named volume keeps the download across restarts.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        /bin/ollama serve &
+        server_pid=$$!
+        until /bin/ollama list >/dev/null 2>&1; do sleep 2; done
+        /bin/ollama pull "$${EMBED_MODEL:-bge-m3}"
+        wait "$$server_pid"
+    environment:
+      EMBED_MODEL: ${EMBED_MODEL:-bge-m3}
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "/bin/ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
   server:
     build: .
     restart: unless-stopped
@@ -35,6 +59,8 @@ services:
       mongo:
         condition: service_healthy
       libretranslate:
+        condition: service_started
+      ollama:
         condition: service_started
     ports:
       #Change the host side with SERVER_PORT when 3000 is taken; the container keeps 3000.
@@ -52,6 +78,17 @@ services:
       BACKUP_DIR: /app/backups
       TRANSLATE_URL: ${TRANSLATE_URL:-http://libretranslate:5000/translate}
       AI_ENABLED: ${AI_ENABLED:-false}
+      AI_PROVIDER: ${AI_PROVIDER:-opencode-go}
+      OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-deepseek-v4.1-flash}
+      AI_BASE_URL: ${AI_BASE_URL:-https://opencode.ai/inference/go/openai/v1}
+      EMBED_PROVIDER: ${EMBED_PROVIDER:-ollama}
+      #Pulled by the ollama service on first start; local to this network.
+      EMBED_MODEL: ${EMBED_MODEL:-bge-m3}
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      AI_DAILY_MESSAGE_LIMIT: ${AI_DAILY_MESSAGE_LIMIT:-20}
+      AI_MAX_TOOL_ROUNDS: ${AI_MAX_TOOL_ROUNDS:-3}
+      AI_MONTHLY_BUDGET_USD: ${AI_MONTHLY_BUDGET_USD:-10}
       MAINTENANCE_DISABLED: ${MAINTENANCE_DISABLED:-0}
       TRUST_PROXY: ${TRUST_PROXY:-}
     volumes:
@@ -70,3 +107,4 @@ volumes:
   backup-data:
   gallery:
   translate-models:
+  ollama-models:

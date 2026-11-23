@@ -8,6 +8,7 @@ const appDebug = require('../../config/debug/app_debug');
 const profileEnum = require('../../config/enum/profile_enum');
 const { verifyToken } = require('./verifyToken');
 const { recordAudit } = require('../../config/admin/audit');
+const indexJob = require('../../config/ai/index_job');
 
 const AUDIT_DETAIL_MAX = 80;
 
@@ -411,6 +412,7 @@ router.post('/create_dish', verifyToken, async function(req, res) {
         const detail = (typeof req.body.name === 'string' ? req.body.name.trim() : '')
             || (typeof req.body.name_vi === 'string' ? req.body.name_vi.trim() : '');
         await auditContent(req, 'dish.create', 'dish', result.dish_id, detail);
+        indexJob.scheduleIfEnabled('dish', result.dish_id, req.current_user);
     }
     res.status(200).send(result);
 });
@@ -428,6 +430,8 @@ router.post('/create_dish_post', verifyToken, async function(req, res) {
         const action = result.status === profileEnum.ProfileStatus_PostCreate.EditingSuccess
             ? 'dish_post.edit' : 'dish_post.create';
         await auditContent(req, action, 'dish_post', result.dish_post_id, req.body.data.name || '');
+        indexJob.scheduleIfEnabled('dish_post', result.dish_post_id, req.current_user);
+        indexJob.scheduleIfEnabled('dish', req.body.dish_id, req.current_user);
     }
     res.status(200).send(result);
 });
@@ -525,6 +529,9 @@ router.post('/comment/:dish_post_id', verifyToken, async function(req, res) {
             { $inc: { comments: 1 } }
         );
         const user = await database.collections.User.findOne({ _id: req.body.userid }, 'username');
+        indexJob.scheduleIfEnabled('dish_post', req.params.dish_post_id, req.current_user);
+        //The parent dish passage embeds its best post comments, so refresh that row too
+        indexJob.scheduleIfEnabled('dish', dishPost.dish_id, req.current_user);
         res.status(200).send({
             'status' : profileEnum.ProfileStatus_PostCreate.CreatingSuccess,
             'status_code': profileEnum.Status_Code_Website.Success,
@@ -573,6 +580,12 @@ router.delete('/comment/:comment_id', verifyToken, async function(req, res) {
             [{ $set: { comments: { $max: [0, { $subtract: [{ $ifNull: ["$comments", 0] }, 1] }] } } }]
         );
         await auditContent(req, 'comment.delete', 'comment', removed._id, excerptOf(comment.body));
+        indexJob.scheduleIfEnabled('dish_post', comment.dish_post_id, req.current_user);
+        //Deleted comment text must also leave the parent dish passage
+        const parentPost = await database.collections.DishPost.findById(comment.dish_post_id, 'dish_id');
+        if (parentPost && parentPost.dish_id) {
+            indexJob.scheduleIfEnabled('dish', parentPost.dish_id, req.current_user);
+        }
         res.status(200).send({
             'status' : profileEnum.ProfileStatus_PostDetail.Success,
             'status_code': profileEnum.Status_Code_Website.Success,

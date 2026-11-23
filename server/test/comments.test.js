@@ -12,6 +12,7 @@ const connectionPath = require.resolve('../config/database/connection');
 const created = [];
 const deleted = [];
 const commentCounts = [];
+const indexCalls = [];
 let otherComment = { _id: 'c9', user_id: 'u2', body: 'not yours', dish_post_id: 'p1', date_time: new Date() };
 let postExists = true;
 let deleteReturnsNull = false;
@@ -29,7 +30,7 @@ require.cache[connectionPath] = {
             },
             Role: { find: async () => [{ name: 'user' }] },
             DishPost: {
-                findById: async () => (postExists ? { _id: 'p1' } : null),
+                findById: async () => (postExists ? { _id: 'p1', dish_id: 'd1' } : null),
                 updateOne: async (filter, update) => { commentCounts.push(update); }
             },
             Comment: {
@@ -53,6 +54,19 @@ require.cache[connectionPath] = {
                     return otherComment;
                 }
             }
+        }
+    }
+};
+
+const indexPath = require.resolve('../config/ai/index_job');
+require.cache[indexPath] = {
+    id: indexPath,
+    filename: indexPath,
+    loaded: true,
+    exports: {
+        scheduleIfEnabled: (targetType, targetId) => {
+            indexCalls.push([String(targetType), String(targetId)]);
+            return Promise.resolve(null);
         }
     }
 };
@@ -101,6 +115,9 @@ test('POST comment takes the author from the token, not the body', async () => {
     assert.strictEqual(body.data.body, 'Looks good');
     //dish_post.comments stays the visible counter used by the dish card
     assert.deepStrictEqual(commentCounts[0], { $inc: { comments: 1 } });
+    //The parent dish carries the post comment text, so both vectors are refreshed
+    assert.ok(indexCalls.some(([type, id]) => type === 'dish_post' && id === 'p1'));
+    assert.ok(indexCalls.some(([type, id]) => type === 'dish' && id === 'd1'));
 });
 
 test('GET comments lists newest first and marks the viewer own comment', async () => {
@@ -155,4 +172,7 @@ test('DELETE removes the author comment and decrements the counter', async () =>
     assert.deepStrictEqual(commentCounts[commentCounts.length - 1], [
         { $set: { comments: { $max: [0, { $subtract: [{ $ifNull: ["$comments", 0] }, 1] }] } } }
     ]);
+    //Deleting a comment re-embeds the parent post and its dish, so the text stops being retrievable
+    assert.ok(indexCalls.some(([type, id]) => type === 'dish_post' && id === 'p1'));
+    assert.ok(indexCalls.some(([type, id]) => type === 'dish' && id === 'd1'));
 });

@@ -1,7 +1,9 @@
 <script>
 import { api } from '../api'
+import { aiApi, askAvailable, ensureAskAvailable } from '../api/ai'
 import { useI18n } from '../i18n'
 import { usePantryStore } from '../assets/store/pantry_store'
+import { useAuthStore } from '../assets/store/auth_store'
 
 const TYPES = ['Food', 'Spice', 'Fruit', 'Other']
 
@@ -22,6 +24,8 @@ export default {
     t() { return useI18n().t },
     locale() { return useI18n().locale.value },
     pantry() { return usePantryStore() },
+    auth() { return useAuthStore() },
+    askAvailable() { return askAvailable.value },
     chosen() { return this.pantry.items },
     groups() {
       const source = this.q.trim() ? this.found : this.catalog
@@ -40,6 +44,7 @@ export default {
   mounted() {
     this.loadBest()
     this.loadCatalog()
+    ensureAskAvailable()
   },
   beforeUnmount() {
     clearTimeout(this.searchTimer)
@@ -88,7 +93,11 @@ export default {
       }
     },
     choose(item) {
+      const wasChosen = this.isChosen(item)
       this.pantry.toggle(item)
+      if (!wasChosen && this.auth.isLogin) {
+        aiApi.recordEvent('ingredient_picked', item.id)
+      }
       this.needIngredient = false
     },
     remove(item) {
@@ -106,6 +115,9 @@ export default {
         return
       }
       this.$router.push({ path: '/dishes' })
+    },
+    openAsk() {
+      window.dispatchEvent(new CustomEvent('ask:open'))
     }
   }
 }
@@ -166,6 +178,10 @@ export default {
             </span>
           </div>
           <p v-else class="mt-2 text-sm" style="color: var(--board-dim)">{{ t('home.chosenEmpty') }}</p>
+          <div v-if="askAvailable && chosen.length === 0" class="mt-3">
+            <p class="text-sm" style="color: var(--board-dim)">{{ t('ask.emptyCtaBody') }}</p>
+            <button class="btn mt-2" type="button" @click="openAsk">{{ t('ask.emptyCta') }}</button>
+          </div>
           <p v-if="needIngredient" class="mt-2 text-sm" role="alert" style="color: var(--board-danger)">{{ t('home.needOne') }}</p>
           <button class="btn btn-primary mt-3" type="button" @click="findDishes">
             {{ t('home.find') }}

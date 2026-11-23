@@ -59,6 +59,20 @@ const User = mongoose.model('user', {
     must_change_password: {
         type: Boolean,
         default: false
+    },
+    //AI assistant: per-user kill switch, quota override and tool capability
+    ai_disabled: {
+        type: Boolean,
+        default: false
+    },
+    ai_daily_limit: {
+        type: Number,
+        default: null
+    },
+    ai_capability: {
+        type: String,
+        enum: ['read_only', 'prepare', 'act_freely'],
+        default: 'read_only'
     }
 },'user'); 
 
@@ -196,6 +210,101 @@ const AdminJob = mongoose.model('admin_job', {
 },'admin_job');
 AdminJob.schema.index({ status: 1, created_at: 1 });
 
+//Locally embedded passages. The hash keeps an unchanged row out of the embedder.
+const AiEmbedding = mongoose.model('ai_embedding', {
+    target_type : String,
+    target_id : String,
+    locale : String,
+    source_hash : String,
+    text : String,
+    vector : [Number],
+    model : String,
+    updated_at : Date
+},'ai_embedding');
+AiEmbedding.schema.index({ target_type: 1, target_id: 1, locale: 1, model: 1 }, { unique: true });
+
+//One rolling transcript per user, capped at 20 messages and dropped after 30 days.
+const AiConversation = mongoose.model('ai_conversation', {
+    user_id : {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'user',
+        unique: true
+    },
+    session_id : String,
+    messages : [{
+        role : String,
+        content : String,
+        mode : String,
+        mode_source : String,
+        citations : Array,
+        tool_summary : Object,
+        stopped : Boolean,
+        created_at : Date
+    }],
+    updated_at : Date,
+    expires_at : Date
+},'ai_conversation');
+AiConversation.schema.index({ expires_at: 1 }, { expireAfterSeconds: 0 });
+
+//Per-call metrics only. No prompt, reply or retrieved text.
+const AiCall = mongoose.model('ai_call', {
+    user_id : {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'user'
+    },
+    conversation_id : {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'ai_conversation'
+    },
+    provider : String,
+    model : String,
+    mode : String,
+    mode_source : {
+        type : String,
+        default : 'user'
+    },
+    capability : String,
+    latency_ms : Number,
+    tokens_in : Number,
+    tokens_out : Number,
+    cost_estimate : Number,
+    status : String,
+    error_code : String,
+    created_at : Date
+},'ai_call');
+AiCall.schema.index({ user_id: 1, status: 1, created_at: -1 });
+AiCall.schema.index({ created_at: -1 });
+
+//In-flight quota reservations. A turn increments `reserved` before the provider call
+//and decrements it when the turn finishes, so parallel requests cannot share a slot.
+const AiQuota = mongoose.model('ai_quota', {
+    user_id : {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'user'
+    },
+    day : String,
+    reserved : {
+        type: Number,
+        default: 0
+    },
+    created_at : Date
+},'ai_quota');
+AiQuota.schema.index({ user_id: 1, day: 1 }, { unique: true });
+
+//Personal cooking history: one row per user, type, target and UTC day.
+const UserEvent = mongoose.model('user_event', {
+    //Mixed: the recorder accepts an ObjectId from a session and a plain string id from a client.
+    user_id : mongoose.Schema.Types.Mixed,
+    type : String,
+    target_type : String,
+    target_id : String,
+    day : String,
+    created_at : Date,
+    expires_at : Date
+},'user_event');
+UserEvent.schema.index({ user_id: 1, type: 1, target_id: 1, day: 1 }, { unique: true });
+UserEvent.schema.index({ expires_at: 1 }, { expireAfterSeconds: 0 });
+
 const Setting = mongoose.model('setting', {
     key : {
         type: String,
@@ -230,6 +339,11 @@ module.exports = {
         Vote,
         AuditLog,
         AdminJob,
+        AiEmbedding,
+        AiConversation,
+        AiCall,
+        AiQuota,
+        UserEvent,
         Setting
     }
 };

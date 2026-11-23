@@ -10,7 +10,11 @@ const registerHandler = function(type, handler) {
 
 //A timeout bounds the bookkeeping, not the handler: the queue and the flag wait for it to settle.
 const DEFAULT_HANDLER_TIMEOUT = 60 * 1000;
-const HANDLER_TIMEOUTS = { restore: 10 * 60 * 1000 };
+const HANDLER_TIMEOUTS = {
+    restore: 10 * 60 * 1000,
+    //A full rebuild embeds every row; a per-row sync is bounded by the same entry.
+    ai_index: 5 * 60 * 1000
+};
 
 const timeoutFor = function(type) {
     return HANDLER_TIMEOUTS[type] || DEFAULT_HANDLER_TIMEOUT;
@@ -164,6 +168,8 @@ registerHandler('backup', async (job) => {
 });
 registerHandler('reset', async (job) => resetOps.resetCatalog(jobActor(job)));
 registerHandler('restore', async (job) => resetOps.restoreBackup(job.payload && job.payload.id, jobActor(job)));
+//Lazy require: index_job needs this module to enqueue, so loading it at boot would cycle.
+registerHandler('ai_index', async (job) => require('../ai/index_job').runIndexJob(job));
 
 //Ingredient-only in v1; dishes are out of scope. Same rule as the desktop repair tool.
 registerHandler('recalc_best_post', async (job) => {

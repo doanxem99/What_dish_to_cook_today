@@ -1,6 +1,6 @@
 //Pure helpers for the admin views. No Vue, no i18n singleton: the tests call these directly.
 
-export const JOB_TYPES = ['reset', 'backup', 'restore', 'recalc_best_post']
+export const JOB_TYPES = ['reset', 'backup', 'restore', 'recalc_best_post', 'ai_index']
 export const JOB_STATUSES = ['queued', 'running', 'done', 'failed']
 //Restore and reset are never retried from the page: they rewrite the catalog.
 export const RETRYABLE_TYPES = ['recalc_best_post']
@@ -9,7 +9,8 @@ const TYPE_KEYS = {
   backup: 'admin.job.type.backup',
   reset: 'admin.job.type.reset',
   restore: 'admin.job.type.restore',
-  recalc_best_post: 'admin.job.type.recalc_best_post'
+  recalc_best_post: 'admin.job.type.recalc_best_post',
+  ai_index: 'admin.job.type.ai_index'
 }
 
 const STATUS_KEYS = {

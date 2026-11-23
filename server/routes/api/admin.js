@@ -10,6 +10,9 @@ const { requireAdmin } = require('../../config/admin/require_admin');
 const jobs = require('../../config/admin/jobs');
 const backups = require('../../config/admin/backups');
 const { recordAudit } = require('../../config/admin/audit');
+const aiConfig = require('../../config/ai/config');
+const aiChat = require('../../config/ai/chat');
+const indexJob = require('../../config/ai/index_job');
 const { version } = require('../../package.json');
 
 const { collections, mongoose } = database;
@@ -100,6 +103,10 @@ const userRow = function(user, names) {
         created_at: user.created_at || null,
         is_disabled: user.is_disabled === true,
         must_change_password: user.must_change_password === true,
+        ai_disabled: user.ai_disabled === true,
+        ai_daily_limit: user.ai_daily_limit === null || user.ai_daily_limit === undefined
+            ? null
+            : user.ai_daily_limit,
         roles: (user.roles || []).map(id => roles.get(String(id))).filter(Boolean)
     };
 };
@@ -216,7 +223,8 @@ router.get('/health', wrap(async function(req, res) {
 
     const [
         users, ingredients, dishes, dish_posts, comments, votes,
-        translation, backupDir, lastBackupRows, lastReset, maintenanceDoc
+        translation, backupDir, lastBackupRows, lastReset, maintenanceDoc,
+        aiEnabled, aiBudgetReached
     ] = await Promise.all([
         collections.User.countDocuments({}),
         collections.Ingredient.countDocuments({}),
@@ -228,8 +236,12 @@ router.get('/health', wrap(async function(req, res) {
         probeBackupDir(),
         backups.listBackups(),
         collections.AdminJob.findOne({ type: 'reset' }).sort({ created_at: -1 }),
-        collections.Setting.findOne({ key: 'maintenance' })
+        collections.Setting.findOne({ key: 'maintenance' }),
+        aiConfig.isAiRuntimeEnabled().catch(() => false),
+        aiChat.isMonthlyBudgetReached(aiConfig.readConfig()).catch(() => false)
     ]);
+
+    const aiSettings = aiConfig.readConfig();
 
     const lastBackup = lastBackupRows.length > 0 ? lastBackupRows[0] : null;
 
@@ -239,8 +251,14 @@ router.get('/health', wrap(async function(req, res) {
         database: databaseProbe,
         counts: { users, ingredients, dishes, dish_posts, comments, votes },
         translation,
-        //Environment only: nothing calls an AI provider yet.
-        ai: { configured: Boolean(String(process.env.AI_ENABLED || '').match(/^(1|true|yes)$/i)) },
+        //Counts only; no prompt or reply text passes through this route.
+        ai: {
+            configured: aiSettings.enabled,
+            enabled: aiEnabled,
+            budget_reached: aiBudgetReached,
+            provider: aiSettings.provider,
+            model: aiSettings.model
+        },
         backup: {
             dir_writable: backupDir.dir_writable,
             dir: backupDir.dir,
@@ -297,6 +315,164 @@ router.post('/jobs/recalc-best-post', wrap(async function(req, res) {
 
     const job = await jobs.enqueueJob('recalc_best_post', actorOf(req), { ingredient_id: ingredientId });
     await audit(req, 'job.recalc_best_post', 'ingredient', ingredientId, `job ${job._id}`);
+    return res.status(202).send(job);
+}));
+
+//------------ AI usage
+
+const startOfUtcMonth = function() {
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+};
+
+const roundUsd = function(value) {
+    return Math.round((Number(value) || 0) * 1e6) / 1e6;
+};
+
+//Counts, tokens and latency only. Message text is never selected or grouped here.
+router.get('/ai/usage', wrap(async function(req, res) {
+    const config = aiConfig.readConfig();
+    const monthStart = startOfUtcMonth();
+
+    const [totalsRows, dayRows, monthRows, recentRows, enabled] = await Promise.all([
+        collections.AiCall.aggregate([{
+            $group: {
+                _id: null,
+                calls: { $sum: 1 },
+                tokens_in: { $sum: '$tokens_in' },
+                tokens_out: { $sum: '$tokens_out' },
+                cost_estimate: { $sum: '$cost_estimate' },
+                errors: { $sum: { $cond: [{ $ne: ['$status', 'ok'] }, 1, 0] } }
+            }
+        }]),
+        collections.AiCall.aggregate([
+            {
+                $group: {
+                    _id: {
+                        day: { $dateToString: { format: '%Y-%m-%d', date: '$created_at' } },
+                        model: '$model'
+                    },
+                    calls: { $sum: 1 },
+                    tokens_in: { $sum: '$tokens_in' },
+                    tokens_out: { $sum: '$tokens_out' },
+                    cost_estimate: { $sum: '$cost_estimate' },
+                    errors: { $sum: { $cond: [{ $ne: ['$status', 'ok'] }, 1, 0] } },
+                    avg_latency_ms: { $avg: '$latency_ms' }
+                }
+            },
+            { $sort: { '_id.day': -1, '_id.model': 1 } }
+        ]),
+        collections.AiCall.aggregate([
+            { $match: { created_at: { $gte: monthStart } } },
+            { $group: { _id: null, cost: { $sum: '$cost_estimate' } } }
+        ]),
+        collections.AiCall.find({})
+            .sort({ created_at: -1 })
+            .limit(50)
+            .select('provider model mode capability latency_ms tokens_in tokens_out cost_estimate status error_code created_at')
+            .lean(),
+        aiConfig.isAiRuntimeEnabled().catch(() => false)
+    ]);
+
+    const totalsRow = totalsRows[0] || {};
+    const monthCost = monthRows.length > 0 ? Number(monthRows[0].cost) || 0 : 0;
+
+    return res.status(200).send({
+        configured: config.enabled,
+        enabled,
+        budget_usd: config.monthlyBudgetUsd,
+        month_cost_estimate: roundUsd(monthCost),
+        budget_reached: monthCost >= config.monthlyBudgetUsd,
+        totals: {
+            calls: totalsRow.calls || 0,
+            tokens_in: totalsRow.tokens_in || 0,
+            tokens_out: totalsRow.tokens_out || 0,
+            cost_estimate: roundUsd(totalsRow.cost_estimate),
+            errors: totalsRow.errors || 0
+        },
+        by_day: dayRows.map(row => ({
+            day: row._id.day,
+            model: row._id.model || '',
+            calls: row.calls || 0,
+            tokens_in: row.tokens_in || 0,
+            tokens_out: row.tokens_out || 0,
+            cost_estimate: roundUsd(row.cost_estimate),
+            errors: row.errors || 0,
+            avg_latency_ms: Math.round(row.avg_latency_ms || 0)
+        })),
+        recent: recentRows.map(row => ({
+            id: String(row._id),
+            created_at: row.created_at || null,
+            provider: row.provider || '',
+            model: row.model || '',
+            mode: row.mode || '',
+            capability: row.capability || '',
+            latency_ms: row.latency_ms || 0,
+            tokens_in: row.tokens_in || 0,
+            tokens_out: row.tokens_out || 0,
+            cost_estimate: roundUsd(row.cost_estimate),
+            status: row.status || '',
+            error_code: row.error_code || ''
+        }))
+    });
+}));
+
+router.post('/ai/enabled', wrap(async function(req, res) {
+    if (typeof req.body.enabled !== 'boolean') {
+        return fail(res, 400, 'invalid', 'enabled must be true or false');
+    }
+    const actor = actorOf(req);
+    await collections.Setting.findOneAndUpdate(
+        { key: 'ai_enabled' },
+        {
+            $set: {
+                enabled: req.body.enabled,
+                actor_id: actor.id,
+                actor_name: actor.name,
+                updated_at: new Date()
+            }
+        },
+        { upsert: true, new: true }
+    );
+    await audit(req, 'ai.enabled', 'setting', 'ai_enabled', req.body.enabled ? 'AI enabled' : 'AI disabled');
+    return res.status(200).send({ enabled: req.body.enabled });
+}));
+
+router.post('/ai/users/:id', wrap(async function(req, res) {
+    const body = req.body || {};
+    const hasDisabled = body.disabled !== undefined;
+    const hasLimit = Object.prototype.hasOwnProperty.call(body, 'daily_limit');
+    if (!hasDisabled && !hasLimit) {
+        return fail(res, 400, 'invalid', 'disabled or daily_limit is required');
+    }
+    if (hasDisabled && typeof body.disabled !== 'boolean') {
+        return fail(res, 400, 'invalid', 'disabled must be true or false');
+    }
+    if (hasLimit && body.daily_limit !== null
+        && (!Number.isInteger(body.daily_limit) || body.daily_limit < 0 || body.daily_limit > 1000)) {
+        return fail(res, 400, 'invalid', 'daily_limit must be null or an integer from 0 to 1000');
+    }
+    const user = await findUser(req.params.id);
+    if (!user) {
+        return fail(res, 404, 'not_found', 'User not found');
+    }
+
+    if (hasDisabled) user.ai_disabled = body.disabled;
+    if (hasLimit) user.ai_daily_limit = body.daily_limit;
+    await user.save();
+
+    //No message text: only the switch state and the numeric limit.
+    const detail = [
+        hasDisabled ? `ai ${body.disabled ? 'disabled' : 'enabled'}` : '',
+        hasLimit ? `daily limit ${body.daily_limit === null ? 'default' : body.daily_limit}` : ''
+    ].filter(Boolean).join(', ');
+    await audit(req, 'user.ai', 'user', user._id, detail);
+    return res.status(200).send(await userRowWithRoles(user));
+}));
+
+router.post('/ai/reindex', wrap(async function(req, res) {
+    const job = await indexJob.scheduleFullIndex(actorOf(req));
+    await audit(req, 'job.ai_index', 'job', job._id, 'full index rebuild queued');
     return res.status(202).send(job);
 }));
 
