@@ -375,7 +375,8 @@ const retrievePassages = async (queryText, options = {}) => {
 };
 
 //A stalled Ollama must answer "embed_down" quickly, not hold the chat open.
-const EMBED_TIMEOUT_MS = 5000;
+//The bound is generous because a cold model load on CPU can take several seconds.
+const EMBED_TIMEOUT_MS = 15000;
 
 const embedAbortError = (message) => {
     const error = new Error(message);
@@ -389,7 +390,9 @@ const MAX_EMBED_CHARS = 2000;
 const embedText = async (text, options = {}) => {
     const config = options.config || readConfig();
     const fetchImpl = options.fetchImpl || fetch;
-    const timeoutMs = Number.isFinite(options.timeoutMs) ? Math.max(1, options.timeoutMs) : EMBED_TIMEOUT_MS;
+    const timeoutMs = Number.isFinite(options.timeoutMs)
+        ? Math.max(1, options.timeoutMs)
+        : (Number.isFinite(config.embedTimeoutMs) ? Math.max(1, config.embedTimeoutMs) : EMBED_TIMEOUT_MS);
     const requestSignal = options.signal || null;
     if (requestSignal && requestSignal.aborted) throw embedAbortError('Ollama embeddings aborted');
 
