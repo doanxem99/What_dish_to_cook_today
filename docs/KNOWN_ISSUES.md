@@ -80,12 +80,11 @@ can be picked up without re-reading the codebase.
     server/scripts/ai-check.mjs` reports `skipped: no key` without `OPENCODE_API_KEY`. Live
     tool calling against the default base URL is therefore unverified. Run the check once with
     the intended key before launch.
-25. **Flutter has no assistant.** It records `dish_viewed`, `dish_cooked` and
-    `ingredient_picked`, so history is shared, but the Ask panel and profile AI controls are
-    Vue-only. A Flutter user sees no assistant. Porting it needs: a chat sheet with the three
-    modes replaced by the inferred-goal label, an SSE reader over `POST /api/ai/chat` with an
-    abort path, citation links built from tool results, capability and quota controls on the
-    profile, and the same privacy notice. The server needs no change.
+25. **Flutter's assistant is read-first.** The Ask sheet, inferred goal label with override,
+    streaming, stop, citations, capability, quota and history exist. Two gaps remain: the
+    `select_ingredients` and `start_draft` action cards are not rendered (the server can return
+    them; the cook sees no confirm button), and the sheet has no widget test because the surface
+    is driven by live streams. Both are Vue-parity items, not server changes.
 26. **Quota is a UTC day.** `getQuotaStatus` resets at 00:00 UTC, not local midnight, and the
     UI shows the UTC reset time. A user east or west of UTC sees the limit reset mid-day or
     mid-evening.

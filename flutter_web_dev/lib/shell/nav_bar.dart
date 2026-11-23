@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../ai/ai_api.dart';
 import '../state/app_state.dart';
 import '../theme/tokens.dart';
+import '../widgets/ask_sheet.dart';
 import '../widgets/board_card.dart';
 
 ///Header mirrors the Vue client: brand, search against the tool group,
@@ -19,14 +21,37 @@ class NavBar extends StatefulWidget {
 class _NavBarState extends State<NavBar> {
   late final TextEditingController _search;
 
+  bool _askedAvailability = false;
+
   @override
   void initState() {
     super.initState();
     _search = TextEditingController(text: widget.initialQuery);
+    askAvailable.addListener(_onAskChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_askedAvailability) return;
+    _askedAvailability = true;
+    final state = AppScope.of(context);
+    if (state.isSignedIn) {
+      AiApi(state.api).ensureAskAvailable();
+    }
+  }
+
+  void _onAskChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _openAsk() {
+    showAskSheet(context, AppScope.of(context));
   }
 
   @override
   void dispose() {
+    askAvailable.removeListener(_onAskChanged);
     _search.dispose();
     super.dispose();
   }
@@ -116,6 +141,8 @@ class _NavBarState extends State<NavBar> {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
+                    if (askAvailable.value == true)
+                      _askLink(state.t('nav.ask'), tokens),
                     _navLink('/', state.t('nav.home'), tokens),
                     _navLink('/dishes', state.t('nav.dishes'), tokens),
                     _navLink('/homemade', state.t('nav.homemade'), tokens),
@@ -163,6 +190,27 @@ class _NavBarState extends State<NavBar> {
                 ],
               );
             }),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _askLink(String label, BoardTokens tokens) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 16),
+      child: InkWell(
+        onTap: _openAsk,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 30),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: tokens.amber,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ),

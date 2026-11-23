@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../ai/ai_api.dart';
+import '../ai/ai_models.dart';
 import '../api/api_client.dart';
 import '../editor/editor_api.dart';
 import '../editor/editor_image_field.dart';
@@ -26,6 +28,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _redirecting = false;
   bool _signingOut = false;
   String? _error;
+  AiStatus? _ai;
+  List<AiEventRow> _events = const <AiEventRow>[];
+  bool _historyLoading = false;
+  bool _historyFailed = false;
 
   @override
   void didChangeDependencies() {
@@ -55,6 +61,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
     await _loadMine(state);
+    await _loadAi(state);
+  }
+
+  ///Assistant state is optional: a deployment without AI answers 404 here and
+  ///the section simply does not render.
+  Future<void> _loadAi(AppState state) async {
+    setState(() => _historyLoading = true);
+    try {
+      final api = AiApi(state.api);
+      final status = await api.status();
+      final events = await api.listEvents(1);
+      if (!mounted) return;
+      setState(() {
+        _ai = status;
+        _events = events.rows;
+        _historyLoading = false;
+        _historyFailed = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _ai = null;
+        _historyLoading = false;
+      });
+    }
+  }
+
+  Future<void> _setCapability(AppState state, String capability) async {
+    try {
+      final saved = await AiApi(state.api).setCapability(capability);
+      if (!mounted) return;
+      setState(() {
+        _ai = AiStatus(
+            enabled: _ai?.enabled ?? true, capability: saved, quota: _ai?.quota ?? const AiQuota());
+      });
+    } catch (_) {
+      if (mounted) setState(() => _error = state.t('common.errorBody'));
+    }
+  }
+
+  Future<void> _deleteConversation(AppState state) async {
+    try {
+      await AiApi(state.api).clearConversation();
+      if (mounted) setState(() {});
+    } catch (_) {
+      if (mounted) setState(() => _error = state.t('common.errorBody'));
+    }
+  }
+
+  Future<void> _clearHistory(AppState state) async {
+    try {
+      await AiApi(state.api).clearEvents();
+      if (mounted) setState(() => _events = const <AiEventRow>[]);
+    } catch (_) {
+      if (mounted) setState(() => _historyFailed = true);
+    }
   }
 
   void _redirectToSignIn() {
@@ -257,6 +319,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 6),
             Text(_error!, style: TextStyle(fontSize: 13, color: tokens.danger)),
           ],
+          if (_ai != null && _ai!.enabled) ...[
+            const SizedBox(height: 16),
+            _aiSection(state, tokens),
+          ],
           const SizedBox(height: 16),
           if (!_checked || _loading)
             Text(state.t('common.loading'), style: TextStyle(fontSize: 13, color: tokens.dim))
@@ -292,6 +358,142 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
+  }
+
+  Widget _aiSection(AppState state, BoardTokens tokens) {
+    final ai = _ai!;
+    final quota = ai.quota;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: tokens.line),
+        borderRadius: BorderRadius.circular(BoardTokens.radius),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(state.t('profile.aiTitle'),
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              Text(state.t('profile.aiUsage', {
+                'used': '${quota.used}',
+                'limit': '${quota.limit}',
+              }), style: TextStyle(fontSize: 12, color: tokens.dim)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(state.t('profile.capability'), style: TextStyle(fontSize: 13, color: tokens.dim)),
+          DropdownButton<String>(
+            isExpanded: true,
+            value: askCapabilities.contains(ai.capability) ? ai.capability : 'read_only',
+            items: [
+              for (final level in askCapabilities)
+                DropdownMenuItem<String>(
+                  value: level,
+                  child: Text(state.t('ask.capability.$level'), overflow: TextOverflow.ellipsis),
+                ),
+            ],
+            onChanged: (value) {
+              if (value != null) _setCapability(state, value);
+            },
+          ),
+          Row(
+            children: [
+              Flexible(
+                child: BoardButton(
+                  label: state.t('profile.deleteConversation'),
+                  onPressed: () => _confirmThen(
+                    state,
+                    state.t('profile.deleteConversationConfirm'),
+                    () => _deleteConversation(state),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(state.t('profile.historyTitle'),
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              if (_events.isNotEmpty)
+                BoardButton(
+                  label: state.t('profile.clearHistory'),
+                  onPressed: () => _confirmThen(
+                    state,
+                    state.t('profile.clearHistoryConfirm'),
+                    () => _clearHistory(state),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          if (_historyLoading)
+            Text(state.t('common.loading'), style: TextStyle(fontSize: 13, color: tokens.dim))
+          else if (_historyFailed)
+            Text(state.t('profile.historyLoadError'),
+                style: TextStyle(fontSize: 13, color: tokens.danger))
+          else if (_events.isEmpty)
+            Text(state.t('profile.historyEmpty'), style: TextStyle(fontSize: 13, color: tokens.dim))
+          else
+            for (final row in _events)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Wrap(
+                  spacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(_shortDate(row.createdAt),
+                        style: TextStyle(fontSize: 12, color: tokens.dim)),
+                    Text(state.t(eventTypeKey(row.type)), style: const TextStyle(fontSize: 13)),
+                    if (row.label(state.locale).isNotEmpty)
+                      InkWell(
+                        onTap: row.canNavigate
+                            ? () => Navigator.pushNamed(
+                                  context,
+                                  row.targetType == 'dish' ? '/dish' : '/ingredient',
+                                  arguments: {
+                                    'dish_id': row.targetId,
+                                    'ingredient_id': row.targetId,
+                                  },
+                                )
+                            : null,
+                        child: Text(row.label(state.locale),
+                            style: TextStyle(
+                                fontSize: 13,
+                                color: row.canNavigate ? tokens.amber : tokens.ink)),
+                      ),
+                  ],
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmThen(AppState state, String question, Future<void> Function() action) async {
+    final agreed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        content: Text(question),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(state.t('common.cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(state.t('common.confirm'))),
+        ],
+      ),
+    );
+    if (agreed == true) await action();
+  }
+
+  String _shortDate(String iso) {
+    if (iso.length < 10) return iso;
+    return iso.substring(0, 10);
   }
 
   Widget _list(AppState state, BoardTokens tokens, String title, List<Map<String, dynamic>> rows, String empty) {
