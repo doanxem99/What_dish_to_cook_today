@@ -13,7 +13,7 @@ Move every runtime and toolchain dependency to its current major, in four verifi
 |---|---|---|
 | A. Web toolchain | vite 6→8, @vitejs/plugin-vue 5→6, vite-plugin-vue-devtools 7→8, pinia 3→4, vue-router 4→5, fontawesome 6→7 | `cd web_ui && npx vitest run` + `npm run build` |
 | B. Server runtime | express 4→5, mongoose 6→9, fs-extra 10→11 | `cd server && npm test` (221) + live smoke |
-| C. Flutter deps | http 1.6, cupertino_icons 2, url_strategy 0.3 | `flutter test` (92), `flutter analyze`, `flutter build web` |
+| C. Flutter deps | http 1.6, url_strategy 0.3; cupertino_icons held at 1.0.8 until Flutter 3.50 | `flutter test` (92), `flutter analyze`, `flutter build web` |
 | D. CI actions | actions/checkout v7, setup-node v7, setup-dotnet v6, fetch-metadata v3 | workflows run green on the PR |
 
 ## Known breakpoints to expect
