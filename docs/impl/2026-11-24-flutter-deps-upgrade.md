@@ -4,7 +4,7 @@ Implements Stage C of [docs/superpowers/plans/2026-11-24-major-upgrades.md](../s
 
 ## Goal
 
-Move `flutter_web_dev` to `http 1.x` and `url_strategy 0.3.x` without changing behavior, hold `cupertino_icons` at `1.0.8` until the Flutter toolchain moves, then rebuild `server/web`.
+Move `flutter_web_dev` to `http 1.x` and `url_strategy 0.3.x` without changing behavior, adopt `cupertino_icons 2.x` on the Flutter 3.50 toolchain, then rebuild `server/web`.
 
 ## Files
 
@@ -21,13 +21,13 @@ No Dart source interface changes. Transport stays `FetchClient` from `fetch_clie
 
 ## Toolchain blocker
 
-`cupertino_icons 2.0.0` declares `environment: sdk: ^3.12.0`. The project runs Flutter 3.32.8 / Dart 3.8.1, and `.github/workflows/ci.yml` pins `flutter-version: 3.32.8`. Resolution fails:
+`cupertino_icons 2.0.0` declares `environment: sdk: ^3.12.0`. The project ran Flutter 3.32.8 / Dart 3.8.1, and `.github/workflows/ci.yml` pinned `flutter-version: 3.32.8`. Resolution failed:
 
 ```
 Because what_dish_to_cook_today depends on cupertino_icons >=1.0.9 which requires SDK version >=3.9.0 <4.0.0, version solving failed.
 ```
 
-Decision taken: ship `http 1.6` and `url_strategy 0.3` now; hold `cupertino_icons` at `^1.0.8` until the toolchain moves.
+Decision taken: ship `http 1.6` and `url_strategy 0.3` now; the toolchain has since moved to Flutter 3.50.1 / Dart 3.14.0, which resolves `cupertino_icons 2.x`.
 
 ## Tasks
 
@@ -42,13 +42,13 @@ Decision taken: ship `http 1.6` and `url_strategy 0.3` now; hold `cupertino_icon
 |---|---|
 | `http` | `0.13.5` → `1.6.0` |
 | `url_strategy` | `0.2.0` → `0.3.0` (pub marks it discontinued) |
-| `cupertino_icons` | `1.0.5` → `1.0.8`, held |
+| `cupertino_icons` | `1.0.5` → `2.0.0` (Flutter 3.50.1) |
 | `fetch_client` | `1.0.2` → `1.2.1` (transitive) |
 | `fetch_api` | `1.0.3` → `2.3.2` (transitive) |
-| `flutter test` | `+92: All tests passed!` |
-| `flutter analyze --no-fatal-infos` | 30 infos, 0 errors, 0 warnings |
-| `flutter build web --base-href /flutter/` | `√ Built build\web`, 28.1s; two pre-existing `index.html` deprecation warnings from the Flutter template |
-| `server/web` | 6 files refreshed; `<base href="/flutter/">` unchanged |
+| `flutter test` | `+92: All tests passed!` on Flutter 3.50.1 |
+| `flutter analyze --no-fatal-infos` | 74 infos, 0 errors, 0 warnings; most are the new 3.47 `material.dart` deprecation |
+| `flutter build web --base-href /flutter/` | `√ Built build\web`, 34.3s; `index.html` template warnings unchanged |
+| `server/web` | Refreshed from `build/web`; `<base href="/flutter/">` unchanged |
 
 ## Verification
 
@@ -65,7 +65,3 @@ git checkout -- windows/flutter     # dropped generated plugin noise
 - `http 1.x` breaks 0.x users in the abstract, but this client only uses `Request`, `send`, `StreamedResponse.stream` and `MockClient`, all present in 1.x.
 - `url_strategy 0.3` is discontinued on pub; it is used only through `setPathUrlStrategy()` in `lib/main.dart`, so it stays until the router work replaces it.
 - `cupertino_icons 1.0.8` ships a different icon font asset, so `server/web/assets/packages/cupertino_icons/assets/CupertinoIcons.ttf` changed.
-
-## Shortcuts
-
-`shortcut: cupertino_icons 2 needs Dart 3.12 / Flutter 3.50; bump the Flutter toolchain first.`
