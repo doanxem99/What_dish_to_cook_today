@@ -2,55 +2,58 @@ version: 2
 
 updates:
   - package-ecosystem: npm
-    directory: /server
-    schedule:
-      interval: weekly
-    groups:
-      server-minor-patch:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
-
-  - package-ecosystem: npm
     directory: /web_ui
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
     groups:
       web-minor-patch:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
+        patterns: ['*']
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: vite
+        update-types: [version-update:semver-major]
+      - dependency-name: vue-router
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: npm
+    directory: /server
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      server-minor-patch:
+        patterns: ['*']
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: express
+        update-types: [version-update:semver-major]
+      - dependency-name: mongoose
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: pub
     directory: /flutter_web_dev
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
     groups:
       flutter-minor-patch:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
+        patterns: ['*']
+        update-types: [minor, patch]
 
   - package-ecosystem: nuget
     directory: /db_control/db_control
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly, day: monday }
     groups:
       db-control-minor-patch:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
+        patterns: ['*']
+        update-types: [minor, patch]
 
   - package-ecosystem: nuget
     directory: /database_control_center/database_control_center
-    schedule:
-      interval: weekly
+    schedule: { interval: weekly, day: monday }
     groups:
-      worker-minor-patch:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
+      console-minor-patch:
+        patterns: ['*']
+        update-types: [minor, patch]
 
   - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: weekly
-    groups:
-      actions-minor-patch:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
+    schedule: { interval: monthly }
