@@ -29,7 +29,7 @@
     "yup": "^1.7.1"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.2.3",
+    "@vitejs/plugin-vue": "^6.0.11",
     "vite": "^6.2.3",
     "vitest": "^5.1.1"
   }
