@@ -83,7 +83,7 @@ const runNextJob = async function(timeoutMs) {
         job = await collections.AdminJob.findOneAndUpdate(
             { status: 'queued' },
             { $set: { status: 'running', started_at: new Date() } },
-            { sort: { created_at: 1 }, new: true }
+            { sort: { created_at: 1 }, returnDocument: 'after' }
         );
     } catch (error) {
         busy = false;

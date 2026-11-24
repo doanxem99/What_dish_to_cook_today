@@ -153,7 +153,7 @@ const createDishPost = async function(_postData) {
                 const res = await database.collections.DishPost.findOneAndUpdate(
                     { unique_id: unique_id }, 
                     newDishPostData,
-                    { new: true }
+                    { returnDocument: 'after' }
                 );
                 appDebug.writeLine(appDebug.DebugType.Comment, "Success edit dish post");
                 return {
@@ -577,7 +577,8 @@ router.delete('/comment/:comment_id', verifyToken, async function(req, res) {
         //Keep the visible comment counter on the dish post in step, floored at zero
         await database.collections.DishPost.updateOne(
             { _id: comment.dish_post_id },
-            [{ $set: { comments: { $max: [0, { $subtract: [{ $ifNull: ["$comments", 0] }, 1] }] } } }]
+            [{ $set: { comments: { $max: [0, { $subtract: [{ $ifNull: ["$comments", 0] }, 1] }] } } }],
+            { updatePipeline: true }
         );
         await auditContent(req, 'comment.delete', 'comment', removed._id, excerptOf(comment.body));
         indexJob.scheduleIfEnabled('dish_post', comment.dish_post_id, req.current_user);
@@ -629,7 +630,7 @@ router.post('/vote/:dish_post_id', verifyToken, async function(req, res) {
                 updated = await database.collections.DishPost.findByIdAndUpdate(
                     req.params.dish_post_id,
                     [{ $set: { points: { $max: [0, { $subtract: [{ $ifNull: ["$points", 0] }, 1] }] } } }],
-                    { new: true }
+                    { returnDocument: 'after', updatePipeline: true }
                 );
             } else {
                 await database.collections.Vote.create({
@@ -640,7 +641,7 @@ router.post('/vote/:dish_post_id', verifyToken, async function(req, res) {
                 updated = await database.collections.DishPost.findByIdAndUpdate(
                     req.params.dish_post_id,
                     { $inc: { points: 1 } },
-                    { new: true }
+                    { returnDocument: 'after' }
                 );
             }
         } catch (err) {

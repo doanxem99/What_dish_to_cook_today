@@ -432,7 +432,7 @@ router.post('/ai/enabled', wrap(async function(req, res) {
                 updated_at: new Date()
             }
         },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
     );
     await audit(req, 'ai.enabled', 'setting', 'ai_enabled', req.body.enabled ? 'AI enabled' : 'AI disabled');
     return res.status(200).send({ enabled: req.body.enabled });
@@ -584,7 +584,7 @@ router.post('/users/:id/role', serializeAdminMutation, wrap(async function(req, 
     const adminRole = await collections.Role.findOneAndUpdate(
         { name: 'admin' },
         { $setOnInsert: { name: 'admin', description: 'Admin role' } },
-        { new: true, upsert: true }
+        { returnDocument: 'after', upsert: true }
     );
     const wasAdmin = isAdmin(user, adminRole._id);
 

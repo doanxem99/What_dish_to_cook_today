@@ -54,7 +54,7 @@ const setMaintenance = async function(enabled, reason, actor, ownerJobId) {
                 updated_at: new Date()
             }
         },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
     );
     cache = { value: Boolean(enabled), at: Date.now() };
     return updated;
