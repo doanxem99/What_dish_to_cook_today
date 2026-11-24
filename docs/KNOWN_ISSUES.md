@@ -80,11 +80,10 @@ can be picked up without re-reading the codebase.
     server/scripts/ai-check.mjs` reports `skipped: no key` without `OPENCODE_API_KEY`. Live
     tool calling against the default base URL is therefore unverified. Run the check once with
     the intended key before launch.
-25. **Flutter's assistant is read-first.** The Ask sheet, inferred goal label with override,
-    streaming, stop, citations, capability, quota and history exist. Two gaps remain: the
-    `select_ingredients` and `start_draft` action cards are not rendered (the server can return
-    them; the cook sees no confirm button), and the sheet has no widget test because the surface
-    is driven by live streams. The history list shows page 1 only (no pager), and the sheet sends no dish_id/pantry_count context. All four are Vue-parity items, not server changes.
+25. **Flutter's assistant has two narrow gaps.** Action cards render and apply, the history pager
+    works, and `pantry_count` now travels with the question. What is missing: the sheet never sends
+    `dish_id` because it opens from the navbar rather than a dish page, and `start_draft` opens the
+    editor without prefilling the draft. Both are small follow-ups, not server work.
 26. **Quota is a UTC day.** `getQuotaStatus` resets at 00:00 UTC, not local midnight, and the
     UI shows the UTC reset time. A user east or west of UTC sees the limit reset mid-day or
     mid-evening.

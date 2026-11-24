@@ -503,6 +503,7 @@ const tidyText = (value) => stripMarkup(value)
     .replace(/\s+(?:at|in|on|from|via|see|here)\s*$/gi, '')
     .replace(/\s{2,}/g, ' ')
     .replace(/\s+([.,!?;:])/g, '$1')
+    .replace(/([.!?])(\p{Lu})/gu, '$1 $2')
     .replace(/([.!?])\s*([.!?])/g, '$1')
     //A dropped sentence leaves the next one starting lowercase.
     .replace(/([.!?])\s+(\p{Ll})/gu, (match, stop, letter) => `${stop} ${letter.toUpperCase()}`)
@@ -561,6 +562,9 @@ const createGroundedStream = ({ toolResults, catalogNames, catalogIngredients, e
         const chunk = tidyText(raw);
         if (!chunk.trim()) return;
         if (META_SENTENCE.test(chunk)) return;
+        //A sentence boundary inside the stream still needs its space, or the
+        //concatenated tokens differ from the persisted text.
+        const out = /[.!?\u2026]$/.test(chunk) ? `${chunk} ` : chunk;
         const { shortlist, allowed, catalog, catalogKnown, catalogPhrases } = collectGrounding(toolResults, catalogNames, catalogIngredients);
         const removed = ungroundedMentions(chunk, allowed, catalog, catalogKnown, catalogPhrases);
         if (removed.length > 0) {
@@ -573,8 +577,8 @@ const createGroundedStream = ({ toolResults, catalogNames, catalogIngredients, e
             }
             return;
         }
-        emitted += chunk;
-        emitToken(chunk);
+        emitted += out;
+        emitToken(out);
     };
 
     const boundary = () => {

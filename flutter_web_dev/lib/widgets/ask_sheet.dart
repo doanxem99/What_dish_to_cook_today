@@ -126,6 +126,7 @@ class _AskSheetState extends State<AskSheet> {
         locale: _state.locale,
         capability: _capability,
         mode: overrideMode,
+        pantryCount: _state.basket.length,
         cancel: token,
         onEvent: (event) {
           if (!mounted) return;
@@ -141,6 +142,10 @@ class _AskSheetState extends State<AskSheet> {
                 if (citations is List) {
                   assistant.citations = mergeCitations(
                       assistant.citations, citations.map(AiCitation.fromJson).toList());
+                }
+                final action = event.data['action'];
+                if (action is Map) {
+                  assistant.actions = [...assistant.actions, AiClientAction.fromJson(action)];
                 }
                 assistant.tools = [
                   ...assistant.tools,
@@ -334,6 +339,9 @@ class _AskSheetState extends State<AskSheet> {
                 ],
               ),
             ),
+          if (!isUser && message.actions.isNotEmpty)
+            for (var a = 0; a < message.actions.length; a += 1)
+              _actionCard(theme, message, a),
           if (!isUser && message.stopped)
             Padding(
               padding: const EdgeInsets.only(top: 6),
@@ -347,6 +355,84 @@ class _AskSheetState extends State<AskSheet> {
         ],
       ),
     );
+  }
+
+  Widget _actionCard(ThemeData theme, AiChatMessage message, int index) {
+    final action = message.actions[index];
+    final names = action.items.map((item) => item.label(_state.locale)).join(', ');
+    final isSelect = action.type == 'select_ingredients';
+    final title = isSelect
+        ? t('ask.selectTitle')
+        : action.type == 'start_draft'
+            ? t('ask.draftTitle')
+            : t('ask.tool.generic');
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.dividerColor),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: theme.textTheme.labelLarge),
+          if (isSelect && names.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(names, style: theme.textTheme.bodySmall),
+            ),
+          if (!isSelect && action.prefillName.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(action.prefillName, style: theme.textTheme.bodySmall),
+            ),
+          const SizedBox(height: 6),
+          if (action.applied)
+            Text(t('ask.applied'), style: theme.textTheme.bodySmall)
+          else
+            Wrap(
+              spacing: 8,
+              children: [
+                if (isSelect && action.items.isNotEmpty)
+                  FilledButton.tonal(
+                    onPressed: () => _applyIngredients(message, index),
+                    child: Text(t('ask.applyIngredients')),
+                  ),
+                if (!isSelect)
+                  FilledButton.tonal(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/dish-edit');
+                    },
+                    child: Text(t('ask.openDraft')),
+                  ),
+                TextButton(
+                  onPressed: () => setState(() {
+                    final next = [...message.actions];
+                    next.removeAt(index);
+                    message.actions = next;
+                  }),
+                  child: Text(t('ask.dismiss')),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _applyIngredients(AiChatMessage message, int index) {
+    for (final item in message.actions[index].items) {
+      if (!_state.isChosen(item.id)) {
+        _state.toggleIngredient(item);
+      }
+    }
+    setState(() {
+      final next = [...message.actions];
+      next[index] = next[index].markApplied();
+      message.actions = next;
+    });
   }
 
   Widget _goalChip(ThemeData theme, AiChatMessage message, int index) {
