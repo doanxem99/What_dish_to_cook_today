@@ -117,7 +117,7 @@ const reserveQuota = async (user, config) => {
     const bump = () => collections.AiQuota.findOneAndUpdate(
         { user_id: user._id, day },
         { $inc: { reserved: 1 }, $setOnInsert: { created_at: new Date() } },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
     );
     let doc;
     try {

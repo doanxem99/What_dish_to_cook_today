@@ -159,7 +159,7 @@ const promoteAdmin = async function(username = default_admin_username()) {
             roles[seed.name] = await database.collections.Role.findOneAndUpdate(
                 { name: seed.name },
                 { $setOnInsert: seed },
-                { new: true, upsert: true }
+                { returnDocument: 'after', upsert: true }
             );
         }
         const user = await database.collections.User.findOne({

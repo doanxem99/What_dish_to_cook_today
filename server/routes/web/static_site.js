@@ -9,7 +9,7 @@ const createStaticSite = function({ vueRoot, flutterRoot }) {
     router.use('/flutter', express.static(flutterRoot));
 
     //The Flutter client uses path routing, so a deep link must load its shell for HTML navigations
-    router.get(['/flutter', '/flutter/*'], function(req, res, next) {
+    router.get(['/flutter', '/flutter/*splat'], function(req, res, next) {
         const requestPath = '/' + req.path.replace(/^\/+/, '');
         if (path.extname(requestPath) !== '' || !req.accepts('html')) {
             return next();
@@ -22,14 +22,15 @@ const createStaticSite = function({ vueRoot, flutterRoot }) {
     });
 
     //The Flutter build used to live at /web
-    router.get(['/web', '/web/*'], function(req, res) {
+    router.get(['/web', '/web/*splat'], function(req, res) {
         res.redirect(301, '/flutter/');
     });
 
     router.use(express.static(vueRoot));
 
     //Only a browser navigation may receive the app shell; assets that are missing stay 404
-    router.get('*', function(req, res, next) {
+    //Express 5 needs a named splat; the braces also match the root path
+    router.get('/{*splat}', function(req, res, next) {
         const requestPath = '/' + req.path.replace(/^\/+/, '');
         if (requestPath.startsWith('/api') || requestPath.startsWith('/public')) {
             return next();

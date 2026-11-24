@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/what_dish_to_cook_today?directConnection=true';
+//Mongoose 7+ defaults this to false; keep the 6.x behavior of dropping unknown filter paths
+mongoose.set('strictQuery', true);
 mongoose
     .connect(MONGO_URI, {
         //Fail fast instead of buffering requests forever when the database is down

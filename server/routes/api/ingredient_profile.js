@@ -140,7 +140,7 @@ const createIngredientPost = async function(_postData)
                 const _res = await database.collections.IngredientPost.findOneAndUpdate(
                     { unique_id: unique_id },
                     newIngredientPostData,
-                    { new: true }
+                    { returnDocument: 'after' }
                 );
     
                 appDebug.writeLine(appDebug.DebugType.Comment, "Success edit ingredient post");

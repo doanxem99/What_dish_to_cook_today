@@ -260,7 +260,7 @@ const syncTarget = async ({ targetType, targetId, embedFn, model }) => {
                     updated_at: new Date()
                 }
             },
-            { upsert: true, new: true }
+            { upsert: true, returnDocument: 'after' }
         );
         embedded += 1;
     }

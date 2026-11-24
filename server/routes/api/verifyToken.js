@@ -20,6 +20,8 @@ const verifyToken = async function (req, res, next) {
                 else resolve(decoded);
             });
         });
+        //Express 5 leaves req.body undefined on a request without a body
+        req.body = req.body || {};
         // Set userId from decoded token
         req.body.userid = decoded.id;
         
