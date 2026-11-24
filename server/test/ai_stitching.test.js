@@ -17,6 +17,16 @@ test('a stripped dish link leaves no dangling connector', () => {
     assert.ok(/Add an egg on top\./.test(out.text), out.text);
 });
 
+test('a sentence glued to the next one gets its space back', () => {
+    const out = enforceGrounding(
+        'Your chicken fits Lemongrass chicken.Available from the catalog: Lemongrass chicken.',
+        results,
+        catalog,
+        []
+    );
+    assert.ok(/chicken\. Available/.test(out.text), out.text);
+});
+
 test('a dropped sentence does not leave a lowercase start or double space', () => {
     const out = enforceGrounding(
         'Egg fried rice works. Poison Soup is better. use it tonight.',

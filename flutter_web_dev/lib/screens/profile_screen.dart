@@ -30,6 +30,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _error;
   AiStatus? _ai;
   List<AiEventRow> _events = const <AiEventRow>[];
+  int _eventPage = 1;
+  int _eventTotal = 0;
   bool _historyLoading = false;
   bool _historyFailed = false;
 
@@ -76,6 +78,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _ai = status;
         _events = events.rows;
+        _eventPage = events.page;
+        _eventTotal = events.total;
         _historyLoading = false;
         _historyFailed = false;
       });
@@ -107,6 +111,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) setState(() {});
     } catch (_) {
       if (mounted) setState(() => _error = state.t('common.errorBody'));
+    }
+  }
+
+  Future<void> _loadEventsPage(AppState state, int page) async {
+    setState(() => _historyLoading = true);
+    try {
+      final events = await AiApi(state.api).listEvents(page);
+      if (!mounted) return;
+      setState(() {
+        _events = events.rows;
+        _eventPage = events.page;
+        _eventTotal = events.total;
+        _historyLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() {
+        _historyLoading = false;
+        _historyFailed = true;
+      });
     }
   }
 
@@ -472,6 +495,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
+          if (_eventTotal > 25)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  BoardButton(
+                    label: state.t('profile.prev'),
+                    onPressed: _eventPage > 1 && !_historyLoading
+                        ? () => _loadEventsPage(state, _eventPage - 1)
+                        : null,
+                  ),
+                  const SizedBox(width: 8),
+                  Text('${state.t('profile.page')} $_eventPage',
+                      style: TextStyle(fontSize: 12, color: tokens.dim)),
+                  const SizedBox(width: 8),
+                  BoardButton(
+                    label: state.t('profile.next'),
+                    onPressed: _eventPage * 25 < _eventTotal && !_historyLoading
+                        ? () => _loadEventsPage(state, _eventPage + 1)
+                        : null,
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -535,3 +582,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
+

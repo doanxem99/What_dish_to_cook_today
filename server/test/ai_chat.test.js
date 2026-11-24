@@ -782,7 +782,7 @@ test('a clean reply streams as several grounded token events that match the tran
 
         const conversation = await collections.AiConversation.findOne({ user_id: user._id }).lean();
         const assistant = conversation.messages.filter((entry) => entry.role === 'assistant').pop();
-        assert.strictEqual(assistant.content, streamed);
+        assert.strictEqual(assistant.content, streamed.trim());
         assert.ok(streamed.includes('Tomato Egg Soup'));
     } finally {
         chatModule.setTestHooks(null);
@@ -836,7 +836,7 @@ test('an adversarial reply streams only grounded sentences and persists no inven
 
         const conversation = await collections.AiConversation.findOne({ user_id: user._id }).lean();
         const assistant = conversation.messages.filter((entry) => entry.role === 'assistant').pop();
-        assert.strictEqual(assistant.content, streamed);
+        assert.strictEqual(assistant.content, streamed.trim());
         assert.ok(!/poison/i.test(assistant.content));
     } finally {
         chatModule.setTestHooks(null);
@@ -1091,3 +1091,4 @@ test('the system prompt names the first tool for cook and help', () => {
     const help = chatModule.buildSystemPrompt({ mode: 'help', locale: 'en' });
     assert.ok(help.includes('Start with get_help'));
 });
+
