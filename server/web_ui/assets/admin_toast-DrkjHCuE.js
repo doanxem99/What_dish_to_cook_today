@@ -1,0 +1,1 @@
+import{R as e}from"./i18n-vyqtuw_x.js";var t=e([]),n=0;function r(e,r=`ok`){if(!e)return;let a=++n;t.value.push({id:a,text:e,kind:r}),setTimeout(()=>i(a),6e3)}function i(e){t.value=t.value.filter(t=>t.id!==e)}function a(){return{items:t,dismiss:i}}export{a as n,r as t};

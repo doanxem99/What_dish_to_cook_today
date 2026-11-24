@@ -1,0 +1,1 @@
+var e=`/`,t={serverUrl:e.endsWith(`/`)?e:`//`,getFullPath:function(e){return e?this.serverUrl+e.replace(/\\/g,`/`):``},getImage:function(e,t){return e?this.getFullPath(e):this.serverUrl+`pictures/defaults/`+(t===`ingredient`?`ingredient`:`dish`)+`.png`}};export{t};

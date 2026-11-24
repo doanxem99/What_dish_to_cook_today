@@ -151,14 +151,15 @@ router.afterEach((to) => {
   document.title = key ? `${t(key)} · ${t('common.appName')}` : t('common.appName')
 })
 
-router.beforeEach((to, from, next) => {
+//vue-router 5 deprecates the next() callback: the guard returns its decision instead.
+router.beforeEach((to) => {
   const auth = useAuthStore()
   const decision = guardDecision(
     { isLogin: auth.isLogin, isAdmin: auth.isAdmin, mustChange: auth.mustChange },
     to
   )
   if (decision === 'allow' || decision === 'forbidden') {
-    return next()
+    return true
   }
   if (decision.remember) {
     auth.jumpPage = to.fullPath
@@ -168,9 +169,9 @@ router.beforeEach((to, from, next) => {
     auth.jumpPage = to.fullPath
   }
   if (decision.redirect === '/signin') {
-    return next({ path: '/signin', replace: true })
+    return { path: '/signin', replace: true }
   }
-  return next(decision.redirect)
+  return decision.redirect
 })
 
 export default router
