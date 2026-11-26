@@ -45,6 +45,11 @@ const router = createRouter({
       component: () => import('../views/dish_detail_view.vue')
     },
     {
+      path: '/cook/:dishId',
+      name: 'cook',
+      component: () => import('../views/cook_view.vue')
+    },
+    {
       path: '/dish_edit',
       name: 'dish_edit',
       component: () => import('../views/dish_edit_view.vue')

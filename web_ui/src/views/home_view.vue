@@ -4,10 +4,12 @@ import { aiApi, askAvailable, ensureAskAvailable } from '../api/ai'
 import { useI18n } from '../i18n'
 import { usePantryStore } from '../assets/store/pantry_store'
 import { useAuthStore } from '../assets/store/auth_store'
+import forYouStrip from '../components/for_you_strip.vue'
 
 const TYPES = ['Food', 'Spice', 'Fruit', 'Other']
 
 export default {
+  components: { forYouStrip },
   data() {
     return {
       q: '',
@@ -127,6 +129,8 @@ export default {
   <section class="board py-6">
     <h1 class="board-title">{{ t('home.title') }}</h1>
     <p class="board-sub measure">{{ t('home.subtitle') }}</p>
+
+    <forYouStrip />
 
     <div class="grid gap-4 mt-4 lg:grid-cols-3">
       <div class="lg:col-span-2 ruled p-4">
