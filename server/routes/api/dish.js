@@ -6,6 +6,7 @@ router.get('/', function(req, res, next){
 });
 
 router.use('/profile', require('./dish_profile'));
+router.use('/suggestions', require('./dish_suggestions'));
 router.use('/search', require('./dish_search'));
 router.use('/selection', require('./dish_selection'));
 

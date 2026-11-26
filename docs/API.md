@@ -38,6 +38,20 @@ and the server overwrites the user id from the token.
 | GET | `/ingredients/:ids` | same, `ids` = Mongo ids joined with `-` |
 | GET | `/homemade` | `{isSuccess, data:[preview]}` — best posts whose author is neither the seed admin nor `unknow` |
 
+### Suggestions — `/api/dish/suggestions`
+
+| Method | Path | Query | Answer |
+|---|---|---|---|
+| GET | `/` (auth) | `ingredients` = Mongo ingredient ids joined with `,`; `limit` 1–5, default 3 | `{rows:[{dish_id, name, name_vi, image, servings, score, reasons}]}` |
+
+Candidates are dishes whose best post uses at least one pantry ingredient. `score` =
+`2 * matched ingredients + 3 (cooked in the last 90 days) + 1 (any of its ingredients picked
+recently) + 0.1 * post points`. `reasons` is a subset of `matches_pantry`, `cooked_before`,
+`picked_before`, `popular` (top third of candidate points, never a zero-point dish), in that
+order. Rows sort by score, then points, then name. 400 for an ingredient id that is not an
+ObjectId, 401 without a session; a missing or empty pantry answers `{rows: []}`. Ids that are
+well formed but unknown are ignored. No model call.
+
 ### Profile — `/api/dish/profile`
 
 | Method | Path | Body | Answer |
