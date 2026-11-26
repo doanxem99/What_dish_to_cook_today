@@ -220,6 +220,11 @@ export default {
                 :disabled="cooked"
                 @click="markCooked"
               >{{ cooked ? t('dish.cookedToday') : t('dish.cookAction') }}</button>
+              <router-link
+                v-if="dishId"
+                class="btn sm:mt-2"
+                :to="`/cook/${dishId}`"
+              >{{ t('cook.startCooking') }}</router-link>
             </div>
             <p v-if="voteError" class="text-xs mt-2" role="alert" style="color: var(--board-danger)">{{ t('common.errorBody') }}</p>
             <p v-if="cookedError" class="text-xs mt-2" role="alert" style="color: var(--board-danger)">{{ t('common.errorBody') }}</p>
